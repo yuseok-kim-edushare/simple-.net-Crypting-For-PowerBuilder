@@ -27,7 +27,7 @@ For Example
   
 ## Milestone
 - 🌧️Create .NET 4.8.1 DLL for Powerbuilder
-  -✅ AES-256-CBC with .NET Framework Native API
+  - ✅ AES-256-CBC with .NET Framework Native API
     - this isn't needed job but practice for me
   - AES-GCM with using Windows's CGN API DLL
   - 🌧️ Diffie Helman with using .NET Framework native api
