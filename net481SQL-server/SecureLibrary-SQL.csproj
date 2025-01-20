@@ -40,9 +40,12 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.SqlClient" />
-    <Reference Include="Microsoft.SqlServer.Smo" />
-    <Reference Include="Microsoft.SqlServer.SqlClrProvider" />
+    <Reference Include="Microsoft.Data.SqlClient" >
+      <HintPath>packages\Microsoft.Data.SqlClient.5.2.2\lib\net462\Microsoft.Data.SqlClient.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.SqlServer.Server" >
+      <HintPath>packages\Microsoft.SqlServer.Server.1.0.0\lib\net46\Microsoft.SqlServer.Server.dll</HintPath>
+    </Reference>
     <Reference Include="NUnit" >
       <HintPath>packages\NUnit.4.1.0\lib\net462\nunit.framework.dll</HintPath>
     </Reference>
