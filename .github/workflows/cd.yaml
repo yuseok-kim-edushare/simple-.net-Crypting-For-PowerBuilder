@@ -32,10 +32,12 @@ jobs:
           ${{ runner.os }}-nuget-
 
     - name: Restore dependencies
-      run: nuget restore
+      run: nuget restore -PackagesDirectory .\packages
 
     - name: Copy dependencies
-      run: Copy-Item -Path .\packages -Destination .\net481pb -Recurse
+      run: run: |
+        Copy-Item -Path .\packages -Destination .\net481pb -Recurse
+        Copy-Item -Path .\packages -Destination .\net481SQL-server -Recurse
 
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v2
