@@ -34,7 +34,7 @@ jobs:
       uses: microsoft/setup-msbuild@v2
     
     - name: Build solution
-      run: msbuild \net481PB /p:Configuration=Release
+      run: msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
 
     - name: Install NUnit Console Runner
       run: nuget install NUnit.ConsoleRunner -Version 3.19.1 -OutputDirectory testrunner
