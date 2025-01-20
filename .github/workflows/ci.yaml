@@ -26,7 +26,7 @@ jobs:
       run: nuget restore -PackagesDirectory .\packages
 
     - name: Copy dependencies
-      run: run: |
+      run: |
         Copy-Item -Path .\packages -Destination .\net481pb -Recurse
         Copy-Item -Path .\packages -Destination .\net481SQL-server -Recurse
 
