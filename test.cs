@@ -51,8 +51,8 @@ namespace SecureLibrary.Tests
             // Assert
             Assert.That(!keys.Equals(null));
             Assert.That(keys.Length.Equals(2));
-            Assert.That(keys[0].Equals(null)); // Public key
-            Assert.That(keys[1].Equals(null)); // Private key
+            Assert.That(!keys[0].Equals(null)); // Public key
+            Assert.That(!keys[1].Equals(null)); // Private key
         }
         
         [Test]
