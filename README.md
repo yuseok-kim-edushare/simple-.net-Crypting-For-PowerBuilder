@@ -20,10 +20,15 @@ For Example
 - Target Frameworks
   - .NET Framework 4.8.1
     - This is ensure Cross compatibility between PB versions
+    - Also for SQL Server Assembly
   - .NET 8
     - This is for Powerbuilder 2022 R3 Latest or 2025
 - Implemented Methods
-  - Not yet
+  - AES-256-CBC
+    - This is for basic symmetric encryption
+  - Bcrypt Password Hashing
+    - This is for secure password hashing
+
   
 ## Milestone
 - 🌧️Create .NET 4.8.1 DLL for Powerbuilder
@@ -36,10 +41,10 @@ For Example
   - 🌧️AES-GCM with using Windows's CGN API DLL
   - Diffie Helman with using .NET Framework native api
   - 🌧️Bcrypt Password hashing with Bcrypt.NET-NEXT Project
-- Create .NET 8 DLL for Powerbuilder
-  - AES-GCM and DH with .NET native api
-  - Bcrypt Password hashing with Bcrypt.NET-NEXT
-- Make Example code and app for user
+- 🌧️ Create .NET 8 DLL for Powerbuilder
+  - 🌧️ AES-GCM and DH with .NET native api
+  - 🌧️ Bcrypt Password hashing with Bcrypt.NET-NEXT
+- 🌧️ Make Example code and app for user
   - 🌧️Powerbuilder with .NET 4.8.1 DLL
-  - MS-SQL with .NET 4.8.1 DLL
+  - 🌧️ MS-SQL with .NET 4.8.1 DLL
   - Powerbuilder with .NET 8 DLL
