@@ -25,14 +25,17 @@ jobs:
     - name: Restore dependencies
       run: nuget restore
 
+    - name: Copy dependencies
+      run: Copy-Item -Path .\packages -Destination .\net481pb -Recurse
+
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v2
     
     - name: Build solution
-      run: msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
+      run: msbuild \net481PB /p:Configuration=Release
 
     - name: Install NUnit Console Runner
       run: nuget install NUnit.ConsoleRunner -Version 3.19.1 -OutputDirectory testrunner
 
     - name: Run Tests
-      run: .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\bin\Release\SecureLibrary.dll
+      run: .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\bin\Release\SecureLibrary.dll

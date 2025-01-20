@@ -34,6 +34,9 @@ jobs:
     - name: Restore dependencies
       run: nuget restore
 
+    - name: Copy dependencies
+      run: Copy-Item -Path .\packages -Destination .\net481pb -Recurse
+
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v2
     
@@ -41,7 +44,7 @@ jobs:
       run: msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
 
     - name: release zip make
-      run: Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\bin\Release\*.dll" -DestinationPath "Release.NET 4.8.zip"
+      run: Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\bin\Release\*.dll" -DestinationPath "Release.NET 4.8 PB.zip"
     
     - name: Get latest release version and Generate release notes
       id: get_latest_release
@@ -68,7 +71,7 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        files: "Release.NET 4.8.zip"
+        files: "Release.NET 4.8 PB.zip"
         tag_name: ${{ env.new_release }}
         name: ${{ env.new_release }}
         body: ${{ env.release_notes }}
