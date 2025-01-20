@@ -55,8 +55,8 @@ destroy(this.sle_raw)
 end on
 
 type cb_1 from commandbutton within w_bcrypt
-integer x = 786
-integer y = 1072
+integer x = 773
+integer y = 1416
 integer width = 457
 integer height = 132
 integer taborder = 20
@@ -73,8 +73,16 @@ event clicked;messagebox("debug", sle_raw.text)
 nvo_encryptionhelper l_nvo_encryption_helper
 l_nvo_encryption_helper = create nvo_encryptionhelper
 sle_encrypted.text = l_nvo_encryption_helper.of_bcryptencoding( sle_raw.text )
-messagebox("debug",l_nvo_encryption_helper.is_errortext)
 messagebox("debug", sle_encrypted.text)
+boolean lb_result
+lb_result = l_nvo_encryption_helper.of_verifybcryptpassword(sle_raw.text, sle_encrypted.text)
+if lb_result  then
+	messagebox("debug", "Login Password Matched")
+else
+	messagebox("debug", "Wrong Password")
+	sle_raw.text = ""
+	sle_encrypted.text = ""
+end if
 end event
 
 type st_2 from statictext within w_bcrypt
