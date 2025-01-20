@@ -1,5 +1,5 @@
 using NUnit.Framework;
-using SecureLibrary.SQLCLR;
+using SecureLibrary.SQL;
 using System;
 using System.Data.SqlTypes;
 

@@ -54,6 +54,7 @@
   <ItemGroup>
     <Compile Include="draft.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="test.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next">

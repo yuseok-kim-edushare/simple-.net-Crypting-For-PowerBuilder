@@ -10,7 +10,7 @@ using System.Security;
 [assembly: AllowPartiallyTrustedCallers]
 [assembly: SecurityRules(SecurityRuleSet.Level2)]
 
-namespace SecureLibrary.SQLCLR
+namespace SecureLibrary.SQL
 {
     [SqlUserDefinedType(Format.Native)]
     public class SqlCLRCrypting
