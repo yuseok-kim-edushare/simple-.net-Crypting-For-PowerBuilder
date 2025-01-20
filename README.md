@@ -32,10 +32,10 @@ For Example
   - AES-GCM with using Windows's CGN API DLL
   - 🌧️ Diffie Helman with using .NET Framework native api
   - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT Project
-- Create .NET 4.8.1 DLL for MS SQL Server
-  - AES-GCM with using Windows's CGN API DLL
+- 🌧️Create .NET 4.8.1 DLL for MS SQL Server
+  - 🌧️AES-GCM with using Windows's CGN API DLL
   - Diffie Helman with using .NET Framework native api
-  - Bcrypt Password hashing with Bcrypt.NET-NEXT Project
+  - 🌧️Bcrypt Password hashing with Bcrypt.NET-NEXT Project
 - Create .NET 8 DLL for Powerbuilder
   - AES-GCM and DH with .NET native api
   - Bcrypt Password hashing with Bcrypt.NET-NEXT
