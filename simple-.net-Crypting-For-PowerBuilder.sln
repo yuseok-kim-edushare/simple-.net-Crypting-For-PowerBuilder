@@ -1,41 +1,40 @@
-﻿Microsoft Visual Studio Solution File, Format Version 12.00
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureLibrary-481-PB", "net481PB\SecureLibrary-PB.csproj", "{5D7B002D-21FD-4695-8D4E-86EDD1F01213}"
-    ProjectSection(ProjectConfigurations) = postProject
-        Release|Any CPU.ActiveCfg = Release|Any CPU
-        Release|Any CPU.Build.0 = Release|Any CPU
-        Debug|Any CPU.ActiveCfg = Debug|Any CPU
-        Debug|Any CPU.Build.0 = Debug|Any CPU
-    EndProjectSection
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureLibrary-PB", "net481PB\SecureLibrary-PB.csproj", "{5D7B002D-21FD-4695-8D4E-86EDD1F01213}"
+	ProjectSection(ProjectConfigurations) = postProject
+		        Release|Any CPU.ActiveCfg = Release|Any CPU
+		        Release|Any CPU.Build.0 = Release|Any CPU
+		        Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		        Debug|Any CPU.Build.0 = Debug|Any CPU
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureLibrary-481-SQL", "net481SQL-server\SecureLibrary-SQL.csproj", "{5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}"
-    ProjectSection(ProjectConfigurations) = postProject
-        Release|Any CPU.ActiveCfg = Release|Any CPU
-        Release|Any CPU.Build.0 = Release|Any CPU
-        Debug|Any CPU.ActiveCfg = Debug|Any CPU
-        Debug|Any CPU.Build.0 = Debug|Any CPU
-    EndProjectSection
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureLibrary-SQL", "net481SQL-server\SecureLibrary-SQL.csproj", "{5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}"
+	ProjectSection(ProjectConfigurations) = postProject
+		        Release|Any CPU.ActiveCfg = Release|Any CPU
+		        Release|Any CPU.Build.0 = Release|Any CPU
+		        Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		        Debug|Any CPU.Build.0 = Debug|Any CPU
+	EndProjectSection
 EndProject
-
 Global
-    GlobalSection(SolutionConfigurationPlatforms) = preSolution
-        Debug|Any CPU = Debug|Any CPU
-        Release|Any CPU = Release|Any CPU
-    EndGlobalSection
-    GlobalSection(SolutionProperties) = preSolution
-        HideSolutionNode = FALSE
-    EndGlobalSection
-    GlobalSection(ProjectConfigurationPlatforms) = postSolution
-        {5D7B002D-21FD-4695-8D4E-86EDD1F01213}.Release|Any CPU.ActiveCfg = Release|Any CPU
-        {5D7B002D-21FD-4695-8D4E-86EDD1F01213}.Release|Any CPU.Build.0 = Release|Any CPU
-        {5D7B002D-21FD-4695-8D4E-86EDD1F01213}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-        {5D7B002D-21FD-4695-8D4E-86EDD1F01213}.Debug|Any CPU.Build.0 = Debug|Any CPU
-        {5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-        {5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}.Release|Any CPU.Build.0 = Release|Any CPU
-        {5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-        {5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-    EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5D7B002D-21FD-4695-8D4E-86EDD1F01213}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D7B002D-21FD-4695-8D4E-86EDD1F01213}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D7B002D-21FD-4695-8D4E-86EDD1F01213}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D7B002D-21FD-4695-8D4E-86EDD1F01213}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
 EndGlobal
