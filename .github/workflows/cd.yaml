@@ -47,8 +47,8 @@ jobs:
 
     - name: release zip make
       run: |
-        Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\bin\Release\*.dll" -DestinationPath "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\Release.NET 4.8 PB.zip"
-        Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481SQL-server\bin\Release\*.dll" -DestinationPath "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\Release.NET 4.8 SQL.zip"
+          Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\bin\Release\*.dll" -DestinationPath "Release.NET 4.8 PB.zip"
+          Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481SQL-server\bin\Release\*.dll" -DestinationPath "Release.NET 4.8 SQL.zip"
     
     - name: Get latest release version and Generate release notes
       id: get_latest_release
@@ -76,8 +76,8 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: |
-            "D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET 4.8 PB.zip"
-            "D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET 4.8 SQL.zip"
+            "Release.NET 4.8 PB.zip"
+            "Release.NET 4.8 SQL.zip"
         tag_name: ${{ env.new_release }}
         name: ${{ env.new_release }}
         body: ${{ env.release_notes }}
