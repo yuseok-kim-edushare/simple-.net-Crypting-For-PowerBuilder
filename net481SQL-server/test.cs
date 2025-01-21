@@ -3,7 +3,7 @@ using SecureLibrary.SQL;
 using System;
 using System.Data.SqlTypes;
 
-namespace SecureLibrary.Tests
+namespace SecureLibrary.SQL.Tests
 {
     [TestFixture]
     public class SqlCLRCryptingTests
