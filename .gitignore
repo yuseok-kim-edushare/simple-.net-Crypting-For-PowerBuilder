@@ -403,3 +403,9 @@ FodyWeavers.xsd
 
 # Appeon Powerbuilder / SnapDevelope specific
 /.sd
+
+# lagacy package.config
+/net481PB/packages.config
+/net481SQL-server/packages.config
+net481PB/packages.config
+net481SQL-server/packages.config
