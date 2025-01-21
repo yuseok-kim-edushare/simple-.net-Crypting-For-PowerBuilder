@@ -4,14 +4,18 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{5D7B002D-21FD-4695-8D4E-86EDD1F01213}</ProjectGuid>
+    <ProjectGuid>{5C29D294-FE68-4ED6-9D6D-BFCDE60D06C9}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SecureLibrary</RootNamespace>
-    <AssemblyName>SecureLibrary</AssemblyName>
+    <RootNamespace>SecureLibrary.SQL</RootNamespace>
+    <AssemblyName>SecureLibrary.SQL</AssemblyName>
     <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+    <IsTestProject>true</IsTestProject>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -32,37 +36,22 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="NUnit" >
-      <HintPath>packages\NUnit.4.1.0\lib\net462\nunit.framework.dll</HintPath>
-    </Reference>
-    <Reference Include="NUnit3TestAdapter" >
-      <HintPath>packages\NUnit3TestAdapter.4.6.0\build\net462\NUnit3.TestAdapter.dll</HintPath>
-    </Reference>
-    <Reference Include="BCrypt.Net-Next, Version=4.0.3.0, Culture=neutral, PublicKeyToken=1e11be04b6288443, processorArchitecture=MSIL">
-      <HintPath>packages\BCrypt.Net-Next.4.0.3\lib\net48\BCrypt.Net-Next.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
-    <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
-    </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.Memory.4.5.4\lib\net461\System.Memory.dll</HintPath>
     </Reference>
     <Reference Include="System.Numerics" />
-    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
-    </Reference>
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.4.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>packages\System.Runtime.CompilerServices.Unsafe.4.5.3\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="draft.cs" />
@@ -70,18 +59,27 @@
     <Compile Include="test.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include=".gitignore" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="LICENSE" />
-    <None Include="packages.config" />
-    <None Include="README.md" />
-    <None Include=".github\dependabot.yaml" />
-    <None Include=".github\workflows\ci.yaml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include=".github\" />
-    <Folder Include=".github\workflows" />
+    <PackageReference Include="BCrypt.Net-Next">
+      <Version>4.0.3</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Data.SqlClient">
+      <Version>5.2.2</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.SqlServer.Server">
+      <Version>1.0.0</Version>
+    </PackageReference>
+    <PackageReference Include="NUnit">
+      <Version>4.1.0</Version>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <Version>4.6.0</Version>
+    </PackageReference>
+    <PackageReference Include="System.Data.SqlClient">
+      <Version>4.9.0</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk">
+      <Version>17.8.0</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

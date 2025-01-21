@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -11,35 +11,36 @@ namespace SecureLibrary
     [ClassInterface(ClassInterfaceType.None)]
     public class EncryptionHelper
     {
-        //// this section for Symmetric Encryption with AES GCM mode
-        /// AES-GCM not suported in .NET Framework 4.8.1 (will implement in .NET version DLL)
-        //public static byte[] EncryptAesGcm(string plainText, byte[] key, byte[] nonce)
-        //{
-        //    using (AesGcm aesGcm = new AesGcm(key))
-        //    {
-        //        byte[] encryptedData = new byte[plainText.Length];
-        //        byte[] tag = new byte[32]; // 256-bit tag
-        //        aesGcm.Encrypt(nonce, Encoding.UTF8.GetBytes(plainText), encryptedData, tag);
-        //        return Combine(encryptedData, tag);
-        //    }
-        //}
-        //public static string DecryptAesGcm(byte[] cipherText, byte[] key, byte[] nonce)
-        //{
-        //    using (AesGcm aesGcm = new AesGcm(key))
-        //    {
-        //        byte[] tag = new byte[32];
-        //        byte[] encryptedData = new byte[cipherText.Length - 32];
-        //        Array.Copy(cipherText, encryptedData, encryptedData.Length);
-        //        Array.Copy(cipherText, encryptedData.Length, tag, 0, tag.Length);
-        //        byte[] decryptedData = new byte[encryptedData.Length];
-        //        aesGcm.Decrypt(nonce, encryptedData, tag, decryptedData);
-        //        return Encoding.UTF8.GetString(decryptedData);
-        //    }
-        //}
+        // this section for Symmetric Encryption with AES GCM mode
+        // AES-GCM not suported in .NET Framework 4.8.1 (will implement in .NET version DLL)
+        public static byte[] EncryptAesGcm(string plainText, byte[] key, byte[] nonce)
+        {
+            using (var aesGcm = new AesGcm(key, 32))
+            {
+                byte[] encryptedData = new byte[plainText.Length];
+                byte[] tag = new byte[32]; // 256-bit tag
+                aesGcm.Encrypt(nonce, Encoding.UTF8.GetBytes(plainText), encryptedData, tag);
+                return Combine(encryptedData, tag);
+            }
+        }
+        public static string DecryptAesGcm(byte[] cipherText, byte[] key, byte[] nonce)
+        {
+            using (var aesGcm = new AesGcm(key, 32))
+            {
+                byte[] tag = new byte[32];
+                byte[] encryptedData = new byte[cipherText.Length - 32];
+                Array.Copy(cipherText, encryptedData, encryptedData.Length);
+                Array.Copy(cipherText, encryptedData.Length, tag, 0, tag.Length);
+                byte[] decryptedData = new byte[encryptedData.Length];
+                aesGcm.Decrypt(nonce, encryptedData, tag, decryptedData);
+                return Encoding.UTF8.GetString(decryptedData);
+            }
+        }
+
         // Symmetric Encryption with AES CBC mode
         public static string[] EncryptAesCbcWithIv(string plainText, string base64Key)
-        {    
-            byte[] key = Convert.FromBase64String(base64Key); 
+        {
+            byte[] key = Convert.FromBase64String(base64Key);
             using (Aes aes = Aes.Create())
             {
                 aes.Key = key;
@@ -98,7 +99,7 @@ namespace SecureLibrary
             }
         }
 
-        
+
         // this section related about diffie hellman
         public static byte[][] GenerateDiffieHellmanKeys()
         {
@@ -106,7 +107,7 @@ namespace SecureLibrary
             {
                 dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
                 dh.HashAlgorithm = CngAlgorithm.Sha256;
-                byte[] publicKey = dh.PublicKey.ToByteArray();
+                byte[] publicKey = dh.PublicKey.ExportSubjectPublicKeyInfo();
                 byte[] privateKey = dh.Key.Export(CngKeyBlobFormat.EccPrivateBlob);
                 return new byte[][] { publicKey, privateKey };
             }
