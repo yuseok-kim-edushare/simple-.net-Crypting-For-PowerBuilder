@@ -4,7 +4,8 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 jobs:
-  build:
+  test:
+
     runs-on: windows-2022
 
     steps:
@@ -20,19 +21,29 @@ jobs:
           ${{ runner.os }}-nuget-
 
     - name: Restore dependencies
-      run: nuget restore
+      run: nuget restore -PackagesDirectory .\packages
 
     - name: Copy dependencies
-      run: Copy-Item -Path .\packages -Destination .\net481pb -Recurse
+      run: |
+        Copy-Item -Path .\packages -Destination .\net481pb -Recurse
+        Copy-Item -Path .\packages -Destination .\net481SQL-server -Recurse
 
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v2
     
     - name: Build solution
-      run: msbuild \net481PB /p:Configuration=Release
+      run: msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
 
-    - name: Install NUnit Console Runner
-      run: nuget install NUnit.ConsoleRunner -Version 3.19.1 -OutputDirectory testrunner
-
-    - name: Run Tests
-      run: .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\bin\Release\SecureLibrary.dll
+    - name: release zip make
+      run: |
+          Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\bin\Release\*.dll" -DestinationPath "Release.NET 4.8 PB.zip"
+          Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481SQL-server\bin\Release\*.dll" -DestinationPath "Release.NET 4.8 SQL.zip"
+    
+  
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+            "Release.NET 4.8 PB.zip"
+            "Release.NET 4.8 SQL.zip"
+        tag_name: cd-test-01
