@@ -57,14 +57,20 @@
     <Compile Include="test.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next">
-      <Version>4.0.3</Version>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3">
+      <Private>True</Private>
     </PackageReference>
-    <PackageReference Include="NUnit">
-      <Version>4.1.0</Version>
+    <PackageReference Include="System.Memory" Version="4.5.4">
+      <Private>True</Private>
     </PackageReference>
-    <PackageReference Include="NUnit3TestAdapter">
-      <Version>4.6.0</Version>
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.3">
+      <Private>True</Private>
+    </PackageReference>
+    <PackageReference Include="NUnit" Version="4.1.0">
+      <Private>True</Private>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0">
+      <Private>True</Private>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

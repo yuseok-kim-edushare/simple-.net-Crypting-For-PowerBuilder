@@ -21,9 +21,10 @@ jobs:
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.sln*', '**/*.csproj*') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
-
-    - name: Restore dependencies
-      run: nuget restore -PackagesDirectory ${{ github.workspace }}\packages
+     
+    - name: Restore NuGet packages
+      run: |
+        nuget restore simple-.net-Crypting-For-PowerBuilder.sln -ConfigFile nuget.config
 
     - name: Copy dependencies
       run: |
