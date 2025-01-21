@@ -44,6 +44,6 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: |
-            ${{ github.workspace }}/Release.NET.4.8.PB.zip
-            ${{ github.workspace }}/Release.NET.4.8.SQL.zip
+            D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.4.8.PB.zip
+            D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.4.8.SQL.zip
         tag_name: cd-test-01
