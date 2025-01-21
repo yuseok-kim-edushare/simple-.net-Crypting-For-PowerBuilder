@@ -32,12 +32,12 @@ jobs:
           ${{ runner.os }}-nuget-
 
     - name: Restore dependencies
-      run: nuget restore -PackagesDirectory .\packages
+      run: nuget restore -PackagesDirectory ${{ github.workspace }}\packages
 
     - name: Copy dependencies
       run: |
-        Copy-Item -Path .\packages -Destination .\net481pb -Recurse
-        Copy-Item -Path .\packages -Destination .\net481SQL-server -Recurse
+        Copy-Item -Path ${{ github.workspace }}\packages -Destination ${{ github.workspace }}\net481pb -Recurse
+        Copy-Item -Path ${{ github.workspace }}\packages -Destination ${{ github.workspace }}\net481SQL-server -Recurse
 
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v2
@@ -47,8 +47,8 @@ jobs:
 
     - name: release zip make
       run: |
-          Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\bin\Release\*.dll" -DestinationPath "Release.NET 4.8 PB.zip"
-          Compress-Archive -Path "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481SQL-server\bin\Release\*.dll" -DestinationPath "Release.NET 4.8 SQL.zip"
+          Compress-Archive -Path ${{ github.workspace }}\net481PB\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.4.8.PB.zip
+          Compress-Archive -Path ${{ github.workspace }}\net481SQL-server\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.4.8.SQL.zip
     
     - name: Get latest release version and Generate release notes
       id: get_latest_release
@@ -76,8 +76,8 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: |
-            "Release.NET 4.8 PB.zip"
-            "Release.NET 4.8 SQL.zip"
+            D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.4.8.PB.zip
+            D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.4.8.SQL.zip
         tag_name: ${{ env.new_release }}
         name: ${{ env.new_release }}
         body: ${{ env.release_notes }}

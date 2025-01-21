@@ -23,12 +23,12 @@ jobs:
           ${{ runner.os }}-nuget-
 
     - name: Restore dependencies
-      run: nuget restore -PackagesDirectory .\packages
+      run: nuget restore -PackagesDirectory ${{ github.workspace }}\packages
 
     - name: Copy dependencies
       run: |
-        Copy-Item -Path .\packages -Destination .\net481pb -Recurse
-        Copy-Item -Path .\packages -Destination .\net481SQL-server -Recurse
+        Copy-Item -Path ${{ github.workspace }}\packages -Destination ${{ github.workspace }}\net481pb -Recurse
+        Copy-Item -Path ${{ github.workspace }}\packages -Destination ${{ github.workspace }}\net481SQL-server -Recurse
 
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v2
