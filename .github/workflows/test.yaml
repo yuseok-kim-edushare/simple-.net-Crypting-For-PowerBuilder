@@ -1,4 +1,4 @@
-﻿name: CI tests
+﻿name: tests for Action
 
 on:
   workflow_dispatch: # Allow manual trigger
@@ -44,6 +44,6 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: |
-            "Release.NET 4.8 PB.zip"
-            "Release.NET 4.8 SQL.zip"
+            "./Release.NET 4.8 PB.zip"
+            "./Release.NET 4.8 SQL.zip"
         tag_name: cd-test-01
