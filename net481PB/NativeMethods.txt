@@ -1,6 +1,0 @@
-BCryptOpenAlgorithmProvider
-BCryptGenerateSymmetricKey
-BCryptEncrypt
-BCryptDecrypt
-BCryptCloseAlgorithmProvider
-BCryptDestroyKey
