@@ -20,8 +20,6 @@ namespace SecureLibrary.Tests
         }
         
         [Test]
-        [Category("Encryption")]
-        [Description("GenerateAESKey_Test")]
         public void GenerateAESKey_ShouldGenerateValidKey()
         {
             // Act
@@ -33,8 +31,6 @@ namespace SecureLibrary.Tests
         }
         
         [Test]
-        [Category("Encryption")]
-        [Description("EncryptDecrypt_Test")]
         public void EncryptAES_ShouldEncryptAndDecryptSuccessfully()
         {
             // Act
@@ -46,8 +42,6 @@ namespace SecureLibrary.Tests
         }
         
         [Test]
-        [Category("Password")]
-        [Description("HashPassword_Test")]
         public void HashPassword_ShouldHashPasswordSuccessfully()
         {
             // Act
@@ -59,8 +53,6 @@ namespace SecureLibrary.Tests
         }
         
         [Test]
-        [Category("Password")]
-        [Description("VerifyPassword_Test")]
         public void VerifyPassword_ShouldVerifyPasswordSuccessfully()
         {
             // Arrange

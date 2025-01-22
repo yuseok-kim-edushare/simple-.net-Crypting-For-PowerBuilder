@@ -3,7 +3,6 @@ using System.Data.SqlTypes;
 using Microsoft.SqlServer.Server;
 using System.Security.Cryptography;
 using System.Text;
-using BCrypt.Net;
 using System.Security;
 
 [assembly: AllowPartiallyTrustedCallers]
@@ -124,6 +123,7 @@ namespace SecureLibrary.SQL
             IsPrecise = true,
             DataAccess = DataAccessKind.None
         )]
+        [SecuritySafeCritical]
         public static SqlString HashPassword(SqlString password)
         {
             try
@@ -144,6 +144,7 @@ namespace SecureLibrary.SQL
             IsPrecise = true,
             DataAccess = DataAccessKind.None
         )]
+        [SecuritySafeCritical]
         public static SqlBoolean VerifyPassword(SqlString password, SqlString hashedPassword)
         {
             try
