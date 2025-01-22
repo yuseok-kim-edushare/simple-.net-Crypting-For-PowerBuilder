@@ -118,6 +118,47 @@ namespace SecureLibrary.SQL
             }
         }
 
+        // this section related about diffie hellman
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        public static SqlString[] GenerateDiffieHellmanKeys()
+        {
+            using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng())
+            {
+                dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
+                dh.HashAlgorithm = CngAlgorithm.Sha256;
+                byte[] publicKey = dh.PublicKey.ToByteArray();
+                byte[] privateKey = dh.Key.Export(CngKeyBlobFormat.EccPrivateBlob);
+                return new SqlString[] { 
+                    new SqlString(Convert.ToBase64String(publicKey)), 
+                    new SqlString(Convert.ToBase64String(privateKey)) 
+                };
+            }
+        }
+
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        public static SqlString DeriveSharedKey(SqlString otherPartyPublicKeyBase64, SqlString privateKeyBase64)
+        {
+            byte[] otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64.Value);
+            byte[] privateKey = Convert.FromBase64String(privateKeyBase64.Value);
+            
+            using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
+            {
+                using (CngKey otherKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
+                {
+                    byte[] sharedKey = dh.DeriveKeyMaterial(otherKey);
+                    return new SqlString(Convert.ToBase64String(sharedKey));
+                }
+            }
+        }
+
         [SqlFunction(
             IsDeterministic = true,
             IsPrecise = true,

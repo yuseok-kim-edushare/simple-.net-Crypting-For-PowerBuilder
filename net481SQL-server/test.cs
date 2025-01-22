@@ -64,5 +64,33 @@ namespace SecureLibrary.Tests
             // Assert
             Assert.That(isValid.IsTrue, Is.True, "Password verification should succeed");
         }
+
+        [Test]
+        public void GenerateDiffieHellmanKeys_ShouldGenerateValidKeys()
+        {
+            // Act
+            var keys = SqlCLRCrypting.GenerateDiffieHellmanKeys();
+
+            // Assert
+            Assert.That(!keys[0].Equals(null)); // Public key
+            Assert.That(!keys[1].Equals(null)); // Private key
+        }
+
+        [Test]
+        public void DeriveSharedKey_ShouldDeriveKeySuccessfully()
+        {
+            // Arrange
+            var keys1 = SqlCLRCrypting.GenerateDiffieHellmanKeys();
+            var keys2 = SqlCLRCrypting.GenerateDiffieHellmanKeys();
+
+            // Act
+            var sharedKey1 = SqlCLRCrypting.DeriveSharedKey(keys2[0], keys1[1]);
+            var sharedKey2 = SqlCLRCrypting.DeriveSharedKey(keys1[0], keys2[1]);
+
+            // Assert
+            Assert.That(!sharedKey1.Equals(null));
+            Assert.That(!sharedKey2.Equals(null));
+            Assert.That(sharedKey1.Equals(sharedKey2));
+        }
     }
 }
