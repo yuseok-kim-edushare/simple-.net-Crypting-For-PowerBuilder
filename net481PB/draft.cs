@@ -10,32 +10,95 @@ namespace SecureLibrary
     [ClassInterface(ClassInterfaceType.None)]
     public class EncryptionHelper
     {
-        //// this section for Symmetric Encryption with AES GCM mode
-        /// AES-GCM not suported in .NET Framework 4.8.1 (will implement in .NET version DLL)
-        //public static byte[] EncryptAesGcm(string plainText, byte[] key, byte[] nonce)
-        //{
-        //    using (AesGcm aesGcm = new AesGcm(key))
-        //    {
-        //        byte[] encryptedData = new byte[plainText.Length];
-        //        byte[] tag = new byte[32]; // 256-bit tag
-        //        aesGcm.Encrypt(nonce, Encoding.UTF8.GetBytes(plainText), encryptedData, tag);
-        //        return Combine(encryptedData, tag);
-        //    }
-        //}
-        //public static string DecryptAesGcm(byte[] cipherText, byte[] key, byte[] nonce)
-        //{
-        //    using (AesGcm aesGcm = new AesGcm(key))
-        //    {
-        //        byte[] tag = new byte[32];
-        //        byte[] encryptedData = new byte[cipherText.Length - 32];
-        //        Array.Copy(cipherText, encryptedData, encryptedData.Length);
-        //        Array.Copy(cipherText, encryptedData.Length, tag, 0, tag.Length);
-        //        byte[] decryptedData = new byte[encryptedData.Length];
-        //        aesGcm.Decrypt(nonce, encryptedData, tag, decryptedData);
-        //        return Encoding.UTF8.GetString(decryptedData);
-        //    }
-        //}
-        // Symmetric Encryption with AES CBC mode
+        // this section for Symmetric Encryption with AES GCM mode
+        // public static byte[] EncryptAesGcm(string plainText, byte[] key, byte[] nonce)
+        // {
+        //     using (var alg = PInvoke.BCryptOpenAlgorithmProvider(
+        //         out var algHandle,
+        //         "AES",
+        //         null,
+        //         BCRYPT_CHAIN_MODE_GCM))
+        //     {
+        //         using (var keyHandle = PInvoke.BCryptGenerateSymmetricKey(
+        //             algHandle,
+        //             key))
+        //         {
+        //             byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+        //             byte[] encryptedData = new byte[plainBytes.Length];
+        //             byte[] tag = new byte[16]; // 128-bit authentication tag
+
+        //             var authInfo = new BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO
+        //             {
+        //                 cbSize = Marshal.SizeOf<BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO>(),
+        //                 dwInfoVersion = BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO_VERSION,
+        //                 pbNonce = nonce,
+        //                 cbNonce = (uint)nonce.Length,
+        //                 pbTag = tag,
+        //                 cbTag = (uint)tag.Length
+        //             };
+
+        //             PInvoke.BCryptEncrypt(
+        //                 keyHandle,
+        //                 plainBytes,
+        //                 (uint)plainBytes.Length,
+        //                 &authInfo,
+        //                 null,
+        //                 0,
+        //                 encryptedData,
+        //                 (uint)encryptedData.Length,
+        //                 out var bytesWritten,
+        //                 0);
+
+        //             return Combine(encryptedData, tag);
+        //         }
+        //     }
+        // }
+        // public static string DecryptAesGcm(byte[] cipherText, byte[] key, byte[] nonce)
+        // {
+        //     using (var alg = PInvoke.BCryptOpenAlgorithmProvider(
+        //         out var algHandle,
+        //         "AES",
+        //         null,
+        //         BCRYPT_CHAIN_MODE_GCM))
+        //     {
+        //         using (var keyHandle = PInvoke.BCryptGenerateSymmetricKey(
+        //             algHandle,
+        //             key))
+        //         {
+        //             byte[] tag = new byte[16];
+        //             byte[] encryptedData = new byte[cipherText.Length - 16];
+        //             Array.Copy(cipherText, encryptedData, encryptedData.Length);
+        //             Array.Copy(cipherText, encryptedData.Length, tag, 0, tag.Length);
+                    
+        //             byte[] decryptedData = new byte[encryptedData.Length];
+        //             var authInfo = new BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO
+        //             {
+        //                 cbSize = Marshal.SizeOf<BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO>(),
+        //                 dwInfoVersion = BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO_VERSION,
+        //                 pbNonce = nonce,
+        //                 cbNonce = (uint)nonce.Length,
+        //                 pbTag = tag,
+        //                 cbTag = (uint)tag.Length
+        //             };
+
+        //             PInvoke.BCryptDecrypt(
+        //                 keyHandle,
+        //                 encryptedData,
+        //                 (uint)encryptedData.Length,
+        //                 &authInfo,
+        //                 null,
+        //                 0,
+        //                 decryptedData,
+        //                 (uint)decryptedData.Length,
+        //                 out var bytesWritten,
+        //                 0);
+
+        //             return Encoding.UTF8.GetString(decryptedData);
+        //         }
+        //     }
+        // }
+
+        // this section for Symmetric Encryption with AES CBC mode
         public static string[] EncryptAesCbcWithIv(string plainText, string base64Key)
         {    
             byte[] key = Convert.FromBase64String(base64Key); 
