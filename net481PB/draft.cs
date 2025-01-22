@@ -99,7 +99,7 @@ namespace SecureLibrary
 
         
         // this section related about diffie hellman
-        public static byte[][] GenerateDiffieHellmanKeys()
+        public static string[] GenerateDiffieHellmanKeys()
         {
             using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng())
             {
@@ -107,16 +107,24 @@ namespace SecureLibrary
                 dh.HashAlgorithm = CngAlgorithm.Sha256;
                 byte[] publicKey = dh.PublicKey.ToByteArray();
                 byte[] privateKey = dh.Key.Export(CngKeyBlobFormat.EccPrivateBlob);
-                return new byte[][] { publicKey, privateKey };
+                return new string[] { 
+                    Convert.ToBase64String(publicKey), 
+                    Convert.ToBase64String(privateKey) 
+                };
             }
         }
-        public static byte[] DeriveSharedKey(byte[] otherPartyPublicKey, byte[] privateKey)
+
+        public static string DeriveSharedKey(string otherPartyPublicKeyBase64, string privateKeyBase64)
         {
+            byte[] otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64);
+            byte[] privateKey = Convert.FromBase64String(privateKeyBase64);
+            
             using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
             {
                 using (CngKey otherKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
                 {
-                    return dh.DeriveKeyMaterial(otherKey);
+                    byte[] sharedKey = dh.DeriveKeyMaterial(otherKey);
+                    return Convert.ToBase64String(sharedKey);
                 }
             }
         }
