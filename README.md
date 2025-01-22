@@ -30,23 +30,62 @@ For Example
     - This is for basic symmetric encryption
   - Bcrypt Password Hashing
     - This is for secure password hashing
+- **[Example Code](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples)**
+  - [PB with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%204.8)
+  - [PB with .NET 8 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%208) -Not Created
+  - [MS-SQL with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/MS-SQL-Net%204.8)
 
   
 ## Milestone
 - 🌧️Create .NET 4.8.1 DLL for Powerbuilder
   - ✅ AES-256-CBC with .NET Framework Native API
   - AES-GCM with using Windows's CGN API DLL
-  - 🌧️ Diffie Helman with using .NET Framework native api
+  - ✅ Diffie Helman with using .NET Framework native api
   - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT Project
 - 🌧️Create .NET 4.8.1 DLL for MS SQL Server
   - ✅ AES-256-CBC with .NET Framework Native API
   - AES-GCM with using Windows's CGN API DLL
-  - 🌧️ Diffie Helman with using .NET Framework native api
-  - 🌧️Bcrypt Password hashing with Bcrypt.NET-NEXT Project
+  - ✅ Diffie Helman with using .NET Framework native api
+  - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT Project
 - 🌧️ Create .NET 8 DLL for Powerbuilder
-  - 🌧️ AES-GCM and DH with .NET native api
-  - 🌧️ Bcrypt Password hashing with Bcrypt.NET-NEXT
+  - ✅ AES-GCM and DH with .NET native api
+  - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT
 - 🌧️ Make Example code and app for user
   - 🌧️Powerbuilder with .NET 4.8.1 DLL
   - 🌧️ MS-SQL with .NET 4.8.1 DLL
   - Powerbuilder with .NET 8 DLL
+- 🌧️ Create Nunit Test for each methods
+  - 🌧️ .NET 4.8.1 DLL for Powerbuilder
+    - ✅ AES-256-CBC
+    - AES-GCM
+    - ✅ Diffie Helman
+    - ✅ Bcrypt Password hashing
+  - 🌧️ .NET 4.8.1 DLL for MS-SQL
+    - ✅ AES-256-CBC
+    - AES-GCM
+    - ✅ Diffie Helman
+    - ✅ Bcrypt Password hashing
+  -  .NET 8 DLL for Powerbuilder
+    - AES-256-CBC
+    - AES-GCM
+    - Diffie Helman
+    - Bcrypt Password hashing
+- 🌧️ Integration Test
+  - 🌧️ PB with .NET 4.8.1 DLL
+    - ✅ AES-256-CBC
+    - AES-GCM
+    - Diffie Helman to SQL Server
+    - ✅ Bcrypt Password hashing
+  - PB with .NET 8 DLL
+    - AES-GCM
+    - Diffie Helman to SQL Server
+    - Bcrypt Password hashing
+  - MS-SQL with .NET 4.8.1 DLL
+    - AES-256-CBC
+    - AES-GCM
+    - Diffie Helman to PB
+      - PB with .NET 4.8.1 DLL
+      - PB with .NET 8 DLL
+    - Bcrypt Password hashing
+
+
