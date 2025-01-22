@@ -15,7 +15,7 @@ namespace SecureLibrary.SQL
     [SqlUserDefinedType(Format.Native)]
     public class SqlCLRCrypting
     {
-        [Microsoft.SqlServer.Server.SqlFunction(
+        [SqlFunction(
             IsDeterministic = true,
             IsPrecise = true,
             DataAccess = DataAccessKind.None
@@ -37,7 +37,7 @@ namespace SecureLibrary.SQL
             }
         }
 
-        [Microsoft.SqlServer.Server.SqlFunction(
+        [SqlFunction(
             IsDeterministic = true,
             IsPrecise = true,
             DataAccess = DataAccessKind.None
@@ -83,7 +83,7 @@ namespace SecureLibrary.SQL
             }
         }
 
-        [Microsoft.SqlServer.Server.SqlFunction(
+        [SqlFunction(
             IsDeterministic = true,
             IsPrecise = true,
             DataAccess = DataAccessKind.None
@@ -120,7 +120,7 @@ namespace SecureLibrary.SQL
             }
         }
 
-        [Microsoft.SqlServer.Server.SqlFunction(
+        [SqlFunction(
             IsDeterministic = true,
             IsPrecise = true,
             DataAccess = DataAccessKind.None
@@ -140,7 +140,7 @@ namespace SecureLibrary.SQL
             }
         }
 
-        [Microsoft.SqlServer.Server.SqlFunction(
+        [SqlFunction(
             IsDeterministic = true,
             IsPrecise = true,
             DataAccess = DataAccessKind.None

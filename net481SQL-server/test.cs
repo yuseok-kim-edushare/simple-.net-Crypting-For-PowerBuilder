@@ -1,6 +1,4 @@
 using NUnit.Framework;
-using SecureLibrary.SQL;
-using System;
 using System.Data.SqlTypes;
 
 namespace SecureLibrary.SQL.Tests
