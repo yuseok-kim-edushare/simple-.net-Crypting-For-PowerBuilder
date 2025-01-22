@@ -11,92 +11,106 @@ namespace SecureLibrary
     public class EncryptionHelper
     {
         // this section for Symmetric Encryption with AES GCM mode
-        // public static byte[] EncryptAesGcm(string plainText, byte[] key, byte[] nonce)
-        // {
-        //     using (var alg = PInvoke.BCryptOpenAlgorithmProvider(
-        //         out var algHandle,
-        //         "AES",
-        //         null,
-        //         BCRYPT_CHAIN_MODE_GCM))
-        //     {
-        //         using (var keyHandle = PInvoke.BCryptGenerateSymmetricKey(
-        //             algHandle,
-        //             key))
-        //         {
-        //             byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-        //             byte[] encryptedData = new byte[plainBytes.Length];
-        //             byte[] tag = new byte[16]; // 128-bit authentication tag
+        public static byte[] EncryptAesGcm(string plainText, byte[] key, byte[] nonce)
+        {
+            using (var alg = PInvoke.BCrypt.BCryptOpenAlgorithmProvider(
+                out var algHandle,
+                "AES",
+                null,
+                PInvoke.BCrypt.AlgorithmIdentifiers.BCRYPT_CHAIN_MODE_GCM))
+            {
+                // Set the tag length to 32 bytes (256 bits)
+                PInvoke.BCrypt.BCryptSetProperty(
+                    algHandle,
+                    "AuthTagLength",
+                    BitConverter.GetBytes(32),
+                    0);
 
-        //             var authInfo = new BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO
-        //             {
-        //                 cbSize = Marshal.SizeOf<BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO>(),
-        //                 dwInfoVersion = BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO_VERSION,
-        //                 pbNonce = nonce,
-        //                 cbNonce = (uint)nonce.Length,
-        //                 pbTag = tag,
-        //                 cbTag = (uint)tag.Length
-        //             };
-
-        //             PInvoke.BCryptEncrypt(
-        //                 keyHandle,
-        //                 plainBytes,
-        //                 (uint)plainBytes.Length,
-        //                 &authInfo,
-        //                 null,
-        //                 0,
-        //                 encryptedData,
-        //                 (uint)encryptedData.Length,
-        //                 out var bytesWritten,
-        //                 0);
-
-        //             return Combine(encryptedData, tag);
-        //         }
-        //     }
-        // }
-        // public static string DecryptAesGcm(byte[] cipherText, byte[] key, byte[] nonce)
-        // {
-        //     using (var alg = PInvoke.BCryptOpenAlgorithmProvider(
-        //         out var algHandle,
-        //         "AES",
-        //         null,
-        //         BCRYPT_CHAIN_MODE_GCM))
-        //     {
-        //         using (var keyHandle = PInvoke.BCryptGenerateSymmetricKey(
-        //             algHandle,
-        //             key))
-        //         {
-        //             byte[] tag = new byte[16];
-        //             byte[] encryptedData = new byte[cipherText.Length - 16];
-        //             Array.Copy(cipherText, encryptedData, encryptedData.Length);
-        //             Array.Copy(cipherText, encryptedData.Length, tag, 0, tag.Length);
+                using (var keyHandle = PInvoke.BCrypt.BCryptGenerateSymmetricKey(
+                    algHandle,
+                    key))
+                {
+                    byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+                    byte[] tag = new byte[32]; // 256-bit authentication tag
                     
-        //             byte[] decryptedData = new byte[encryptedData.Length];
-        //             var authInfo = new BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO
-        //             {
-        //                 cbSize = Marshal.SizeOf<BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO>(),
-        //                 dwInfoVersion = BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO_VERSION,
-        //                 pbNonce = nonce,
-        //                 cbNonce = (uint)nonce.Length,
-        //                 pbTag = tag,
-        //                 cbTag = (uint)tag.Length
-        //             };
+                    // Get cipher text length
+                    PInvoke.BCrypt.BCryptEncrypt(
+                        keyHandle,
+                        plainBytes,
+                        null,
+                        ref new PInvoke.BCrypt.BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO(nonce, null, tag),
+                        null,
+                        out uint cipherLength);
 
-        //             PInvoke.BCryptDecrypt(
-        //                 keyHandle,
-        //                 encryptedData,
-        //                 (uint)encryptedData.Length,
-        //                 &authInfo,
-        //                 null,
-        //                 0,
-        //                 decryptedData,
-        //                 (uint)decryptedData.Length,
-        //                 out var bytesWritten,
-        //                 0);
+                    byte[] encryptedData = new byte[cipherLength];
+                    var authInfo = new PInvoke.BCrypt.BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO(
+                        nonce,
+                        null, // aData
+                        tag);
 
-        //             return Encoding.UTF8.GetString(decryptedData);
-        //         }
-        //     }
-        // }
+                    PInvoke.BCrypt.BCryptEncrypt(
+                        keyHandle,
+                        plainBytes,
+                        null,
+                        ref authInfo,
+                        encryptedData,
+                        out uint bytesWritten);
+
+                    return Combine(encryptedData, tag);
+                }
+            }
+        }
+        public static string DecryptAesGcm(byte[] cipherText, byte[] key, byte[] nonce)
+        {
+            using (var alg = PInvoke.BCrypt.BCryptOpenAlgorithmProvider(
+                out var algHandle,
+                "AES",
+                null,
+                PInvoke.BCrypt.AlgorithmIdentifiers.BCRYPT_CHAIN_MODE_GCM))
+            {
+                // Set the tag length to 32 bytes (256 bits)
+                PInvoke.BCrypt.BCryptSetProperty(
+                    algHandle,
+                    "AuthTagLength",
+                    BitConverter.GetBytes(32),
+                    0);
+
+                using (var keyHandle = PInvoke.BCrypt.BCryptGenerateSymmetricKey(
+                    algHandle,
+                    key))
+                {
+                    byte[] tag = new byte[32];
+                    byte[] encryptedData = new byte[cipherText.Length - 32];
+                    Array.Copy(cipherText, encryptedData, encryptedData.Length);
+                    Array.Copy(cipherText, encryptedData.Length, tag, 0, tag.Length);
+
+                    // Get decrypted text length
+                    PInvoke.BCrypt.BCryptDecrypt(
+                        keyHandle,
+                        encryptedData,
+                        null,
+                        ref new PInvoke.BCrypt.BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO(nonce, null, tag),
+                        null,
+                        out uint decryptedLength);
+
+                    byte[] decryptedData = new byte[decryptedLength];
+                    var authInfo = new PInvoke.BCrypt.BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO(
+                        nonce,
+                        null, // aData
+                        tag);
+
+                    PInvoke.BCrypt.BCryptDecrypt(
+                        keyHandle,
+                        encryptedData,
+                        null,
+                        ref authInfo,
+                        decryptedData,
+                        out uint bytesWritten);
+
+                    return Encoding.UTF8.GetString(decryptedData);
+                }
+            }
+        }
 
         // this section for Symmetric Encryption with AES CBC mode
         public static string[] EncryptAesCbcWithIv(string plainText, string base64Key)
