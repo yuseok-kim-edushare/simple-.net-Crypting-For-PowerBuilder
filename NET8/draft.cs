@@ -12,19 +12,23 @@ namespace SecureLibrary
     public class EncryptionHelper
     {
         // this section for Symmetric Encryption with AES GCM mode
-        // AES-GCM not suported in .NET Framework 4.8.1 (will implement in .NET version DLL)
-        public static byte[] EncryptAesGcm(string plainText, byte[] key, byte[] nonce)
+        public static string EncryptAesGcm(string plainText, string base64Key, string base64Nonce)
         {
+            byte[] key = Convert.FromBase64String(base64Key);
+            byte[] nonce = Convert.FromBase64String(base64Nonce);
             using (var aesGcm = new AesGcm(key, 32))
             {
                 byte[] encryptedData = new byte[plainText.Length];
                 byte[] tag = new byte[32]; // 256-bit tag
                 aesGcm.Encrypt(nonce, Encoding.UTF8.GetBytes(plainText), encryptedData, tag);
-                return Combine(encryptedData, tag);
+                return Convert.ToBase64String(Combine(encryptedData, tag));
             }
         }
-        public static string DecryptAesGcm(byte[] cipherText, byte[] key, byte[] nonce)
+        public static string DecryptAesGcm(string base64CipherText, string base64Key, string base64Nonce)
         {
+            byte[] key = Convert.FromBase64String(base64Key);
+            byte[] cipherText = Convert.FromBase64String(base64CipherText);
+            byte[] nonce = Convert.FromBase64String(base64Nonce);
             using (var aesGcm = new AesGcm(key, 32))
             {
                 byte[] tag = new byte[32];
