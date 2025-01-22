@@ -2,7 +2,6 @@ using System;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
-using BCrypt.Net;
 
 namespace SecureLibrary
 {

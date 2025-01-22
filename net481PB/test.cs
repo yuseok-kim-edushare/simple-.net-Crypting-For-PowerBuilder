@@ -1,7 +1,4 @@
 using NUnit.Framework;
-using SecureLibrary;
-using System;
-using System.Text;
 
 namespace SecureLibrary.Tests
 {
