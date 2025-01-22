@@ -48,12 +48,14 @@ For Example
   - ✅ Diffie Helman with using .NET Framework native api
   - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT Project
 - 🌧️ Create .NET 8 DLL for Powerbuilder
-  - ✅ AES-GCM and DH with .NET native api
+  - ✅ AES and DH with .NET native api
   - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT
+
 - 🌧️ Make Example code and app for user
   - 🌧️Powerbuilder with .NET 4.8.1 DLL
   - 🌧️ MS-SQL with .NET 4.8.1 DLL
   - Powerbuilder with .NET 8 DLL
+
 - 🌧️ Create Nunit Test for each methods
   - 🌧️ .NET 4.8.1 DLL for Powerbuilder
     - ✅ AES-256-CBC
@@ -70,6 +72,7 @@ For Example
     - AES-GCM
     - Diffie Helman
     - Bcrypt Password hashing
+
 - 🌧️ Integration Test
   - 🌧️ PB with .NET 4.8.1 DLL
     - ✅ AES-256-CBC
