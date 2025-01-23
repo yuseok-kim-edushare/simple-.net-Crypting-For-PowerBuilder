@@ -10,32 +10,133 @@ namespace SecureLibrary
     [ClassInterface(ClassInterfaceType.None)]
     public class EncryptionHelper
     {
-        //// this section for Symmetric Encryption with AES GCM mode
-        /// AES-GCM not suported in .NET Framework 4.8.1 (will implement in .NET version DLL)
-        //public static byte[] EncryptAesGcm(string plainText, byte[] key, byte[] nonce)
-        //{
-        //    using (AesGcm aesGcm = new AesGcm(key))
-        //    {
-        //        byte[] encryptedData = new byte[plainText.Length];
-        //        byte[] tag = new byte[32]; // 256-bit tag
-        //        aesGcm.Encrypt(nonce, Encoding.UTF8.GetBytes(plainText), encryptedData, tag);
-        //        return Combine(encryptedData, tag);
-        //    }
-        //}
-        //public static string DecryptAesGcm(byte[] cipherText, byte[] key, byte[] nonce)
-        //{
-        //    using (AesGcm aesGcm = new AesGcm(key))
-        //    {
-        //        byte[] tag = new byte[32];
-        //        byte[] encryptedData = new byte[cipherText.Length - 32];
-        //        Array.Copy(cipherText, encryptedData, encryptedData.Length);
-        //        Array.Copy(cipherText, encryptedData.Length, tag, 0, tag.Length);
-        //        byte[] decryptedData = new byte[encryptedData.Length];
-        //        aesGcm.Decrypt(nonce, encryptedData, tag, decryptedData);
-        //        return Encoding.UTF8.GetString(decryptedData);
-        //    }
-        //}
-        // Symmetric Encryption with AES CBC mode
+        private const string BCRYPT_AES_ALGORITHM = "AES";
+        private const string BCRYPT_CHAINING_MODE = "ChainingMode";
+        private const string BCRYPT_CHAIN_MODE_GCM = "ChainingModeGCM";
+        private const int STATUS_SUCCESS = 0;
+
+        [DllImport("bcrypt.dll")]
+        private static extern int BCryptOpenAlgorithmProvider(
+            out IntPtr phAlgorithm,
+            [MarshalAs(UnmanagedType.LPWStr)] string pszAlgId,
+            [MarshalAs(UnmanagedType.LPWStr)] string pszImplementation,
+            uint dwFlags);
+
+        [DllImport("bcrypt.dll")]
+        private static extern int BCryptSetProperty(
+            IntPtr hObject,
+            [MarshalAs(UnmanagedType.LPWStr)] string pszProperty,
+            byte[] pbInput,
+            int cbInput,
+            int dwFlags);
+
+        [DllImport("bcrypt.dll")]
+        private static extern int BCryptGenerateSymmetricKey(
+            IntPtr hAlgorithm,
+            out IntPtr phKey,
+            IntPtr pbKeyObject,
+            int cbKeyObject,
+            byte[] pbSecret,
+            int cbSecret,
+            int dwFlags);
+
+        [DllImport("bcrypt.dll")]
+        private static extern int BCryptEncrypt(
+            IntPtr hKey,
+            byte[] pbInput,
+            int cbInput,
+            ref BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO pPaddingInfo,
+            byte[] pbIV,
+            int cbIV,
+            byte[] pbOutput,
+            int cbOutput,
+            out int pcbResult,
+            int dwFlags);
+
+        [DllImport("bcrypt.dll")]
+        private static extern int BCryptDecrypt(
+            IntPtr hKey,
+            byte[] pbInput,
+            int cbInput,
+            ref BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO pPaddingInfo,
+            byte[] pbIV,
+            int cbIV,
+            byte[] pbOutput,
+            int cbOutput,
+            out int pcbResult,
+            int dwFlags);
+
+        [DllImport("bcrypt.dll")]
+        private static extern int BCryptDestroyKey(IntPtr hKey);
+
+        [DllImport("bcrypt.dll")]
+        private static extern int BCryptCloseAlgorithmProvider(IntPtr hAlgorithm, int dwFlags);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO
+        {
+            public int cbSize;
+            public int dwInfoVersion;
+            public IntPtr pbNonce;
+            public int cbNonce;
+            public IntPtr pbAuthData;
+            public int cbAuthData;
+            public IntPtr pbTag;
+            public int cbTag;
+            public IntPtr pbMacContext;
+            public int cbMacContext;
+            public int cbAAD;
+            public long cbData;
+            public int dwFlags;
+
+            public static BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO Initialize()
+            {
+                return new BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO
+                {
+                    cbSize = Marshal.SizeOf(typeof(BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO)),
+                    dwInfoVersion = 1
+                };
+            }
+        }
+
+        public static string EncryptAesGcm(string plainText, string base64Key)
+        {
+            if (plainText == null) throw new ArgumentNullException("plainText");
+            if (string.IsNullOrEmpty(base64Key)) throw new ArgumentNullException("base64Key");
+
+            // Generate new nonce
+            byte[] nonce = new byte[12];
+            using (var rng = new RNGCryptoServiceProvider())
+            {
+                rng.GetBytes(nonce);
+            }
+            string base64Nonce = Convert.ToBase64String(nonce);
+
+            // Get the encrypted result
+            string encryptedBase64 = BcryptInterop.EncryptAesGcm(plainText, base64Key, base64Nonce);
+
+            // Combine nonce and ciphertext
+            return base64Nonce + ":" + encryptedBase64;
+        }
+
+        public static string DecryptAesGcm(string combinedData, string base64Key)
+        {
+            if (string.IsNullOrEmpty(combinedData)) throw new ArgumentNullException("combinedData");
+            if (string.IsNullOrEmpty(base64Key)) throw new ArgumentNullException("base64Key");
+
+            // Split the combined data
+            string[] parts = combinedData.Split(':');
+            if (parts.Length != 2)
+                throw new ArgumentException("Invalid encrypted data format", "combinedData");
+
+            string base64Nonce = parts[0];
+            string encryptedBase64 = parts[1];
+
+            // Decrypt using the extracted nonce
+            return BcryptInterop.DecryptAesGcm(encryptedBase64, base64Key, base64Nonce);
+        }
+
+        // this section for Symmetric Encryption with AES CBC mode
         public static string[] EncryptAesCbcWithIv(string plainText, string base64Key)
         {    
             byte[] key = Convert.FromBase64String(base64Key); 
@@ -92,8 +193,7 @@ namespace SecureLibrary
             {
                 aes.KeySize = 256;
                 aes.GenerateKey();
-                string base64key = Convert.ToBase64String(aes.Key);
-                return base64key;
+                return Convert.ToBase64String(aes.Key);
             }
         }
 

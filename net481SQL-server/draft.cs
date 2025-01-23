@@ -4,6 +4,7 @@ using Microsoft.SqlServer.Server;
 using System.Security.Cryptography;
 using System.Text;
 using System.Security;
+using SecureLibrary.SQL;
 
 [assembly: AllowPartiallyTrustedCallers]
 [assembly: SecurityRules(SecurityRuleSet.Level2)]
@@ -198,6 +199,133 @@ namespace SecureLibrary.SQL
             catch (Exception)
             {
                 return SqlBoolean.Null;
+            }
+        }
+
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptAesGcm(SqlString plainText, SqlString base64Key)
+        {
+            try
+            {
+                if (plainText.IsNull || base64Key.IsNull)
+                {
+                    Console.WriteLine("Input is null");
+                    return SqlString.Null;
+                }
+
+                byte[] keyBytes;
+                try
+                {
+                    keyBytes = Convert.FromBase64String(base64Key.Value);
+                    if (keyBytes.Length != 32)
+                    {
+                        Console.WriteLine(string.Format("Invalid key length: {0}", keyBytes.Length));
+                        return SqlString.Null;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(string.Format("Key conversion error: {0}", ex.Message));
+                    return SqlString.Null;
+                }
+
+                // Generate new nonce
+                byte[] nonce = new byte[12];
+                using (var rng = new RNGCryptoServiceProvider())
+                {
+                    rng.GetBytes(nonce);
+                }
+                string base64Nonce = Convert.ToBase64String(nonce);
+
+                try
+                {
+                    // Get the encrypted result
+                    string encryptedBase64 = BcryptInterop.EncryptAesGcm(plainText.Value, base64Key.Value, base64Nonce);
+                    if (string.IsNullOrEmpty(encryptedBase64))
+                    {
+                        Console.WriteLine("Encryption returned null or empty");
+                        return SqlString.Null;
+                    }
+
+                    // Combine nonce and ciphertext
+                    string combined = base64Nonce + ":" + encryptedBase64;
+                    return new SqlString(combined);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(string.Format("Encryption error: {0}", ex.Message));
+                    return SqlString.Null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(string.Format("Outer encryption error: {0}", ex.Message));
+                return SqlString.Null;
+            }
+        }
+
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString DecryptAesGcm(SqlString combinedData, SqlString base64Key)
+        {
+            try
+            {
+                if (combinedData.IsNull || base64Key.IsNull)
+                    return SqlString.Null;
+
+                // Validate key length
+                if (Convert.FromBase64String(base64Key.Value).Length != 32)
+                    return SqlString.Null;
+
+                // Split the combined data
+                string[] parts = combinedData.Value.Split(':');
+                if (parts.Length != 2)
+                {
+                    Console.WriteLine("Invalid combined data format");
+                    return SqlString.Null;
+                }
+
+                string base64Nonce = parts[0];
+                string encryptedBase64 = parts[1];
+
+                try
+                {
+                    // Validate nonce length
+                    if (Convert.FromBase64String(base64Nonce).Length != 12)
+                    {
+                        Console.WriteLine("Invalid nonce length");
+                        return SqlString.Null;
+                    }
+
+                    // Decrypt using the extracted nonce
+                    string decrypted = BcryptInterop.DecryptAesGcm(encryptedBase64, base64Key.Value, base64Nonce);
+                    if (string.IsNullOrEmpty(decrypted))
+                    {
+                        Console.WriteLine("Decryption returned null or empty string");
+                        return SqlString.Null;
+                    }
+
+                    return new SqlString(decrypted);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(string.Format("Decryption error: {0}", ex.Message));
+                    return SqlString.Null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(string.Format("Outer decryption error: {0}", ex.Message));
+                return SqlString.Null;
             }
         }
     }

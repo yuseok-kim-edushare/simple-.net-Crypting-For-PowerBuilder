@@ -39,12 +39,12 @@ For Example
 ## Milestone
 - 🌧️Create .NET 4.8.1 DLL for Powerbuilder
   - ✅ AES-256-CBC with .NET Framework Native API
-  - AES-GCM with using Windows's CGN API DLL
+  - ✅ AES-GCM with using Windows's CGN API DLL
   - ✅ Diffie Helman with using .NET Framework native api
   - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT Project
 - 🌧️Create .NET 4.8.1 DLL for MS SQL Server
   - ✅ AES-256-CBC with .NET Framework Native API
-  - AES-GCM with using Windows's CGN API DLL
+  - ✅ AES-GCM with using Windows's CGN API DLL
   - ✅ Diffie Helman with using .NET Framework native api
   - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT Project
 - 🌧️ Create .NET 8 DLL for Powerbuilder
@@ -59,7 +59,7 @@ For Example
 - 🌧️ Create Nunit Test for each methods
   - 🌧️ .NET 4.8.1 DLL for Powerbuilder
     - ✅ AES-256-CBC
-    - AES-GCM
+    - ✅ AES-GCM
     - ✅ Diffie Helman
     - ✅ Bcrypt Password hashing
   - 🌧️ .NET 4.8.1 DLL for MS-SQL

@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System.Data.SqlTypes;
 using SecureLibrary.SQL;
+using System;
 
 namespace SecureLibrary.Tests 
 {
@@ -91,6 +92,34 @@ namespace SecureLibrary.Tests
             Assert.That(!sharedKey1.Equals(null));
             Assert.That(!sharedKey2.Equals(null));
             Assert.That(sharedKey1.Equals(sharedKey2));
+        }
+
+        [Test]
+        public void EncryptAesGcm_ShouldEncryptAndDecryptSuccessfully()
+        {
+            // Arrange
+            Assert.That(plainText.IsNull, Is.False, "Input plainText should not be null");
+            Assert.That(key.IsNull, Is.False, "Input key should not be null");
+            
+            // Validate key length
+            byte[] keyBytes = Convert.FromBase64String(key.Value);
+            Assert.That(keyBytes.Length, Is.EqualTo(32), "Key must be 32 bytes");
+            
+            // Act - Encryption
+            var encrypted = SqlCLRCrypting.EncryptAesGcm(plainText, key);
+            Assert.That(encrypted.IsNull, Is.False, "Encrypted value should not be null");
+            
+            // Validate encrypted format
+            string[] parts = encrypted.Value.Split(':');
+            Assert.That(parts.Length, Is.EqualTo(2), "Encrypted value should contain nonce and ciphertext");
+            Assert.That(Convert.FromBase64String(parts[0]).Length, Is.EqualTo(12), "Nonce should be 12 bytes");
+            
+            // Act - Decryption
+            var decrypted = SqlCLRCrypting.DecryptAesGcm(encrypted, key);
+            Assert.That(decrypted.IsNull, Is.False, "Decrypted value should not be null");
+            
+            // Assert
+            Assert.That(decrypted.Value, Is.EqualTo(plainText.Value), "Decrypted text should match original");
         }
     }
 }
