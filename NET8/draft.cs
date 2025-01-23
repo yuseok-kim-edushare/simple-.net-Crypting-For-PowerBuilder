@@ -12,27 +12,54 @@ namespace SecureLibrary
     public class EncryptionHelper
     {
         // this section for Symmetric Encryption with AES GCM mode
-        public static string EncryptAesGcm(string plainText, string base64Key, string base64Nonce)
+        public static string EncryptAesGcm(string plainText, string base64Key)
         {
+            if (plainText == null) throw new ArgumentNullException(nameof(plainText));
+            if (string.IsNullOrEmpty(base64Key)) throw new ArgumentNullException(nameof(base64Key));
+
             byte[] key = Convert.FromBase64String(base64Key);
-            byte[] nonce = Convert.FromBase64String(base64Nonce);
-            using (var aesGcm = new AesGcm(key, 32))
+            
+            // Generate new nonce
+            byte[] nonce = new byte[12];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(nonce);
+            }
+            string base64Nonce = Convert.ToBase64String(nonce);
+
+            using (var aesGcm = new AesGcm(key, 16))
             {
                 byte[] encryptedData = new byte[plainText.Length];
-                byte[] tag = new byte[32]; // 256-bit tag
+                byte[] tag = new byte[16]; // 128-bit tag
                 aesGcm.Encrypt(nonce, Encoding.UTF8.GetBytes(plainText), encryptedData, tag);
-                return Convert.ToBase64String(Combine(encryptedData, tag));
+                string encryptedBase64 = Convert.ToBase64String(Combine(encryptedData, tag));
+                
+                // Combine nonce and ciphertext
+                return base64Nonce + ":" + encryptedBase64;
             }
         }
-        public static string DecryptAesGcm(string base64CipherText, string base64Key, string base64Nonce)
+
+        public static string DecryptAesGcm(string combinedData, string base64Key)
         {
+            if (string.IsNullOrEmpty(combinedData)) throw new ArgumentNullException(nameof(combinedData));
+            if (string.IsNullOrEmpty(base64Key)) throw new ArgumentNullException(nameof(base64Key));
+
+            // Split the combined data
+            string[] parts = combinedData.Split(':');
+            if (parts.Length != 2)
+                throw new ArgumentException("Invalid encrypted data format", nameof(combinedData));
+
+            string base64Nonce = parts[0];
+            string encryptedBase64 = parts[1];
+
             byte[] key = Convert.FromBase64String(base64Key);
-            byte[] cipherText = Convert.FromBase64String(base64CipherText);
+            byte[] cipherText = Convert.FromBase64String(encryptedBase64);
             byte[] nonce = Convert.FromBase64String(base64Nonce);
-            using (var aesGcm = new AesGcm(key, 32))
+
+            using (var aesGcm = new AesGcm(key, 16))
             {
-                byte[] tag = new byte[32];
-                byte[] encryptedData = new byte[cipherText.Length - 32];
+                byte[] tag = new byte[16];
+                byte[] encryptedData = new byte[cipherText.Length - 16];
                 Array.Copy(cipherText, encryptedData, encryptedData.Length);
                 Array.Copy(cipherText, encryptedData.Length, tag, 0, tag.Length);
                 byte[] decryptedData = new byte[encryptedData.Length];

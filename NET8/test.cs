@@ -13,11 +13,10 @@ namespace SecureLibrary.Tests
             // Arrange
             string plainText = "Hello, World!";
             string key = EncryptionHelper.KeyGenAES256();
-            string nonce = Convert.ToBase64String(new byte[12]); // 96-bit nonce
 
             // Act
-            string encrypted = EncryptionHelper.EncryptAesGcm(plainText, key, nonce);
-            string decrypted = EncryptionHelper.DecryptAesGcm(encrypted, key, nonce);
+            string encrypted = EncryptionHelper.EncryptAesGcm(plainText, key);
+            string decrypted = EncryptionHelper.DecryptAesGcm(encrypted, key);
 
             // Assert
             Assert.That(decrypted, Is.EqualTo(plainText));
