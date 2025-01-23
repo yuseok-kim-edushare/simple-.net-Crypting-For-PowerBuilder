@@ -101,9 +101,9 @@ namespace SecureLibrary
 
         public static byte[] EncryptAesGcm(string plainText, byte[] key, byte[] nonce)
         {
-            if (plainText == null) throw new ArgumentNullException(nameof(plainText));
-            if (key == null || key.Length != 32) throw new ArgumentException("Key must be 32 bytes", nameof(key));
-            if (nonce == null || nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", nameof(nonce));
+            if (plainText == null) throw new ArgumentNullException("plainText");
+            if (key == null || key.Length != 32) throw new ArgumentException("Key must be 32 bytes", "key");
+            if (nonce == null || nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", "nonce");
 
             IntPtr hAlg = IntPtr.Zero;
             IntPtr hKey = IntPtr.Zero;
@@ -112,17 +112,17 @@ namespace SecureLibrary
             {
                 // Initialize algorithm provider
                 int status = BCryptOpenAlgorithmProvider(out hAlg, BCRYPT_AES_ALGORITHM, null, 0);
-                if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptOpenAlgorithmProvider failed with status {status}");
+                if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptOpenAlgorithmProvider failed with status " + status);
 
                 // Set GCM mode
                 status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE, 
                     Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM), 
                     Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM).Length, 0);
-                if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptSetProperty failed with status {status}");
+                if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptSetProperty failed with status " + status);
 
                 // Generate key
                 status = BCryptGenerateSymmetricKey(hAlg, out hKey, IntPtr.Zero, 0, key, key.Length, 0);
-                if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptGenerateSymmetricKey failed with status {status}");
+                if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptGenerateSymmetricKey failed with status " + status);
 
                 byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
                 const int tagLength = 16;  // GCM tag length
@@ -140,16 +140,18 @@ namespace SecureLibrary
                     authInfo.cbTag = tagLength;
 
                     // Get required size
+                    int cipherLength;
                     status = BCryptEncrypt(hKey, plainBytes, plainBytes.Length, ref authInfo,
-                        null, 0, null, 0, out int cipherLength, 0);
-                    if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptEncrypt size failed with status {status}");
+                        null, 0, null, 0, out cipherLength, 0);
+                    if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptEncrypt size failed with status " + status);
 
                     byte[] cipherText = new byte[cipherLength];
 
                     // Encrypt
+                    int bytesWritten;
                     status = BCryptEncrypt(hKey, plainBytes, plainBytes.Length, ref authInfo,
-                        null, 0, cipherText, cipherText.Length, out int bytesWritten, 0);
-                    if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptEncrypt failed with status {status}");
+                        null, 0, cipherText, cipherText.Length, out bytesWritten, 0);
+                    if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptEncrypt failed with status " + status);
 
                     // Combine ciphertext and tag
                     byte[] result = new byte[bytesWritten + tagLength];
@@ -173,13 +175,13 @@ namespace SecureLibrary
 
         public static string DecryptAesGcm(byte[] cipherText, byte[] key, byte[] nonce)
         {
-            if (cipherText == null) throw new ArgumentNullException(nameof(cipherText));
-            if (key == null || key.Length != 32) throw new ArgumentException("Key must be 32 bytes", nameof(key));
-            if (nonce == null || nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", nameof(nonce));
+            if (cipherText == null) throw new ArgumentNullException("cipherText");
+            if (key == null || key.Length != 32) throw new ArgumentException("Key must be 32 bytes", "key");
+            if (nonce == null || nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", "nonce");
 
             const int tagLength = 16;
             if (cipherText.Length < tagLength)
-                throw new ArgumentException("Encrypted data too short", nameof(cipherText));
+                throw new ArgumentException("Encrypted data too short", "cipherText");
 
             IntPtr hAlg = IntPtr.Zero;
             IntPtr hKey = IntPtr.Zero;
@@ -188,17 +190,17 @@ namespace SecureLibrary
             {
                 // Initialize algorithm provider
                 int status = BCryptOpenAlgorithmProvider(out hAlg, BCRYPT_AES_ALGORITHM, null, 0);
-                if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptOpenAlgorithmProvider failed with status {status}");
+                if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptOpenAlgorithmProvider failed with status " + status);
 
                 // Set GCM mode
                 status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE,
                     Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM),
                     Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM).Length, 0);
-                if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptSetProperty failed with status {status}");
+                if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptSetProperty failed with status " + status);
 
                 // Generate key
                 status = BCryptGenerateSymmetricKey(hAlg, out hKey, IntPtr.Zero, 0, key, key.Length, 0);
-                if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptGenerateSymmetricKey failed with status {status}");
+                if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptGenerateSymmetricKey failed with status " + status);
 
                 // Separate ciphertext and tag
                 int encryptedDataLength = cipherText.Length - tagLength;
@@ -219,16 +221,18 @@ namespace SecureLibrary
                     authInfo.cbTag = tagLength;
 
                     // Get required size
+                    int plainTextLength;
                     status = BCryptDecrypt(hKey, encryptedData, encryptedData.Length, ref authInfo,
-                        null, 0, null, 0, out int plainTextLength, 0);
-                    if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptDecrypt size failed with status {status}");
+                        null, 0, null, 0, out plainTextLength, 0);
+                    if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptDecrypt size failed with status " + status);
 
                     byte[] plainText = new byte[plainTextLength];
 
                     // Decrypt
+                    int bytesWritten;
                     status = BCryptDecrypt(hKey, encryptedData, encryptedData.Length, ref authInfo,
-                        null, 0, plainText, plainText.Length, out int bytesWritten, 0);
-                    if (status != STATUS_SUCCESS) throw new CryptographicException($"BCryptDecrypt failed with status {status}");
+                        null, 0, plainText, plainText.Length, out bytesWritten, 0);
+                    if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptDecrypt failed with status " + status);
 
                     return Encoding.UTF8.GetString(plainText, 0, bytesWritten);
                 }
