@@ -16,7 +16,18 @@ namespace SecureLibrary.Tests
             key = EncryptionHelper.KeyGenAES256();
             password = "securePassword123";
         }
-        
+        [Test]
+        public void EncryptAesGcm_ShouldEncryptAndDecryptSuccessfully()
+        {
+            // Act
+            var encrypted = EncryptionHelper.EncryptAesGcm(plainText, key);
+            var decrypted = EncryptionHelper.DecryptAesGcm(encrypted, key);
+
+            // Assert
+            Assert.That(plainText.Equals(decrypted));
+        }
+
+
         [Test]
         public void EncryptAesCbcWithIv_ShouldEncryptAndDecryptSuccessfully()
         {
