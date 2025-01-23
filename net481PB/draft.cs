@@ -47,6 +47,57 @@ namespace SecureLibrary
             return BcryptInterop.DecryptAesGcm(encryptedBase64, base64Key, base64Nonce);
         }
 
+        // this section for Symmetric Encryption with AES CBC mode
+        public static string[] EncryptAesCbcWithIv(string plainText, string base64Key)
+        {    
+            byte[] key = Convert.FromBase64String(base64Key); 
+            using (Aes aes = Aes.Create())
+            {
+                aes.Key = key;
+                aes.GenerateIV(); // Generate IV
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.PKCS7;
+                byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+                byte[] cipherText;
+                using (var memoryStream = new System.IO.MemoryStream())
+                {
+                    using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateEncryptor(), CryptoStreamMode.Write))
+                    {
+                        cryptoStream.Write(plainBytes, 0, plainBytes.Length);
+                        cryptoStream.FlushFinalBlock();
+                        cipherText = memoryStream.ToArray();
+                    }
+                }
+                string base64CipherText = Convert.ToBase64String(cipherText);
+                string base64IV = Convert.ToBase64String(aes.IV);
+                return new string[] { base64CipherText, base64IV };
+            }
+        }
+        public static string DecryptAesCbcWithIv(string base64CipherText, string base64Key, string base64IV)
+        {
+            byte[] key = Convert.FromBase64String(base64Key);
+            byte[] cipherText = Convert.FromBase64String(base64CipherText);
+            byte[] iv = Convert.FromBase64String(base64IV);
+            using (Aes aes = Aes.Create())
+            {
+                aes.Key = key;
+                aes.IV = iv;
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.PKCS7;
+                byte[] decryptedBytes;
+                using (var memoryStream = new System.IO.MemoryStream(cipherText))
+                {
+                    using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateDecryptor(), CryptoStreamMode.Read))
+                    {
+                        using (var reader = new System.IO.StreamReader(cryptoStream, Encoding.UTF8))
+                        {
+                            decryptedBytes = Encoding.UTF8.GetBytes(reader.ReadToEnd());
+                        }
+                    }
+                }
+                return Encoding.UTF8.GetString(decryptedBytes);
+            }
+        }
         public static string KeyGenAES256()
         {
             using (Aes aes = Aes.Create())
