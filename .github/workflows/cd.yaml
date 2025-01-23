@@ -43,13 +43,17 @@ jobs:
       uses: microsoft/setup-msbuild@v2
     
     - name: Build solution
-      run: msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
+      run: |
+        msbuild "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\net481PB.csproj" /p:Configuration=Release
+        msbuild "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481SQL-server\net481SQL-server.csproj" /p:Configuration=Release
+        dotnet build "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" --configuration Release --runtime win-x64
+
 
     - name: release zip make
       run: |
           Compress-Archive -Path ${{ github.workspace }}\net481PB\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.4.8.PB.zip
           Compress-Archive -Path ${{ github.workspace }}\net481SQL-server\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.4.8.SQL.zip
-          Compress-Archive -Path ${{ github.workspace }}\NET8\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.8.zip
+          Compress-Archive -Path ${{ github.workspace }}\NET8\bin\Release\net8.0\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.8.zip
 
     - name: Get latest release version and Generate release notes
       id: get_latest_release
