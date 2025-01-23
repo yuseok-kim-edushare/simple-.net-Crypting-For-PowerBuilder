@@ -200,5 +200,66 @@ namespace SecureLibrary.SQL
                 return SqlBoolean.Null;
             }
         }
+
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        public static SqlString EncryptAesGcm(SqlString plainText, SqlString base64Key)
+        {
+            try
+            {
+                if (plainText.IsNull || base64Key.IsNull)
+                    return SqlString.Null;
+
+                // Generate new nonce
+                byte[] nonce = new byte[12];
+                using (var rng = new RNGCryptoServiceProvider())
+                {
+                    rng.GetBytes(nonce);
+                }
+                string base64Nonce = Convert.ToBase64String(nonce);
+
+                // Get the encrypted result
+                string encryptedBase64 = BcryptInterop.EncryptAesGcm(plainText.Value, base64Key.Value, base64Nonce);
+
+                // Combine nonce and ciphertext
+                return new SqlString(base64Nonce + ":" + encryptedBase64);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+        }
+
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        public static SqlString DecryptAesGcm(SqlString combinedData, SqlString base64Key)
+        {
+            try
+            {
+                if (combinedData.IsNull || base64Key.IsNull)
+                    return SqlString.Null;
+
+                // Split the combined data
+                string[] parts = combinedData.Value.Split(':');
+                if (parts.Length != 2)
+                    return SqlString.Null;
+
+                string base64Nonce = parts[0];
+                string encryptedBase64 = parts[1];
+
+                // Decrypt using the extracted nonce
+                return new SqlString(BcryptInterop.DecryptAesGcm(encryptedBase64, base64Key.Value, base64Nonce));
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+        }
     }
 }
