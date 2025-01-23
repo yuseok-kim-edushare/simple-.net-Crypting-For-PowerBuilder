@@ -44,8 +44,7 @@ jobs:
     
     - name: Build solution
       run: |
-        msbuild "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\net481PB.csproj" /p:Configuration=Release 
-        msbuild "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481SQL-server\net481SQL-server.csproj" /p:Configuration=Release 
+        msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
         dotnet build "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" --configuration Release --arch x64
 
 
