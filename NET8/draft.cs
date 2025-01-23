@@ -1,5 +1,4 @@
-﻿using System;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using BCrypt.Net;
@@ -80,7 +79,7 @@ namespace SecureLibrary
                 aes.Padding = PaddingMode.PKCS7;
                 byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
                 byte[] cipherText;
-                using (var memoryStream = new System.IO.MemoryStream())
+                using (var memoryStream = new MemoryStream())
                 {
                     using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateEncryptor(), CryptoStreamMode.Write))
                     {
@@ -106,11 +105,11 @@ namespace SecureLibrary
                 aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.PKCS7;
                 byte[] decryptedBytes;
-                using (var memoryStream = new System.IO.MemoryStream(cipherText))
+                using (var memoryStream = new MemoryStream(cipherText))
                 {
                     using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateDecryptor(), CryptoStreamMode.Read))
                     {
-                        using (var reader = new System.IO.StreamReader(cryptoStream, Encoding.UTF8))
+                        using (var reader = new StreamReader(cryptoStream, Encoding.UTF8))
                         {
                             decryptedBytes = Encoding.UTF8.GetBytes(reader.ReadToEnd());
                         }
