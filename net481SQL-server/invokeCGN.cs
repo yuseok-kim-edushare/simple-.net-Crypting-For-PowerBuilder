@@ -2,9 +2,11 @@ using System;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Security;
 
 namespace SecureLibrary.SQL
 {
+    [SecuritySafeCritical]
     public class BcryptInterop
     {
         private const string BCRYPT_AES_ALGORITHM = "AES";
