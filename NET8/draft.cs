@@ -152,9 +152,13 @@ namespace SecureLibrary
             
             using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
             {
-                using (CngKey otherKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
+                dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
+                dh.HashAlgorithm = CngAlgorithm.Sha256;
+                
+                using (var otherPartyKey = ECDiffieHellmanCng.Create())
                 {
-                    byte[] sharedKey = dh.DeriveKeyMaterial(otherKey);
+                    otherPartyKey.ImportSubjectPublicKeyInfo(otherPartyPublicKey, out _);
+                    byte[] sharedKey = dh.DeriveKeyMaterial(otherPartyKey.PublicKey);
                     return Convert.ToBase64String(sharedKey);
                 }
             }
