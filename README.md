@@ -1,5 +1,6 @@
 # simple-.NET-Crypting-For-PB
 This Project will create .NET dll to implement crypto object en|decrypter for Powerbuilder
+*Read this in other languages: [한국어](README.ko.md)*
 
 ## Purpose
 - Implement simple implementation dll for Powerbuilder Programming
@@ -11,7 +12,7 @@ For Example
   - This is important to secure using Symmetric Encrypting Function in morden
   - Not native supported in .NET Framework 4.8.1
     - Fallback to AES-256-CBC (this will ensure cross compatibility between PB and SQL Server)
-    - also import dll of windows's CGN (bcrypt.dll) can make usable aes-gcm
+    - also import dll of windows's CGN (bcrypt.dll), this make dll can use aes-gcm
 - Diffie Hellman Key Exchange or else equivalent
   - for 2nd layer securing to transport sensitive data 
   - (In TLS already used, but bi-layered encrypt for more secure handling)
