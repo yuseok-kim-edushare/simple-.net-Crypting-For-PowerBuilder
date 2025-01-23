@@ -17,7 +17,7 @@ jobs:
     - name: Cache NuGet packages
       uses: actions/cache@v4
       with:
-        path: ~/.nuget/packages
+        path: ${{ github.workspace }}/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.sln*', '**/*.csproj*') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
@@ -36,7 +36,7 @@ jobs:
     
     - name: Build solution
       run: msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
-      
+
     - name: Install NUnit Console Runner
       run: nuget install NUnit.ConsoleRunner -Version 3.19.1 -OutputDirectory testrunner
 
