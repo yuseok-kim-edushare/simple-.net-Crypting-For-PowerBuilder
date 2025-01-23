@@ -60,12 +60,6 @@
       <HintPath>packages\System.Runtime.CompilerServices.Unsafe.4.5.3\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="PInvoke.Bcrypt" >
-      <HintPath>packages\PInvoke.Bcrypt.0.7.124\lib\net45\PInvoke.Bcrypt.dll</HintPath>
-    </Reference>
-    <Reference Include="PInvoke.Windows.Core" >
-      <HintPath>packages\PInvoke.Windows.Core.0.7.124\lib\net45\PInvoke.Windows.Core.dll</HintPath>
-    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
