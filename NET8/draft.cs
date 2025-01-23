@@ -91,7 +91,7 @@ namespace SecureLibrary
                 }
                 string base64CipherText = Convert.ToBase64String(cipherText);
                 string base64IV = Convert.ToBase64String(aes.IV);
-                return new string[] { base64CipherText, base64IV };
+                return [ base64CipherText, base64IV ];
             }
         }
         public static string DecryptAesCbcWithIv(string base64CipherText, string base64Key, string base64IV)
@@ -140,10 +140,10 @@ namespace SecureLibrary
                 dh.HashAlgorithm = CngAlgorithm.Sha256;
                 byte[] publicKey = dh.PublicKey.ExportSubjectPublicKeyInfo();
                 byte[] privateKey = dh.Key.Export(CngKeyBlobFormat.EccPrivateBlob);
-                return new string[] { 
-                    Convert.ToBase64String(publicKey), 
-                    Convert.ToBase64String(privateKey) 
-                };
+                return [
+                    Convert.ToBase64String(publicKey),
+                    Convert.ToBase64String(privateKey)
+                ];
             }
         }
         public static string DeriveSharedKey(string otherPartyPublicKeyBase64, string privateKeyBase64)
