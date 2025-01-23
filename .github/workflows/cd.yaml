@@ -49,7 +49,8 @@ jobs:
       run: |
           Compress-Archive -Path ${{ github.workspace }}\net481PB\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.4.8.PB.zip
           Compress-Archive -Path ${{ github.workspace }}\net481SQL-server\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.4.8.SQL.zip
-    
+          Compress-Archive -Path ${{ github.workspace }}\NET8\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.8.zip
+
     - name: Get latest release version and Generate release notes
       id: get_latest_release
       run: |
@@ -78,6 +79,7 @@ jobs:
         files: |
             D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.4.8.PB.zip
             D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.4.8.SQL.zip
+            D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.8.zip
         tag_name: ${{ env.new_release }}
         name: ${{ env.new_release }}
         body: ${{ env.release_notes }}

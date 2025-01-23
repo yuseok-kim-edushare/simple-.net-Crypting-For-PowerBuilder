@@ -45,3 +45,6 @@ jobs:
 
     - name: Run Tests dll for SQL with net 481
       run:  .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\\net481SQL-server\bin\Release\SecureLibrary.SQL.dll
+
+    - name: Run Tests dll for NET8
+      run: dotnet test NET8/NET8.csproj
