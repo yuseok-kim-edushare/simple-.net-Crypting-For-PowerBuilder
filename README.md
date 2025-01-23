@@ -9,8 +9,9 @@ This Project will create .NET dll to implement crypto object en|decrypter for Po
 For Example
 - AES Encryption with GCM mode
   - This is important to secure using Symmetric Encrypting Function in morden
-  - (Not supported in .NET Framework 4.8.1)
+  - Not native supported in .NET Framework 4.8.1
     - Fallback to AES-256-CBC (this will ensure cross compatibility between PB and SQL Server)
+    - also import dll of windows's CGN (bcrypt.dll) can make usable aes-gcm
 - Diffie Hellman Key Exchange or else equivalent
   - for 2nd layer securing to transport sensitive data 
   - (In TLS already used, but bi-layered encrypt for more secure handling)
@@ -37,17 +38,17 @@ For Example
 
   
 ## Milestone
-- 🌧️Create .NET 4.8.1 DLL for Powerbuilder
+- ✅Create .NET 4.8.1 DLL for Powerbuilder
   - ✅ AES-256-CBC with .NET Framework Native API
   - ✅ AES-GCM with using Windows's CGN API DLL
   - ✅ Diffie Helman with using .NET Framework native api
   - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT Project
-- 🌧️Create .NET 4.8.1 DLL for MS SQL Server
+- ✅ Create .NET 4.8.1 DLL for MS SQL Server
   - ✅ AES-256-CBC with .NET Framework Native API
   - ✅ AES-GCM with using Windows's CGN API DLL
   - ✅ Diffie Helman with using .NET Framework native api
   - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT Project
-- 🌧️ Create .NET 8 DLL for Powerbuilder
+- ✅ Create .NET 8 DLL for Powerbuilder
   - ✅ AES and DH with .NET native api
   - ✅ Bcrypt Password hashing with Bcrypt.NET-NEXT
 
@@ -56,15 +57,15 @@ For Example
   - 🌧️ MS-SQL with .NET 4.8.1 DLL
   - Powerbuilder with .NET 8 DLL
 
-- 🌧️ Create Nunit Test for each methods
-  - 🌧️ .NET 4.8.1 DLL for Powerbuilder
+- ✅ Create Nunit Test for each methods
+  - ✅ .NET 4.8.1 DLL for Powerbuilder
     - ✅ AES-256-CBC
     - ✅ AES-GCM
     - ✅ Diffie Helman
     - ✅ Bcrypt Password hashing
-  - 🌧️ .NET 4.8.1 DLL for MS-SQL
+  - ✅ .NET 4.8.1 DLL for MS-SQL
     - ✅ AES-256-CBC
-    - AES-GCM
+    - ✅ AES-GCM
     - ✅ Diffie Helman
     - ✅ Bcrypt Password hashing
   -  .NET 8 DLL for Powerbuilder
@@ -76,7 +77,7 @@ For Example
 - 🌧️ Integration Test
   - 🌧️ PB with .NET 4.8.1 DLL
     - ✅ AES-256-CBC
-    - AES-GCM
+    - ✅ AES-GCM
     - ✅ Diffie Helman in self
     - Diffie Helman to SQL Server
     - ✅ Bcrypt Password hashing
