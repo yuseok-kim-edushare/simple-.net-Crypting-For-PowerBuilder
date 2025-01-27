@@ -39,7 +39,7 @@
 
 - 🌧️ 예제 코드 생성
   - 🌧️ Powerbuilder with .NET 4.8.1 DLL
-  - 🌧️ MS-SQL with .NET 4.8.1 DLL
+  - ✅ MS-SQL with .NET 4.8.1 DLL
   - Powerbuilder with .NET 8 DLL
 
 - 🌧️ 통합 테스트
@@ -54,13 +54,13 @@
     - Diffie Helman in self
     - Diffie Helman to SQL Server
     - Bcrypt Password hashing
-  - MS-SQL with .NET 4.8.1 DLL
-    - AES-256-CBC
-    - AES-GCM
-    - Diffie Helman in self
+  - 🌧️ MS-SQL with .NET 4.8.1 DLL
+    - ✅ AES-256-CBC
+    - ✅ AES-GCM
+    - ✅ Diffie Helman in self
     - Diffie Helman to PB
       - PB with .NET 4.8.1 DLL
       - PB with .NET 8 DLL
-    - Bcrypt Password hashing
+    - ✅ Bcrypt Password hashing
 
 
