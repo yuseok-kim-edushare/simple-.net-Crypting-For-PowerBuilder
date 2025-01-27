@@ -72,13 +72,16 @@ jobs:
                    ${{ github.workspace }}\net481SQL-server\bin\Release\System.Runtime.CompilerServices.Unsafe.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\Microsoft.SqlServer.Server.dll
 
+        # Merge NET 8 DLLs
+        ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll `
+                   ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll `
+                   ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\BCrypt.Net-Next.dll
+
         # Copy all release files to a single directory for easier release
         New-Item -ItemType Directory -Path ${{ github.workspace }}\release-files -Force
         Copy-Item ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
         Copy-Item ${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll        
-        
-        # Compress Net 8 DLL
-        Compress-Archive -Path ${{ github.workspace }}\NET8\bin\Release\net8.0\*.dll -DestinationPath ${{ github.workspace }}\release-files\NET8.zip
+        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll ${{ github.workspace }}\release-files\NET8.dll
 
     - name: Get latest release version and Generate release notes
       id: get_latest_release
@@ -108,7 +111,7 @@ jobs:
         files: |
             ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
             ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll
-            ${{ github.workspace }}\release-files\NET8.zip
+            ${{ github.workspace }}\release-files\NET8.dll
         tag_name: ${{ env.new_release }}
         name: ${{ env.new_release }}
         body: ${{ env.release_notes }}
