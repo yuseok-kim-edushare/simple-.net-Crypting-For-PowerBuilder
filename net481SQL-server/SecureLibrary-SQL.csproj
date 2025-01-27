@@ -13,6 +13,7 @@
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <CLRSupport>true</CLRSupport>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
     <ExcludeTests Condition="'$(Configuration)'=='Release'">true</ExcludeTests>
@@ -25,7 +26,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <RegisterForComInterop>true</RegisterForComInterop>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -35,7 +35,6 @@
     <DefineConstants Condition="'$(ExcludeTests)'!='true'">TRACE;RELEASE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='ReleaseWithoutTests'">
     <Optimize>true</Optimize>
