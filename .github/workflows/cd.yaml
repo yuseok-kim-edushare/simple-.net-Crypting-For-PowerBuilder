@@ -75,7 +75,9 @@ jobs:
 
         # Merge NET 8 DLLs (using ILRepack)
         ${{ github.workspace }}\packages\ILRepack.2.0.18\tools\ILRepack.exe /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll `
-                   /targetplatform:v8 `
+                   /lib:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64 `
+                   /union `
+                   /ndebug `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\BCrypt.Net-Next.dll
 
