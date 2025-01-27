@@ -3,6 +3,7 @@ using NUnit.Framework;
 using System.Data.SqlTypes;
 using SecureLibrary.SQL;
 using System;
+using System.Linq;
 
 namespace SecureLibrary.Tests 
 {
@@ -36,8 +37,8 @@ namespace SecureLibrary.Tests
         public void EncryptAES_ShouldEncryptAndDecryptSuccessfully()
         {
             // Act
-            var encrypted = SqlCLRCrypting.EncryptAES(plainText, key);
-            var decrypted = SqlCLRCrypting.DecryptAES(encrypted[0], key, encrypted[1]);
+            var encryptResult = SqlCLRCrypting.EncryptAES(plainText, key).Cast<SqlString[]>().First();
+            var decrypted = SqlCLRCrypting.DecryptAES(encryptResult[0], key, encryptResult[1]);
             
             // Assert
             Assert.That(decrypted.Value, Is.EqualTo(plainText.Value), "Decrypted text should match original");
@@ -71,28 +72,28 @@ namespace SecureLibrary.Tests
         public void GenerateDiffieHellmanKeys_ShouldGenerateValidKeys()
         {
             // Act
-            var keys = SqlCLRCrypting.GenerateDiffieHellmanKeys();
+            var keysResult = SqlCLRCrypting.GenerateDiffieHellmanKeys().Cast<SqlString[]>().First();
 
             // Assert
-            Assert.That(!keys[0].Equals(null)); // Public key
-            Assert.That(!keys[1].Equals(null)); // Private key
+            Assert.That(!keysResult[0].IsNull, "Public key should not be null");
+            Assert.That(!keysResult[1].IsNull, "Private key should not be null");
         }
 
         [Test]
         public void DeriveSharedKey_ShouldDeriveKeySuccessfully()
         {
             // Arrange
-            var keys1 = SqlCLRCrypting.GenerateDiffieHellmanKeys();
-            var keys2 = SqlCLRCrypting.GenerateDiffieHellmanKeys();
+            var keys1 = SqlCLRCrypting.GenerateDiffieHellmanKeys().Cast<SqlString[]>().First();
+            var keys2 = SqlCLRCrypting.GenerateDiffieHellmanKeys().Cast<SqlString[]>().First();
 
             // Act
             var sharedKey1 = SqlCLRCrypting.DeriveSharedKey(keys2[0], keys1[1]);
             var sharedKey2 = SqlCLRCrypting.DeriveSharedKey(keys1[0], keys2[1]);
 
             // Assert
-            Assert.That(!sharedKey1.Equals(null));
-            Assert.That(!sharedKey2.Equals(null));
-            Assert.That(sharedKey1.Equals(sharedKey2));
+            Assert.That(!sharedKey1.IsNull, "Shared key 1 should not be null");
+            Assert.That(!sharedKey2.IsNull, "Shared key 2 should not be null");
+            Assert.That(sharedKey1.Value, Is.EqualTo(sharedKey2.Value), "Shared keys should match");
         }
 
         [Test]
