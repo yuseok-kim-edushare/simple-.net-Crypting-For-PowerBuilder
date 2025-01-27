@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Security;
 using SecureLibrary.SQL;
+using System.Collections;
 
 [assembly: AllowPartiallyTrustedCallers]
 [assembly: SecurityRules(SecurityRuleSet.Level2)]
@@ -39,15 +40,17 @@ namespace SecureLibrary.SQL
         [SqlFunction(
             IsDeterministic = true,
             IsPrecise = true,
-            DataAccess = DataAccessKind.None
+            DataAccess = DataAccessKind.None,
+            FillRowMethodName = "FillEncryptAESRow"
         )]
-        public static SqlString[] EncryptAES(SqlString plainText, SqlString base64Key)
+        public static IEnumerable EncryptAES(SqlString plainText, SqlString base64Key)
         {
+            if (plainText.IsNull || base64Key.IsNull)
+                yield break;
+
+            SqlString[] result = null;
             try
             {
-                if (plainText.IsNull || base64Key.IsNull)
-                    return null;
-
                 byte[] key = Convert.FromBase64String(base64Key.Value);
                 using (Aes aes = Aes.Create())
                 {
@@ -69,8 +72,7 @@ namespace SecureLibrary.SQL
                         }
                     }
 
-                    return new SqlString[] 
-                    { 
+                    result = new SqlString[] { 
                         new SqlString(Convert.ToBase64String(cipherText)),
                         new SqlString(Convert.ToBase64String(aes.IV))
                     };
@@ -78,8 +80,18 @@ namespace SecureLibrary.SQL
             }
             catch (Exception)
             {
-                return null;
+                yield break;
             }
+
+            if (result != null)
+                yield return result;
+        }
+
+        public static void FillEncryptAESRow(object obj, out SqlString cipherText, out SqlString iv)
+        {
+            SqlString[] result = (SqlString[])obj;
+            cipherText = result[0];
+            iv = result[1];
         }
 
         [SqlFunction(
@@ -123,21 +135,40 @@ namespace SecureLibrary.SQL
         [SqlFunction(
             IsDeterministic = true,
             IsPrecise = true,
-            DataAccess = DataAccessKind.None
+            DataAccess = DataAccessKind.None,
+            FillRowMethodName = "FillDiffieHellmanKeysRow"
         )]
-        public static SqlString[] GenerateDiffieHellmanKeys()
+        public static IEnumerable GenerateDiffieHellmanKeys()
         {
-            using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng())
+            SqlString[] result = null;
+            try
             {
-                dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
-                dh.HashAlgorithm = CngAlgorithm.Sha256;
-                byte[] publicKey = dh.PublicKey.ToByteArray();
-                byte[] privateKey = dh.Key.Export(CngKeyBlobFormat.EccPrivateBlob);
-                return new SqlString[] { 
-                    new SqlString(Convert.ToBase64String(publicKey)), 
-                    new SqlString(Convert.ToBase64String(privateKey)) 
-                };
+                using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng())
+                {
+                    dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
+                    dh.HashAlgorithm = CngAlgorithm.Sha256;
+                    byte[] publicKey = dh.PublicKey.ToByteArray();
+                    byte[] privateKey = dh.Key.Export(CngKeyBlobFormat.EccPrivateBlob);
+                    result = new SqlString[] { 
+                        new SqlString(Convert.ToBase64String(publicKey)), 
+                        new SqlString(Convert.ToBase64String(privateKey)) 
+                    };
+                }
             }
+            catch (Exception)
+            {
+                yield break;
+            }
+
+            if (result != null)
+                yield return result;
+        }
+
+        public static void FillDiffieHellmanKeysRow(object obj, out SqlString publicKey, out SqlString privateKey)
+        {
+            SqlString[] result = (SqlString[])obj;
+            publicKey = result[0];
+            privateKey = result[1];
         }
 
         [SqlFunction(
