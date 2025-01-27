@@ -108,7 +108,8 @@ jobs:
         files: |
             ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
             ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll
-            ${{ github.workspace }}\release-files\NET8.dll
+            ${{ github.workspace }}\release-files\NET8.zip
         tag_name: ${{ env.new_release }}
         name: ${{ env.new_release }}
         body: ${{ env.release_notes }}
+
