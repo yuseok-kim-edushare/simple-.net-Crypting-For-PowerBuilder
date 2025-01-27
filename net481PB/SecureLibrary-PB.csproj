@@ -34,13 +34,12 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='ReleaseWithoutTests'">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE;RELEASE;RELEASE_WITHOUT_TESTS</DefineConstants>
+    <OutputPath>bin\ReleaseWithoutTests\</OutputPath>
+  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="NUnit" >
-      <HintPath>packages\NUnit.4.1.0\lib\net462\nunit.framework.dll</HintPath>
-    </Reference>
-    <Reference Include="NUnit3TestAdapter" >
-      <HintPath>packages\NUnit3TestAdapter.4.6.0\build\net462\NUnit3.TestAdapter.dll</HintPath>
-    </Reference>
     <Reference Include="BCrypt.Net-Next, Version=4.0.3.0, Culture=neutral, PublicKeyToken=1e11be04b6288443, processorArchitecture=MSIL">
       <HintPath>packages\BCrypt.Net-Next.4.0.3\lib\net48\BCrypt.Net-Next.dll</HintPath>
     </Reference>
@@ -72,6 +71,14 @@
     <Compile Include="invokeCGN.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="test.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)'!='ReleaseWithoutTests'">
+    <Reference Include="NUnit">
+      <HintPath>packages\NUnit.4.1.0\lib\net462\nunit.framework.dll</HintPath>
+    </Reference>
+    <Reference Include="NUnit3TestAdapter">
+      <HintPath>packages\NUnit3TestAdapter.4.6.0\build\net462\NUnit3.TestAdapter.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

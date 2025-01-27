@@ -42,17 +42,45 @@ jobs:
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v2
     
-    - name: Build solution
+    - name: Build solution for release (without tests)
       run: |
-        msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
-        dotnet build "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" --configuration Release --arch x64
+        msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=ReleaseWithoutTests
+        dotnet build "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" --configuration ReleaseWithoutTests --arch x64
 
-
-    - name: release zip make
+    - name: Install ILMerge
       run: |
-          Compress-Archive -Path ${{ github.workspace }}\net481PB\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.4.8.PB.zip
-          Compress-Archive -Path ${{ github.workspace }}\net481SQL-server\bin\Release\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.4.8.SQL.zip
-          Compress-Archive -Path ${{ github.workspace }}\NET8\bin\Release\net8.0\*.dll -DestinationPath ${{ github.workspace }}\Release.NET.8.zip
+        nuget install ILMerge -Version 3.0.41
+        $env:PATH += ";${{ github.workspace }}\ILMerge.3.0.41\tools\net452"
+
+    - name: Merge and Create Release Files
+      run: |
+        # Merge NET 4.8 PB DLLs
+        ILMerge.exe /out:${{ github.workspace }}\net481PB\bin\ReleaseWithoutTests\SecureLibrary-PB-Merged.dll `
+                   ${{ github.workspace }}\net481PB\bin\ReleaseWithoutTests\SecureLibrary-PB.dll `
+                   ${{ github.workspace }}\net481PB\bin\ReleaseWithoutTests\BCrypt.Net-Next.dll `
+                   ${{ github.workspace }}\net481PB\bin\ReleaseWithoutTests\System.Buffers.dll `
+                   ${{ github.workspace }}\net481PB\bin\ReleaseWithoutTests\System.Memory.dll `
+                   ${{ github.workspace }}\net481PB\bin\ReleaseWithoutTests\System.Numerics.Vectors.dll `
+                   ${{ github.workspace }}\net481PB\bin\ReleaseWithoutTests\System.Runtime.CompilerServices.Unsafe.dll
+        
+        # Merge NET 4.8 SQL DLLs
+        ILMerge.exe /out:${{ github.workspace }}\net481SQL-server\bin\ReleaseWithoutTests\SecureLibrary-SQL-Merged.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\ReleaseWithoutTests\SecureLibrary-SQL.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\ReleaseWithoutTests\BCrypt.Net-Next.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\ReleaseWithoutTests\System.Buffers.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\ReleaseWithoutTests\System.Memory.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\ReleaseWithoutTests\System.Numerics.Vectors.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\ReleaseWithoutTests\System.Runtime.CompilerServices.Unsafe.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\ReleaseWithoutTests\Microsoft.SqlServer.Server.dll
+
+        # For NET 8, publish the project
+        dotnet publish "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" -c ReleaseWithoutTests --self-contained false
+
+        # Copy all release files to a single directory for easier release
+        New-Item -ItemType Directory -Path ${{ github.workspace }}\release-files -Force
+        Copy-Item ${{ github.workspace }}\net481PB\bin\ReleaseWithoutTests\SecureLibrary-PB-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
+        Copy-Item ${{ github.workspace }}\net481SQL-server\bin\ReleaseWithoutTests\SecureLibrary-SQL-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll
+        Copy-Item ${{ github.workspace }}\NET8\bin\ReleaseWithoutTests\net8.0\publish\NET8.dll ${{ github.workspace }}\release-files\NET8.dll
 
     - name: Get latest release version and Generate release notes
       id: get_latest_release
@@ -80,9 +108,9 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: |
-            D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.4.8.PB.zip
-            D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.4.8.SQL.zip
-            D:/a/simple-.net-Crypting-For-PowerBuilder/simple-.net-Crypting-For-PowerBuilder/Release.NET.8.zip
+            ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
+            ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll
+            ${{ github.workspace }}\release-files\NET8.dll
         tag_name: ${{ env.new_release }}
         name: ${{ env.new_release }}
         body: ${{ env.release_notes }}

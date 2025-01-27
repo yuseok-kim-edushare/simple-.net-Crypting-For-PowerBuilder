@@ -1,3 +1,4 @@
+#if !RELEASE_WITHOUT_TESTS
 using NUnit.Framework;
 using System.Data.SqlTypes;
 using SecureLibrary.SQL;
@@ -123,3 +124,4 @@ namespace SecureLibrary.Tests
         }
     }
 }
+#endif

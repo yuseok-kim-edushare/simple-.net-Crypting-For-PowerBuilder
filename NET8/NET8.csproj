@@ -8,9 +8,17 @@
     <EnableComHosting>true</EnableComHosting>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='ReleaseWithoutTests'">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE;RELEASE;RELEASE_WITHOUT_TESTS</DefineConstants>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)'!='ReleaseWithoutTests'">
     <PackageReference Include="NUnit" Version="4.3.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />

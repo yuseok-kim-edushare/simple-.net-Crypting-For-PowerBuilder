@@ -1,3 +1,4 @@
+#if !RELEASE_WITHOUT_TESTS
 using NUnit.Framework;
 
 namespace SecureLibrary.Tests
@@ -92,3 +93,4 @@ namespace SecureLibrary.Tests
         }
     }
 }
+#endif
