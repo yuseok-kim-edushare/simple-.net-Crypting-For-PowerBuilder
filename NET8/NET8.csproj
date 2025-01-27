@@ -7,9 +7,9 @@
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     <EnableComHosting>true</EnableComHosting>
     <IsTestProject>true</IsTestProject>
+    <ExcludeTests Condition="'$(Configuration)'=='Release'">true</ExcludeTests>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='ReleaseWithoutTests'">
-    <Optimize>true</Optimize>
+  <PropertyGroup Condition="'$(Configuration)'=='Release' and '$(ExcludeTests)'=='true'">
     <DefineConstants>TRACE;RELEASE;RELEASE_WITHOUT_TESTS</DefineConstants>
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
@@ -18,7 +18,7 @@
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)'!='ReleaseWithoutTests'">
+  <ItemGroup Condition="'$(Configuration)'!='Release'">
     <PackageReference Include="NUnit" Version="4.3.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />

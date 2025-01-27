@@ -15,6 +15,7 @@
     <CLRSupport>true</CLRSupport>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
+    <ExcludeTests Condition="'$(Configuration)'=='Release'">true</ExcludeTests>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -30,7 +31,8 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants Condition="'$(ExcludeTests)'=='true'">TRACE;RELEASE;RELEASE_WITHOUT_TESTS</DefineConstants>
+    <DefineConstants Condition="'$(ExcludeTests)'!='true'">TRACE;RELEASE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

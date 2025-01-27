@@ -30,7 +30,8 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants Condition="'$(ExcludeTests)'=='true'">TRACE;RELEASE;RELEASE_WITHOUT_TESTS</DefineConstants>
+    <DefineConstants Condition="'$(ExcludeTests)'!='true'">TRACE;RELEASE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -38,6 +39,9 @@
     <Optimize>true</Optimize>
     <DefineConstants>TRACE;RELEASE;RELEASE_WITHOUT_TESTS</DefineConstants>
     <OutputPath>bin\ReleaseWithoutTests\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ExcludeTests Condition="'$(Configuration)'=='Release'">true</ExcludeTests>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="BCrypt.Net-Next, Version=4.0.3.0, Culture=neutral, PublicKeyToken=1e11be04b6288443, processorArchitecture=MSIL">

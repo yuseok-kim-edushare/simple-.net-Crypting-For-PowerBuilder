@@ -34,17 +34,19 @@ jobs:
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v2
     
-    - name: Build solution
-      run: msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
+    - name: Build solution for testing
+      run: |
+        msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Debug
+        dotnet build "NET8/NET8.csproj" --configuration Debug --arch x64
 
     - name: Install NUnit Console Runner
       run: nuget install NUnit.ConsoleRunner -Version 3.19.1 -OutputDirectory testrunner
 
     - name: Run Tests dll for PB with net 481
-      run:  .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\net481PB\bin\Release\SecureLibrary.dll
+      run: .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe ${{ github.workspace }}\net481pb\bin\Debug\SecureLibrary.dll
 
     - name: Run Tests dll for SQL with net 481
-      run:  .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\\net481SQL-server\bin\Release\SecureLibrary.SQL.dll
+      run: .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe ${{ github.workspace }}\net481SQL-server\bin\Debug\SecureLibrary.SQL.dll
 
     - name: Run Tests dll for NET8
-      run: dotnet test NET8/NET8.csproj --arch x64
+      run: dotnet test NET8/NET8.csproj --configuration Debug --arch x64
