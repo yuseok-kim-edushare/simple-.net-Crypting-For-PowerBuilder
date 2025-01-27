@@ -55,7 +55,7 @@ jobs:
       run: |
         # Merge NET 4.8 PB DLLs
         ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll `
-                   ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB.dll `
+                   ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\BCrypt.Net-Next.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\System.Buffers.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\System.Memory.dll `
@@ -64,7 +64,7 @@ jobs:
         
         # Merge NET 4.8 SQL DLLs
         ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL-Merged.dll `
-                   ${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary.SQL.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\BCrypt.Net-Next.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\System.Buffers.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\System.Memory.dll `
@@ -73,7 +73,7 @@ jobs:
                    ${{ github.workspace }}\net481SQL-server\bin\Release\Microsoft.SqlServer.Server.dll
 
         # For NET 8, publish the project
-        dotnet publish "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" -c Release /p:DefineConstants="TRACE;RELEASE;RELEASE_WITHOUT_TESTS" --self-contained false
+        dotnet publish "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" -c Release --self-contained false
 
         # Copy all release files to a single directory for easier release
         New-Item -ItemType Directory -Path ${{ github.workspace }}\release-files -Force

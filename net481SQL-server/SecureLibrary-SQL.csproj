@@ -78,12 +78,14 @@
     <Compile Include="test.cs" />
     <Compile Include="invokeCGN.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(Configuration)'!='ReleaseWithoutTests'">
+  <ItemGroup Condition="'$(Configuration)'!='Release'">
     <Reference Include="NUnit">
       <HintPath>packages\NUnit.3.13.3\lib\net45\nunit.framework.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="NUnit3TestAdapter">
       <HintPath>packages\NUnit3TestAdapter.4.4.2\build\net462\NUnit3.TestAdapter.dll</HintPath>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

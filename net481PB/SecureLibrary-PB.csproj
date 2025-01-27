@@ -76,12 +76,14 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="test.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(Configuration)'!='ReleaseWithoutTests'">
+  <ItemGroup Condition="'$(Configuration)'!='Release'">
     <Reference Include="NUnit">
       <HintPath>packages\NUnit.4.1.0\lib\net462\nunit.framework.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="NUnit3TestAdapter">
       <HintPath>packages\NUnit3TestAdapter.4.6.0\build\net462\NUnit3.TestAdapter.dll</HintPath>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
