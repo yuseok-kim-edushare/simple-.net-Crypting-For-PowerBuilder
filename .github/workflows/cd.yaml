@@ -47,13 +47,14 @@ jobs:
         msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
         dotnet build "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" --configuration Release --arch x64
 
-    - name: Install ILMerge
+    - name: Install ILMerge and ILRepack
       run: |
         nuget install ILMerge -Version 3.0.41 -OutputDirectory ${{ github.workspace }}\packages
+        nuget install ILRepack -Version 2.0.18 -OutputDirectory ${{ github.workspace }}\packages
 
     - name: Merge and Create Release Files
       run: |
-        # Merge NET 4.8 PB DLLs
+        # Merge NET 4.8 PB DLLs (using ILMerge)
         ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\BCrypt.Net-Next.dll `
@@ -62,7 +63,7 @@ jobs:
                    ${{ github.workspace }}\net481PB\bin\Release\System.Numerics.Vectors.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\System.Runtime.CompilerServices.Unsafe.dll
         
-        # Merge NET 4.8 SQL DLLs
+        # Merge NET 4.8 SQL DLLs (using ILMerge)
         ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL-Merged.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary.SQL.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\BCrypt.Net-Next.dll `
@@ -72,8 +73,9 @@ jobs:
                    ${{ github.workspace }}\net481SQL-server\bin\Release\System.Runtime.CompilerServices.Unsafe.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\Microsoft.SqlServer.Server.dll
 
-        # Merge NET 8 DLLs
-        ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll `
+        # Merge NET 8 DLLs (using ILRepack)
+        ${{ github.workspace }}\packages\ILRepack.2.0.18\tools\ILRepack.exe /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll `
+                   /targetplatform:v8 `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\BCrypt.Net-Next.dll
 
@@ -82,6 +84,7 @@ jobs:
         Copy-Item ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
         Copy-Item ${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll        
         Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll ${{ github.workspace }}\release-files\NET8.dll
+        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.comhost.dll ${{ github.workspace }}\release-files\NET8.comhost.dll
 
     - name: Get latest release version and Generate release notes
       id: get_latest_release
@@ -112,6 +115,7 @@ jobs:
             ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
             ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll
             ${{ github.workspace }}\release-files\NET8.dll
+            ${{ github.workspace }}\release-files\NET8.comhost.dll
         tag_name: ${{ env.new_release }}
         name: ${{ env.new_release }}
         body: ${{ env.release_notes }}
