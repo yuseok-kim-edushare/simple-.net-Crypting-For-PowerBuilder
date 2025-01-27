@@ -72,14 +72,14 @@ jobs:
                    ${{ github.workspace }}\net481SQL-server\bin\Release\System.Runtime.CompilerServices.Unsafe.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\Microsoft.SqlServer.Server.dll
 
-        # For NET 8, publish the project
-        dotnet publish "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" --configuration Release --arch x64 --self-contained false
+        # Compress Net 8 DLL
+        Compress-Archive -Path ${{ github.workspace }}\NET8\bin\Release\net8.0\*.dll -DestinationPath ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\NET8.zip
 
         # Copy all release files to a single directory for easier release
         New-Item -ItemType Directory -Path ${{ github.workspace }}\release-files -Force
         Copy-Item ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
         Copy-Item ${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll
-        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\NET8.dll ${{ github.workspace }}\release-files\NET8.dll
+        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\NET8.zip ${{ github.workspace }}\release-files\NET8.zip
 
     - name: Get latest release version and Generate release notes
       id: get_latest_release
