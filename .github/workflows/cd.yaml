@@ -50,12 +50,11 @@ jobs:
     - name: Install ILMerge
       run: |
         nuget install ILMerge -Version 3.0.41 -OutputDirectory ${{ github.workspace }}\packages
-        $env:PATH += ";${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452"
 
     - name: Merge and Create Release Files
       run: |
         # Merge NET 4.8 PB DLLs
-        ILMerge.exe /out:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll `
+        ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\BCrypt.Net-Next.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\System.Buffers.dll `
@@ -64,7 +63,7 @@ jobs:
                    ${{ github.workspace }}\net481PB\bin\Release\System.Runtime.CompilerServices.Unsafe.dll
         
         # Merge NET 4.8 SQL DLLs
-        ILMerge.exe /out:${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL-Merged.dll `
+        ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL-Merged.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\BCrypt.Net-Next.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\System.Buffers.dll `
