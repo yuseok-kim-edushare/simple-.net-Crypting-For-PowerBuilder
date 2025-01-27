@@ -157,9 +157,20 @@ namespace SecureLibrary
                 
                 using (var otherPartyKey = ECDiffieHellmanCng.Create())
                 {
-                    otherPartyKey.ImportSubjectPublicKeyInfo(otherPartyPublicKey, out _);
-                    byte[] sharedKey = dh.DeriveKeyMaterial(otherPartyKey.PublicKey);
-                    return Convert.ToBase64String(sharedKey);
+                    try
+                    {
+                        // Try importing as EccPublicBlob first (for .NET 4.8.1 format)
+                        using (var importedKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
+                        {
+                            return Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey));
+                        }
+                    }
+                    catch
+                    {
+                        // If that fails, try importing as SubjectPublicKeyInfo (for .NET 8 format)
+                        otherPartyKey.ImportSubjectPublicKeyInfo(otherPartyPublicKey, out _);
+                        return Convert.ToBase64String(dh.DeriveKeyMaterial(otherPartyKey.PublicKey));
+                    }
                 }
             }
         }

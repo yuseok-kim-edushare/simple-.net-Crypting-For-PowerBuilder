@@ -178,16 +178,37 @@ namespace SecureLibrary.SQL
         )]
         public static SqlString DeriveSharedKey(SqlString otherPartyPublicKeyBase64, SqlString privateKeyBase64)
         {
-            byte[] otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64.Value);
-            byte[] privateKey = Convert.FromBase64String(privateKeyBase64.Value);
-            
-            using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
+            try
             {
-                using (CngKey otherKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
+                byte[] otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64.Value);
+                byte[] privateKey = Convert.FromBase64String(privateKeyBase64.Value);
+                
+                using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
                 {
-                    byte[] sharedKey = dh.DeriveKeyMaterial(otherKey);
-                    return new SqlString(Convert.ToBase64String(sharedKey));
+                    dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
+                    dh.HashAlgorithm = CngAlgorithm.Sha256;
+
+                    try
+                    {
+                        // Try importing as EccPublicBlob first
+                        using (var importedKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
+                        {
+                            return new SqlString(Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey)));
+                        }
+                    }
+                    catch
+                    {
+                        // If EccPublicBlob fails, try as GenericPublicBlob
+                        using (var importedKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.GenericPublicBlob))
+                        {
+                            return new SqlString(Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey)));
+                        }
+                    }
                 }
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
             }
         }
 

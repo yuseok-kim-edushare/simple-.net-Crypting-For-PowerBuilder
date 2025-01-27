@@ -127,16 +127,37 @@ namespace SecureLibrary
 
         public static string DeriveSharedKey(string otherPartyPublicKeyBase64, string privateKeyBase64)
         {
-            byte[] otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64);
-            byte[] privateKey = Convert.FromBase64String(privateKeyBase64);
-            
-            using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
+            try
             {
-                using (CngKey otherKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
+                byte[] otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64);
+                byte[] privateKey = Convert.FromBase64String(privateKeyBase64);
+                
+                using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
                 {
-                    byte[] sharedKey = dh.DeriveKeyMaterial(otherKey);
-                    return Convert.ToBase64String(sharedKey);
+                    dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
+                    dh.HashAlgorithm = CngAlgorithm.Sha256;
+
+                    try
+                    {
+                        // Try importing as EccPublicBlob first
+                        using (var importedKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
+                        {
+                            return Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey));
+                        }
+                    }
+                    catch
+                    {
+                        // If EccPublicBlob fails, try as GenericPublicBlob
+                        using (var importedKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.GenericPublicBlob))
+                        {
+                            return Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey));
+                        }
+                    }
                 }
+            }
+            catch
+            {
+                return null;
             }
         }
         // this is common byte combine method for AES and DH implementation
