@@ -3,37 +3,43 @@ This Project will create .NET dll to implement crypto object en|decrypter for Po
 
 *Read this in other languages: [한국어](README.ko.md)*
 
+[![CI tests](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/actions/workflows/ci.yaml/badge.svg)](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/actions/workflows/ci.yaml)
+
 ## Purpose
 - Implement simple implementation dll for Powerbuilder Programming
 - Also Supplement Assembly for SQL Server will used in SP for Powerbuilder Clients
-
-## Cause of Not Implemented some cryptographic options In Powerbuilder
-For Example
-- AES Encryption with GCM mode
-  - This is important to secure using Symmetric Encrypting Function in morden
-  - Not native supported in .NET Framework 4.8.1
-    - Fallback to AES-256-CBC (this will ensure cross compatibility between PB and SQL Server)
-    - also import dll of windows's CGN (bcrypt.dll), this make dll can use aes-gcm
-- Diffie Hellman Key Exchange or else equivalent
-  - for 2nd layer securing to transport sensitive data 
-  - (In TLS already used, but bi-layered encrypt for more secure handling)
-- Bcrypt Password encoding or and so on to PW encryption
-  - this is the matter of one-way password encryption well
-  - just using 1 pass of hash function, eg. SHA-512 isn't secure enough
 
 ## Informations
 - Target Frameworks
   - .NET Framework 4.8.1
     - This is ensure Cross compatibility between PB versions
-    - Also for SQL Server Assembly
+    - Also for SQL Server CLR Assembly
+    - [Download .NET Framework 4.8.1](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net481)
+      - to run DLL, runtime needs to be installed, powerbuilder dev needs SDK installed windows PC
+      - Required windows 10 21H2 or later and windows server 2022 or later
   - .NET 8
     - This is for Powerbuilder 2022 R3 Latest or 2025
+    - [Download .NET 8](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+      - to run DLL, runtime needs to be installed, powerbuilder dev needs SDK installed windows PC
+      - we need .NET Desktop Runtime for windows
+      - Required windows server 2016 or later and windows 10 (LTSC 1607+ or 22H2) or later
+
 
 - **[Example Code](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples)**
   - [PB with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%204.8)
   - [PB with .NET 8 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%208) -Not Created (will create with PB 2025)
   - [MS-SQL with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/SQL-server-Net%204.8)
 
+## Cause of Not Implemented some cryptographic options In Powerbuilder
+For Example
+- AES Encryption with GCM mode
+  - This is important to secure using Symmetric Encrypting Function in morden
+- Diffie Hellman Key Exchange or else equivalent
+  - for 2nd layer securing to transport sensitive data 
+  - (In TLS already used, but bi-layered encrypt for more secure handling)
+- Bcrypt Password encoding or and so on to PW encryption
+  - this is the matter of one-way password encryption well
+  - just using 1 pass of hash function, eg. SHA-512 isn't secure enough
   
 ## Milestone
 
