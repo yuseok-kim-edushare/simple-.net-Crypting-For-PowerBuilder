@@ -12,7 +12,7 @@ global nvo_encryptionhelper nvo_encryptionhelper
 type variables
 
 PUBLIC:
-String is_assemblypath = "SecureLibrary.dll"
+String is_assemblypath = "C:\Test\SecureLibrary-PB.dll"
 String is_classname = "SecureLibrary.EncryptionHelper"
 
 /* Exception handling -- Indicates how proxy handles .NET exceptions */
@@ -48,11 +48,13 @@ public function boolean of_createondemand ()
 private subroutine of_setassemblyerror (long al_errortype, string as_actiontext, long al_errornumber, string as_errortext)
 public subroutine of_geterrorhandler (ref powerobject apo_currenthandler,ref string as_currentevent)
 public subroutine of_reseterrorhandler ()
+public function string of_encryptaesgcm(string as_plaintext,string as_base64key)
+public function string of_decryptaesgcm(string as_combineddata,string as_base64key)
 public function any of_encryptaescbcwithiv(string as_plaintext,string as_base64key)
 public function string of_decryptaescbcwithiv(string as_base64ciphertext,string as_base64key,string as_base64iv)
 public function string of_keygenaes256()
 public function any of_generatediffiehellmankeys()
-public function blob of_derivesharedkey(blob ablo_otherpartypublickey,blob ablo_privatekey)
+public function string of_derivesharedkey(string as_otherpartypublickeybase64,string as_privatekeybase64)
 public function string of_bcryptencoding(string as_password)
 public function boolean of_verifybcryptpassword(string as_password,string as_hashedpassword)
 end prototypes
@@ -229,6 +231,84 @@ SetNull(This.ipo_errorHandler)
 SetNull(This.is_errorEvent)
 end subroutine
 
+public function string of_encryptaesgcm(string as_plaintext,string as_base64key);
+//*-----------------------------------------------------------------*/
+//*  .NET function : EncryptAesGcm
+//*   Argument:
+//*              String as_plaintext
+//*              String as_base64key
+//*   Return : String
+//*-----------------------------------------------------------------*/
+/* .NET  function name */
+String ls_function
+String ls_result
+
+/* Set the dotnet function name */
+ls_function = "EncryptAesGcm"
+
+Try
+	/* Create .NET object */
+	If Not This.of_createOnDemand( ) Then
+		SetNull(ls_result)
+		Return ls_result
+	End If
+
+	/* Trigger the dotnet function */
+	ls_result = This.encryptaesgcm(as_plaintext,as_base64key)
+	Return ls_result
+Catch(runtimeerror re_error)
+
+	If This.ib_CrashOnException Then Throw re_error
+
+	/*   Handle .NET error */
+	This.of_SetDotNETError(ls_function, re_error.text)
+	This.of_SignalError( )
+
+	/*  Indicate error occurred */
+	SetNull(ls_result)
+	Return ls_result
+End Try
+end function
+
+public function string of_decryptaesgcm(string as_combineddata,string as_base64key);
+//*-----------------------------------------------------------------*/
+//*  .NET function : DecryptAesGcm
+//*   Argument:
+//*              String as_combineddata
+//*              String as_base64key
+//*   Return : String
+//*-----------------------------------------------------------------*/
+/* .NET  function name */
+String ls_function
+String ls_result
+
+/* Set the dotnet function name */
+ls_function = "DecryptAesGcm"
+
+Try
+	/* Create .NET object */
+	If Not This.of_createOnDemand( ) Then
+		SetNull(ls_result)
+		Return ls_result
+	End If
+
+	/* Trigger the dotnet function */
+	ls_result = This.decryptaesgcm(as_combineddata,as_base64key)
+	Return ls_result
+Catch(runtimeerror re_error)
+
+	If This.ib_CrashOnException Then Throw re_error
+
+	/*   Handle .NET error */
+	This.of_SetDotNETError(ls_function, re_error.text)
+	This.of_SignalError( )
+
+	/*  Indicate error occurred */
+	SetNull(ls_result)
+	Return ls_result
+End Try
+end function
+
 public function any of_encryptaescbcwithiv(string as_plaintext,string as_base64key);
 //*-----------------------------------------------------------------*/
 //*  .NET function : EncryptAesCbcWithIv
@@ -347,11 +427,11 @@ end function
 public function any of_generatediffiehellmankeys();
 //*-----------------------------------------------------------------*/
 //*  .NET function : GenerateDiffieHellmanKeys
-//*   Return : Blob[]
+//*   Return : String[]
 //*-----------------------------------------------------------------*/
 /* .NET  function name */
 String ls_function
-Any lbyt_result
+Any ls_result
 
 /* Set the dotnet function name */
 ls_function = "GenerateDiffieHellmanKeys"
@@ -359,13 +439,13 @@ ls_function = "GenerateDiffieHellmanKeys"
 Try
 	/* Create .NET object */
 	If Not This.of_createOnDemand( ) Then
-		SetNull(lbyt_result)
-		Return lbyt_result
+		SetNull(ls_result)
+		Return ls_result
 	End If
 
 	/* Trigger the dotnet function */
-	lbyt_result = This.generatediffiehellmankeys()
-	Return lbyt_result
+	ls_result = This.generatediffiehellmankeys()
+	Return ls_result
 Catch(runtimeerror re_error)
 
 	If This.ib_CrashOnException Then Throw re_error
@@ -375,22 +455,22 @@ Catch(runtimeerror re_error)
 	This.of_SignalError( )
 
 	/*  Indicate error occurred */
-	SetNull(lbyt_result)
-	Return lbyt_result
+	SetNull(ls_result)
+	Return ls_result
 End Try
 end function
 
-public function blob of_derivesharedkey(blob ablo_otherpartypublickey,blob ablo_privatekey);
+public function string of_derivesharedkey(string as_otherpartypublickeybase64,string as_privatekeybase64);
 //*-----------------------------------------------------------------*/
 //*  .NET function : DeriveSharedKey
 //*   Argument:
-//*              Blob ablo_otherpartypublickey
-//*              Blob ablo_privatekey
-//*   Return : Blob
+//*              String as_otherpartypublickeybase64
+//*              String as_privatekeybase64
+//*   Return : String
 //*-----------------------------------------------------------------*/
 /* .NET  function name */
 String ls_function
-Blob lbyt_result
+String ls_result
 
 /* Set the dotnet function name */
 ls_function = "DeriveSharedKey"
@@ -398,13 +478,13 @@ ls_function = "DeriveSharedKey"
 Try
 	/* Create .NET object */
 	If Not This.of_createOnDemand( ) Then
-		SetNull(lbyt_result)
-		Return lbyt_result
+		SetNull(ls_result)
+		Return ls_result
 	End If
 
 	/* Trigger the dotnet function */
-	lbyt_result = This.derivesharedkey(ablo_otherpartypublickey,ablo_privatekey)
-	Return lbyt_result
+	ls_result = This.derivesharedkey(as_otherpartypublickeybase64,as_privatekeybase64)
+	Return ls_result
 Catch(runtimeerror re_error)
 
 	If This.ib_CrashOnException Then Throw re_error
@@ -414,8 +494,8 @@ Catch(runtimeerror re_error)
 	This.of_SignalError( )
 
 	/*  Indicate error occurred */
-	SetNull(lbyt_result)
-	Return lbyt_result
+	SetNull(ls_result)
+	Return ls_result
 End Try
 end function
 
