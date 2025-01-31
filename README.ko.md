@@ -47,3 +47,8 @@
 [github actions](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/actions/workflows)
 에서 확인하실 수 있습니다.
 ci.yaml과 cd.yaml 확인하시면 됩니다.
+
+# 의존성
+- .NET or .NET Framework
+- Windows Cryptography API: Next Generation
+- [Bcrypt.NET-NEXT](https://github.com/BcryptNet/bcrypt.net)

@@ -47,3 +47,7 @@ and you can check required commands in
 [github actions](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/actions/workflows)
 you should see ci.yaml and cd.yaml
 
+# Dependancy
+- .NET or .NET Framework
+- Windows Cryptography API: Next Generation
+- [Bcrypt.NET-NEXT](https://github.com/BcryptNet/bcrypt.net)
