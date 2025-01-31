@@ -54,11 +54,14 @@ jobs:
 
     - name: Merge and Create Release Files
       run: |
-        # Merge NET 4.8 PB DLLs (using ILMerge)
-        ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll `
-                   /targetplatform:"v4,C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8.1" `
+        # Merge NET 4.8 PB DLLs (using ILRepack instead of ILMerge)
+        ${{ github.workspace }}\packages\ILRepack.2.0.18\tools\ILRepack.exe /out:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll `
+                   /lib:${{ github.workspace }}\net481PB\bin\Release `
+                   /targetplatform:v4.8.1 `
+                   /union `
                    /attr:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary.dll `
-                   /allowDup `
+                   /copyattrs `
+                   /internalize `
                    ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\BCrypt.Net-Next.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\System.Buffers.dll `
