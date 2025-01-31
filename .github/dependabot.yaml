@@ -1,14 +1,14 @@
 version: 2
 updates:
-  # Configuration for NuGet packages
+  # Configuration for NET8 project
   - package-ecosystem: "nuget"
-    directory: "/"
+    directory: "/NET8"
     schedule:
       interval: "daily"
       time: "12:00"
       timezone: Asia/Seoul
     open-pull-requests-limit: 10
-    target-branch: "main"  # Change this to your main development branch
+    target-branch: "main"
     labels:
       - "dependencies"
       - "nuget"
@@ -16,7 +16,6 @@ updates:
       prefix: "fix(deps)"
       prefix-development: "chore(deps-dev)"
       include: "scope"
-    # Group all dependencies together
     groups:
       nuget-dependencies:
         patterns:
@@ -24,7 +23,53 @@ updates:
     allow:
       - dependency-type: "all"
 
-  # Configuration for GitHub Actions (if you use them)
+  # Configuration for net481PB project
+  - package-ecosystem: "nuget"
+    directory: "/net481PB"
+    schedule:
+      interval: "daily"
+      time: "12:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 10
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "nuget"
+    commit-message:
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    groups:
+      nuget-dependencies:
+        patterns:
+          - "*"
+    allow:
+      - dependency-type: "all"
+
+  # Configuration for net481SQL-server project
+  - package-ecosystem: "nuget"
+    directory: "/net481SQL-server"
+    schedule:
+      interval: "daily"
+      time: "12:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 10
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "nuget"
+    commit-message:
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    groups:
+      nuget-dependencies:
+        patterns:
+          - "*"
+    allow:
+      - dependency-type: "all"
+
+  # Configuration for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
