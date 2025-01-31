@@ -45,7 +45,7 @@ jobs:
     - name: Build solution for release (without tests)
       run: |
         msbuild "simple-.net-Crypting-For-PowerBuilder.sln" /p:Configuration=Release
-        dotnet build "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" --configuration Release --arch x64
+        dotnet publish "D:\a\simple-.net-Crypting-For-PowerBuilder\simple-.net-Crypting-For-PowerBuilder\NET8\NET8.csproj" --configuration Release --arch x64
 
     - name: Install ILMerge and ILRepack
       run: |
@@ -80,13 +80,13 @@ jobs:
 
         # Merge NET 8 DLLs (using ILRepack)
         ${{ github.workspace }}\packages\ILRepack.2.0.18\tools\ILRepack.exe /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll `
-                   /lib:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64 `
+                   /lib:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\publish `
                    /union `
                    /ndebug `
                    /copyattrs `
                    /internalize `
-                   ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll `
-                   ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\BCrypt.Net-Next.dll
+                   ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\publish\NET8.dll `
+                   ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\publish\BCrypt.Net-Next.dll
 
         # Copy all release files to a single directory for easier release
         New-Item -ItemType Directory -Path ${{ github.workspace }}\release-files -Force
