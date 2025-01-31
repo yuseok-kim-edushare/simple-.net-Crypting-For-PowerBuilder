@@ -3,6 +3,8 @@ EXEC sp_configure 'clr enabled', 1;
 RECONFIGURE;
 go
 
+-- Be Careful, CLR Assembly need to registered trusted assembly, thus I use ILMerge to create dll
+
 DECLARE @hash varbinary(64) = (SELECT HASHBYTES('SHA2_512', BulkColumn) 
                               FROM OPENROWSET(BULK 'G:\DBMS\SecureLibrary-SQL.dll', SINGLE_BLOB) AS x);
 EXEC sys.sp_add_trusted_assembly @hash = @hash, @description = N'SecureLibrary-SQL Assembly';

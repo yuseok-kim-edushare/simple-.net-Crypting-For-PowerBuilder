@@ -1,4 +1,10 @@
 ﻿$PBExportHeader$nvo_encryptionhelper.sru
+
+/*
+This is example code for Powerbuilder with .NET 8
+.NET 8 dll didn't need to created for COM
+*/
+
 forward
 global type nvo_encryptionhelper from dotnetobject
 end type

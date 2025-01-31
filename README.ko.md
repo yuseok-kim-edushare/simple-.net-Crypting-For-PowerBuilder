@@ -1,12 +1,13 @@
 # simple-.NET-Crypting-For-PB
-이 프로젝트는 Powerbuilder 프로그래밍에 사용하기 위한 간단한 암호화, 복호화 등을 위한 .NET dll을 생성하는 프로젝트입니다.
+이 프로젝트는 Powerbuilder에 대한 .NET dll을 생성합니다. (Bcrypt PW hash, AES-GCM and ECDH) 또한 MS-SQL에 대한 어셈블리도 개발합니다.
 
 *다른 언어로 읽기: [English](README.md)*
 
 [![CI tests](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/actions/workflows/ci.yaml/badge.svg)](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/actions/workflows/ci.yaml)
 
 ## 목적
-- Powerbuilder 프로그래밍에 사용하기 위한 간단한 암호화, 복호화 등을 위한 .NET dll을 생성하는 프로젝트입니다.
+- AES-GCM, Bcrypt PW hash, ECDH 
+- Powerbuilder 프로그래밍에 사용하기 위한 .NET dll을 생성하는 프로젝트입니다.
 - 또한 SQL Server에서 사용하기 위한 어셈블리도 개발합니다.
 
 ## 정보
@@ -33,16 +34,16 @@
 예를 들어
 - AES Encryption with GCM mode
   - 현대 대칭 암호화에서 주요한 옵션 중 하나입니다.
-- Diffie Hellman Key Exchange or else equivalent
+- ECDH Key Exchange
   - 민감한 데이터를 전송하기 위한 2차 보안입니다.
   - (TLS에서 이미 사용되지만 이중 암호화를 위해 사용됩니다.)
-- Bcrypt Password encoding or and so on to PW encryption
+- Bcrypt Password encoding
   - 이것은 단방향 암호화를 잘 하는 것에 대한 문제입니다.
   - SHA-512 해시 함수를 1회만 사용하는 것은 충분한 보안이 아닙니다.
-  
-## 마일스톤
 
-- 🌧️ 예제 코드 생성
-  - 🌧️ Powerbuilder with .NET 4.8.1 DLL
-  - ✅ MS-SQL with .NET 4.8.1 DLL
-  - Powerbuilder with .NET 8 DLL
+## 빌드 관련 정보
+지원하는 windows 환경에서 빌드하실 수 있으며
+필요한 명령어는
+[github actions](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/actions/workflows)
+에서 확인하실 수 있습니다.
+ci.yaml과 cd.yaml 확인하시면 됩니다.
