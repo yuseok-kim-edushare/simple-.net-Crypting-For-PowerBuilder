@@ -23,9 +23,9 @@ updates:
     allow:
       - dependency-type: "all"
 
-  # Configuration for net481PB project
+  # Configuration for net481PB project packages.config
   - package-ecosystem: "nuget"
-    directory: "/net481PB"
+    directory: "/net481PB/packages.config"
     schedule:
       interval: "daily"
       time: "12:00"
@@ -46,9 +46,9 @@ updates:
     allow:
       - dependency-type: "all"
 
-  # Configuration for net481SQL-server project
+  # Configuration for net481SQL-server project packages.config
   - package-ecosystem: "nuget"
-    directory: "/net481SQL-server"
+    directory: "/net481SQL-server/packages.config"
     schedule:
       interval: "daily"
       time: "12:00"
