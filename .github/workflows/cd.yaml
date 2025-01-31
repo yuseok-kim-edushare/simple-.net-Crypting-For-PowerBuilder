@@ -54,12 +54,11 @@ jobs:
 
     - name: Merge and Create Release Files
       run: |
-        # Merge NET 4.8 PB DLLs (using ILRepack instead of ILMerge)
+        # Merge NET 4.8 PB DLLs (using ILRepack)
         ${{ github.workspace }}\packages\ILRepack.2.0.18\tools\ILRepack.exe /out:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll `
                    /lib:${{ github.workspace }}\net481PB\bin\Release `
                    /targetplatform:v4.8.1 `
                    /union `
-                   /attr:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary.dll `
                    /copyattrs `
                    /internalize `
                    ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary.dll `
@@ -84,7 +83,6 @@ jobs:
                    /lib:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64 `
                    /union `
                    /ndebug `
-                   /attr:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll `
                    /copyattrs `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\BCrypt.Net-Next.dll
