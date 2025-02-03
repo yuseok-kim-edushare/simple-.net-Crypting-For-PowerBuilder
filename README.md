@@ -44,7 +44,7 @@ For Example
 ## Build Information
 You can build in supported windows environment,
 and you can check required commands in
-[github actions](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/actions/workflows)
+[github actions](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/.github/workflows)
 you should see ci.yaml and cd.yaml
 
 # Dependancy

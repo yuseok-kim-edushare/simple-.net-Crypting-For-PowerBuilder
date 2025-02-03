@@ -44,7 +44,7 @@
 ## 빌드 관련 정보
 지원하는 windows 환경에서 빌드하실 수 있으며
 필요한 명령어는
-[github actions](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/actions/workflows)
+[github actions](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/.github/workflows)
 에서 확인하실 수 있습니다.
 ci.yaml과 cd.yaml 확인하시면 됩니다.
 
