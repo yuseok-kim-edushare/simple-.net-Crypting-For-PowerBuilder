@@ -50,52 +50,73 @@ namespace SecureLibrary
         // this section for Symmetric Encryption with AES CBC mode
         public static string[] EncryptAesCbcWithIv(string plainText, string base64Key)
         {    
-            byte[] key = Convert.FromBase64String(base64Key); 
-            using (Aes aes = Aes.Create())
-            {
-                aes.Key = key;
-                aes.GenerateIV(); // Generate IV
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.PKCS7;
-                byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-                byte[] cipherText;
-                using (var memoryStream = new System.IO.MemoryStream())
+            byte[] key = Convert.FromBase64String(base64Key);
+            if (key.Length != 32) // 256 bits
+                throw new ArgumentException("Invalid key length", nameof(base64Key));
+            
+            try {
+                using (Aes aes = Aes.Create())
                 {
-                    using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateEncryptor(), CryptoStreamMode.Write))
+                    aes.Key = key;
+                    aes.GenerateIV(); // Generate IV
+                    aes.Mode = CipherMode.CBC;
+                    aes.Padding = PaddingMode.PKCS7;
+                    byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+                    byte[] cipherText;
+                    using (var memoryStream = new System.IO.MemoryStream())
                     {
-                        cryptoStream.Write(plainBytes, 0, plainBytes.Length);
-                        cryptoStream.FlushFinalBlock();
-                        cipherText = memoryStream.ToArray();
+                        using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateEncryptor(), CryptoStreamMode.Write))
+                        {
+                            cryptoStream.Write(plainBytes, 0, plainBytes.Length);
+                            cryptoStream.FlushFinalBlock();
+                            cipherText = memoryStream.ToArray();
+                        }
                     }
+                    string base64CipherText = Convert.ToBase64String(cipherText);
+                    string base64IV = Convert.ToBase64String(aes.IV);
+                    Array.Clear(key, 0, key.Length);
+                    aes.Clear();
+                    return new string[] { base64CipherText, base64IV };
                 }
-                string base64CipherText = Convert.ToBase64String(cipherText);
-                string base64IV = Convert.ToBase64String(aes.IV);
-                return new string[] { base64CipherText, base64IV };
+            }
+            finally {
+                Array.Clear(key, 0, key.Length);
             }
         }
         public static string DecryptAesCbcWithIv(string base64CipherText, string base64Key, string base64IV)
         {
             byte[] key = Convert.FromBase64String(base64Key);
+            if (key.Length != 32) // 256 bits
+                throw new ArgumentException("Invalid key length", nameof(base64Key));
             byte[] cipherText = Convert.FromBase64String(base64CipherText);
             byte[] iv = Convert.FromBase64String(base64IV);
-            using (Aes aes = Aes.Create())
-            {
-                aes.Key = key;
-                aes.IV = iv;
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.PKCS7;
-                byte[] decryptedBytes;
-                using (var memoryStream = new System.IO.MemoryStream(cipherText))
+            if (iv.Length != 16) // 128 bits
+                throw new ArgumentException("Invalid IV length", nameof(base64IV));
+            try {
+                using (Aes aes = Aes.Create())
                 {
+                    aes.Key = key;
+                    aes.IV = iv;
+                    aes.Mode = CipherMode.CBC;
+                    aes.Padding = PaddingMode.PKCS7;
+                    byte[] decryptedBytes;
+                    using (var memoryStream = new System.IO.MemoryStream(cipherText))
+                    {
                     using (var cryptoStream = new CryptoStream(memoryStream, aes.CreateDecryptor(), CryptoStreamMode.Read))
                     {
                         using (var reader = new System.IO.StreamReader(cryptoStream, Encoding.UTF8))
                         {
                             decryptedBytes = Encoding.UTF8.GetBytes(reader.ReadToEnd());
                         }
+                        }
                     }
+                    return Encoding.UTF8.GetString(decryptedBytes);
                 }
-                return Encoding.UTF8.GetString(decryptedBytes);
+            }
+            finally {
+                Array.Clear(key, 0, key.Length);
+                Array.Clear(cipherText, 0, cipherText.Length);
+                Array.Clear(iv, 0, iv.Length);
             }
         }
         public static string KeyGenAES256()
@@ -153,6 +174,10 @@ namespace SecureLibrary
                             return Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey));
                         }
                     }
+                    finally {
+                        Array.Clear(otherPartyPublicKey, 0, otherPartyPublicKey.Length);
+                        Array.Clear(privateKey, 0, privateKey.Length);
+                    }
                 }
             }
             catch
@@ -160,19 +185,10 @@ namespace SecureLibrary
                 return null;
             }
         }
-        // this is common byte combine method for AES and DH implementation
-        private static byte[] Combine(byte[] first, byte[] second)
-        {
-            byte[] combined = new byte[first.Length + second.Length];
-            Array.Copy(first, combined, first.Length);
-            Array.Copy(second, 0, combined, first.Length, second.Length);
-            return combined;
-        }
-
         // this section related about bcrypt
         public static string BcryptEncoding(string password)
         {
-            return BCrypt.Net.BCrypt.HashPassword(password, 10);
+            return BCrypt.Net.BCrypt.HashPassword(password, 12);
         }
         public static bool VerifyBcryptPassword(string password, string hashedPassword)
         {
