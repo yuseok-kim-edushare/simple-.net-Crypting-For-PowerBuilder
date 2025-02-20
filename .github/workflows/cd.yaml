@@ -50,12 +50,12 @@ jobs:
     - name: Install ILMerge and ILRepack
       run: |
         nuget install ILMerge -Version 3.0.41 -OutputDirectory ${{ github.workspace }}\packages
-        nuget install ILRepack -Version 2.0.18 -OutputDirectory ${{ github.workspace }}\packages
+        dotnet tool install -g dotnet-ilrepack
 
     - name: Merge and Create Release Files
       run: |
         # Merge NET 4.8 PB DLLs (using ILRepack)
-        ${{ github.workspace }}\packages\ILRepack.2.0.18\tools\ILRepack.exe /out:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll `
+        ilrepack /out:${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll `
                    /lib:${{ github.workspace }}\net481PB\bin\Release `
                    /targetplatform:"v4,C:\Windows\Microsoft.NET\Framework\v4.0.30319" `
                    /union `
@@ -79,11 +79,9 @@ jobs:
                    ${{ github.workspace }}\net481SQL-server\bin\Release\Microsoft.SqlServer.Server.dll
 
         # Merge NET 8 DLLs (using ILRepack)
-        ${{ github.workspace }}\packages\ILRepack.2.0.18\tools\ILRepack.exe /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll `
+        ilrepack /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll `
                    /lib:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\publish `
                    /union `
-                   /ndebug `
-                   /copyattrs `
                    /internalize `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\publish\NET8.dll `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\publish\BCrypt.Net-Next.dll
