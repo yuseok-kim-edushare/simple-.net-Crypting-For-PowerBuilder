@@ -79,8 +79,7 @@ jobs:
                    ${{ github.workspace }}\net481SQL-server\bin\Release\Microsoft.SqlServer.Server.dll
 
         # Merge NET 8 DLLs (using ILRepack)
-        ilrepack /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll `
-                   /lib:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\publish `
+        ilrepack /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll `
                    /union `
                    /internalize `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\publish\NET8.dll `
@@ -90,7 +89,7 @@ jobs:
         New-Item -ItemType Directory -Path ${{ github.workspace }}\release-files -Force
         Copy-Item ${{ github.workspace }}\net481PB\bin\Release\SecureLibrary-PB-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
         Copy-Item ${{ github.workspace }}\net481SQL-server\bin\Release\SecureLibrary-SQL-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll        
-        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8-Merged.dll ${{ github.workspace }}\release-files\NET8.dll
+        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll ${{ github.workspace }}\release-files\NET8.dll
 
     - name: Get latest release version and Generate release notes
       id: get_latest_release
