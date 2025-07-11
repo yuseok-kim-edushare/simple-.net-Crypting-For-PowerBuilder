@@ -99,6 +99,7 @@ namespace SecureLibrary
         }
 
         // Symmetric Encryption with AES CBC mode
+        [Obsolete("This method is deprecated because AES-CBC without an authentication mechanism is insecure. Please use EncryptAesGcm instead.")]
         public static string[] EncryptAesCbcWithIv(string plainText, string base64Key)
         {
             byte[] key = Convert.FromBase64String(base64Key);
@@ -126,6 +127,7 @@ namespace SecureLibrary
                 return [ base64CipherText, base64IV ];
             }
         }
+        [Obsolete("This method is deprecated because AES-CBC without an authentication mechanism is insecure. Please use DecryptAesGcm instead.")]
         public static string DecryptAesCbcWithIv(string base64CipherText, string base64Key, string base64IV)
         {
             byte[] key = Convert.FromBase64String(base64Key);
@@ -224,9 +226,9 @@ namespace SecureLibrary
             }
         }
         // this section related about bcrypt
-        public static string BcryptEncoding(string password)
+        public static string BcryptEncoding(string password, int workFactor = 12)
         {
-            return BCrypt.Net.BCrypt.HashPassword(password, 12);
+            return BCrypt.Net.BCrypt.HashPassword(password, workFactor);
         }
         public static bool VerifyBcryptPassword(string password, string hashedPassword)
         {

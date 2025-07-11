@@ -43,6 +43,7 @@ namespace SecureLibrary.SQL
             DataAccess = DataAccessKind.None,
             FillRowMethodName = "FillEncryptAESRow"
         )]
+        [Obsolete("This function is deprecated because AES-CBC without an authentication mechanism is insecure. Please use EncryptAES_GCM instead.")]
         public static IEnumerable EncryptAES(SqlString plainText, SqlString base64Key)
         {
             if (plainText.IsNull || base64Key.IsNull)
@@ -99,16 +100,21 @@ namespace SecureLibrary.SQL
             IsPrecise = true,
             DataAccess = DataAccessKind.None
         )]
+        [Obsolete("This function is deprecated because AES-CBC without an authentication mechanism is insecure. Please use DecryptAES_GCM instead.")]
         public static SqlString DecryptAES(SqlString base64CipherText, SqlString base64Key, SqlString base64IV)
         {
+            if (base64CipherText.IsNull || base64Key.IsNull || base64IV.IsNull)
+                return SqlString.Null;
+
+            byte[] key = null;
+            byte[] cipherText = null;
+            byte[] iv = null;
+            
             try
             {
-                if (base64CipherText.IsNull || base64Key.IsNull || base64IV.IsNull)
-                    return SqlString.Null;
-
-                byte[] key = Convert.FromBase64String(base64Key.Value);
-                byte[] cipherText = Convert.FromBase64String(base64CipherText.Value);
-                byte[] iv = Convert.FromBase64String(base64IV.Value);
+                key = Convert.FromBase64String(base64Key.Value);
+                cipherText = Convert.FromBase64String(base64CipherText.Value);
+                iv = Convert.FromBase64String(base64IV.Value);
 
                 using (Aes aes = Aes.Create())
                 {
@@ -125,9 +131,11 @@ namespace SecureLibrary.SQL
                     }
                 }
             }
-            catch (Exception)
+            finally
             {
-                return SqlString.Null;
+                if (key != null) Array.Clear(key, 0, key.Length);
+                if (cipherText != null) Array.Clear(cipherText, 0, cipherText.Length);
+                if (iv != null) Array.Clear(iv, 0, iv.Length);
             }
         }
 
@@ -178,45 +186,44 @@ namespace SecureLibrary.SQL
         )]
         public static SqlString DeriveSharedKey(SqlString otherPartyPublicKeyBase64, SqlString privateKeyBase64)
         {
+            if (otherPartyPublicKeyBase64.IsNull || privateKeyBase64.IsNull)
+                return SqlString.Null;
+            
+            byte[] otherPartyPublicKey = null;
+            byte[] privateKey = null;
+
             try
             {
-                byte[] otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64.Value);
-                byte[] privateKey = Convert.FromBase64String(privateKeyBase64.Value);
+                otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64.Value);
+                privateKey = Convert.FromBase64String(privateKeyBase64.Value);
                 
-                try
+                using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
                 {
-                    using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
-                    {
-                        dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
-                        dh.HashAlgorithm = CngAlgorithm.Sha256;
+                    dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
+                    dh.HashAlgorithm = CngAlgorithm.Sha256;
 
-                        try
+                    try
+                    {
+                        // Try importing as EccPublicBlob first
+                        using (var importedKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
                         {
-                            // Try importing as EccPublicBlob first
-                            using (var importedKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.EccPublicBlob))
-                            {
-                                return new SqlString(Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey)));
-                            }
+                            return new SqlString(Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey)));
                         }
-                        catch
+                    }
+                    catch
+                    {
+                        // If EccPublicBlob fails, try as GenericPublicBlob
+                        using (var importedKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.GenericPublicBlob))
                         {
-                            // If EccPublicBlob fails, try as GenericPublicBlob
-                            using (var importedKey = CngKey.Import(otherPartyPublicKey, CngKeyBlobFormat.GenericPublicBlob))
-                            {
-                                return new SqlString(Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey)));
-                            }
+                            return new SqlString(Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey)));
                         }
                     }
                 }
-                finally
-                {
-                    Array.Clear(privateKey, 0, privateKey.Length);
-                    Array.Clear(otherPartyPublicKey, 0, otherPartyPublicKey.Length);
-                }
             }
-            catch (Exception)
+            finally
             {
-                return SqlString.Null;
+                if (privateKey != null) Array.Clear(privateKey, 0, privateKey.Length);
+                if (otherPartyPublicKey != null) Array.Clear(otherPartyPublicKey, 0, otherPartyPublicKey.Length);
             }
         }
 
@@ -228,17 +235,25 @@ namespace SecureLibrary.SQL
         [SecuritySafeCritical]
         public static SqlString HashPassword(SqlString password)
         {
-            try
-            {
-                if (password.IsNull)
-                    return SqlString.Null;
+            // Overload for backward compatibility, defaults to a work factor of 12
+            return HashPassword(password, 12);
+        }
 
-                return new SqlString(BCrypt.Net.BCrypt.HashPassword(password.Value, 12));
-            }
-            catch (Exception)
-            {
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString HashPassword(SqlString password, SqlInt32 workFactor)
+        {
+            if (password.IsNull)
                 return SqlString.Null;
-            }
+            
+            if (workFactor.IsNull)
+                return HashPassword(password); // Call overload to use default
+
+            return new SqlString(BCrypt.Net.BCrypt.HashPassword(password.Value, workFactor.Value));
         }
 
         [SqlFunction(
@@ -249,17 +264,10 @@ namespace SecureLibrary.SQL
         [SecuritySafeCritical]
         public static SqlBoolean VerifyPassword(SqlString password, SqlString hashedPassword)
         {
-            try
-            {
-                if (password.IsNull || hashedPassword.IsNull)
-                    return SqlBoolean.Null;
-
-                return new SqlBoolean(BCrypt.Net.BCrypt.Verify(password.Value, hashedPassword.Value));
-            }
-            catch (Exception)
-            {
+            if (password.IsNull || hashedPassword.IsNull)
                 return SqlBoolean.Null;
-            }
+
+            return new SqlBoolean(BCrypt.Net.BCrypt.Verify(password.Value, hashedPassword.Value));
         }
 
         [SqlFunction(
@@ -270,56 +278,46 @@ namespace SecureLibrary.SQL
         [SecuritySafeCritical]
         public static SqlString EncryptAesGcm(SqlString plainText, SqlString base64Key)
         {
+            if (plainText.IsNull || base64Key.IsNull)
+                return SqlString.Null;
+
+            byte[] keyBytes = null;
             try
             {
-                if (plainText.IsNull || base64Key.IsNull)
-                    return SqlString.Null;
-
-                byte[] keyBytes = null;
+                keyBytes = Convert.FromBase64String(base64Key.Value);
+                if (keyBytes.Length != 32)
+                    throw new ArgumentException("Invalid key length", "base64Key");
+                
+                // Generate new nonce
+                byte[] nonce = new byte[12];
+                using (var rng = new RNGCryptoServiceProvider())
+                {
+                    rng.GetBytes(nonce);
+                }
+                string base64Nonce = Convert.ToBase64String(nonce);
+                
                 try
                 {
-                    keyBytes = Convert.FromBase64String(base64Key.Value);
-                    if (keyBytes.Length != 32)
-                        return SqlString.Null; // Invalid key length
-                    
-                    // Generate new nonce
-                    byte[] nonce = new byte[12];
-                    using (var rng = new RNGCryptoServiceProvider())
+                    // Get the encrypted result
+                    string encryptedBase64 = BcryptInterop.EncryptAesGcm(plainText.Value, base64Key.Value, base64Nonce);
+                    if (string.IsNullOrEmpty(encryptedBase64))
                     {
-                        rng.GetBytes(nonce);
+                        throw new CryptographicException("Encryption returned null or empty");
                     }
-                    string base64Nonce = Convert.ToBase64String(nonce);
 
-                    try
-                    {
-                        // Get the encrypted result
-                        string encryptedBase64 = BcryptInterop.EncryptAesGcm(plainText.Value, base64Key.Value, base64Nonce);
-                        if (string.IsNullOrEmpty(encryptedBase64))
-                        {
-                            Console.WriteLine("Encryption returned null or empty");
-                            return SqlString.Null;
-                        }
-
-                        // Combine nonce and ciphertext
-                        string combined = base64Nonce + ":" + encryptedBase64;
-                        return new SqlString(combined);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(string.Format("Encryption error: {0}", ex.Message));
-                        return SqlString.Null;
-                    }
+                    // Combine nonce and ciphertext
+                    string combined = base64Nonce + ":" + encryptedBase64;
+                    return new SqlString(combined);
                 }
                 finally
                 {
-                    if (keyBytes != null)
-                        Array.Clear(keyBytes, 0, keyBytes.Length);
+                    if (nonce != null) Array.Clear(nonce, 0, nonce.Length);
                 }
             }
-            catch (Exception)
+            finally
             {
-                // Log error without sensitive details
-                return SqlString.Null;
+                if (keyBytes != null)
+                    Array.Clear(keyBytes, 0, keyBytes.Length);
             }
         }
 
@@ -331,60 +329,44 @@ namespace SecureLibrary.SQL
         [SecuritySafeCritical]
         public static SqlString DecryptAesGcm(SqlString combinedData, SqlString base64Key)
         {
+            if (combinedData.IsNull || base64Key.IsNull)
+                return SqlString.Null;
+
+            byte[] keyBytes = null;
+            byte[] nonceBytes = null;
             try
             {
-                if (combinedData.IsNull || base64Key.IsNull)
-                    return SqlString.Null;
+                // Validate key length
+                keyBytes = Convert.FromBase64String(base64Key.Value);
+                if (keyBytes.Length != 32)
+                    throw new ArgumentException("Invalid key length for AES-256", "base64Key");
 
-                byte[] keyBytes = null;
-                byte[] nonceBytes = null;
-                try
+                // Split the combined data
+                string[] parts = combinedData.Value.Split(':');
+                if (parts.Length != 2)
+                    throw new ArgumentException("Invalid encrypted data format. Expected 'nonce:ciphertext'.", "combinedData");
+
+                string base64Nonce = parts[0];
+                string encryptedBase64 = parts[1];
+
+                // Validate nonce length
+                nonceBytes = Convert.FromBase64String(base64Nonce);
+                if (nonceBytes.Length != 12)
+                    throw new ArgumentException("Invalid nonce length. Must be 12 bytes.", "combinedData");
+
+                // Decrypt using the extracted nonce
+                string decrypted = BcryptInterop.DecryptAesGcm(encryptedBase64, base64Key.Value, base64Nonce);
+                if (decrypted == null) // BcryptInterop could still return null on non-exception failure
                 {
-                    // Validate key length
-                    keyBytes = Convert.FromBase64String(base64Key.Value);
-                    if (keyBytes.Length != 32)
-                        return SqlString.Null;
-
-                    // Split the combined data
-                    string[] parts = combinedData.Value.Split(':');
-                    if (parts.Length != 2)
-                        return SqlString.Null;
-
-                    string base64Nonce = parts[0];
-                    string encryptedBase64 = parts[1];
-
-                    // Validate nonce length
-                    nonceBytes = Convert.FromBase64String(base64Nonce);
-                    if (nonceBytes.Length != 12)
-                        return SqlString.Null;
-
-                    try
-                    {
-                        // Decrypt using the extracted nonce
-                        string decrypted = BcryptInterop.DecryptAesGcm(encryptedBase64, base64Key.Value, base64Nonce);
-                        if (string.IsNullOrEmpty(decrypted))
-                        {
-                            Console.WriteLine("Decryption returned null or empty string");
-                            return SqlString.Null;
-                        }
-
-                        return new SqlString(decrypted);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(string.Format("Decryption error: {0}", ex.Message));
-                        return SqlString.Null;
-                    }
+                    throw new CryptographicException("Decryption returned null");
                 }
-                finally
-                {
-                    if (keyBytes != null) Array.Clear(keyBytes, 0, keyBytes.Length);
-                    if (nonceBytes != null) Array.Clear(nonceBytes, 0, nonceBytes.Length);
-                }
+
+                return new SqlString(decrypted);
             }
-            catch (Exception)
+            finally
             {
-                return SqlString.Null;
+                if (keyBytes != null) Array.Clear(keyBytes, 0, keyBytes.Length);
+                if (nonceBytes != null) Array.Clear(nonceBytes, 0, nonceBytes.Length);
             }
         }
     }
