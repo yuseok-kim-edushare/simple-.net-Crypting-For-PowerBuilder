@@ -8,6 +8,9 @@
     <EnableComHosting>true</EnableComHosting>
     <IsTestProject>true</IsTestProject>
     <ExcludeTests Condition="'$(Configuration)'=='Release'">true</ExcludeTests>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\Simple-Crypt4PB.snk</AssemblyOriginatorKeyFile>
+    <DelaySign>true</DelaySign>
     
     <!-- Assembly Information -->
     <AssemblyTitle>simple-.NET-Crypting-For-PowerBuilder-NET8</AssemblyTitle>

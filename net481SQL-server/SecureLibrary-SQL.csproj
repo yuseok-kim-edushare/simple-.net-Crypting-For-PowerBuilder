@@ -7,6 +7,9 @@
     <CLSCompliant>true</CLSCompliant>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\Simple-Crypt4PB.snk</AssemblyOriginatorKeyFile>
+    <DelaySign>true</DelaySign>
     
     <!-- Assembly Information -->
     <AssemblyTitle>simple-.NET-Crypting-For-PowerBuilder-SQL</AssemblyTitle>

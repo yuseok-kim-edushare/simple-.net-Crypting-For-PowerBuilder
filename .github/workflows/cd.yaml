@@ -44,7 +44,7 @@ jobs:
       run: dotnet restore simple-.net-Crypting-For-PowerBuilder.slnx
 
     - name: Build solution for release (without tests)
-      run: dotnet build simple-.net-Crypting-For-PowerBuilder.slnx --configuration Release
+      run: dotnet publish simple-.net-Crypting-For-PowerBuilder.slnx --configuration Release
 
     - name: Install ILMerge and ILRepack
       run: |
@@ -57,11 +57,12 @@ jobs:
 
         # Merge NET 4.8 PB DLLs (using ILRepack)
         ilrepack /out:${{ github.workspace }}\release-files\SecureLibrary-PB.dll `
-                   /lib:${{ github.workspace }}\net481PB\bin\Release\net481 `
+                   /lib:${{ github.workspace }}\net481PB\bin\Release\net481\publish `
                    /targetplatform:"v4,C:\Windows\Microsoft.NET\Framework\v4.0.30319" `
                    /union `
                    /copyattrs `
                    /internalize `
+                   /keyfile:${{ github.workspace }}\Simple-Crypt4PB.snk `
                    ${{ github.workspace }}\net481PB\bin\Release\net481\publish\SecureLibrary.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\net481\publish\BCrypt.Net-Next.dll `
                    ${{ github.workspace }}\net481PB\bin\Release\net481\publish\System.Buffers.dll `
@@ -70,7 +71,10 @@ jobs:
                    ${{ github.workspace }}\net481PB\bin\Release\net481\publish\System.Runtime.CompilerServices.Unsafe.dll
         
         # Merge NET 4.8 SQL DLLs (using ILMerge)
-        ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\release-files\SecureLibrary-SQL.dll `
+        ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe `
+                   /lib:${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish `
+                   /out:${{ github.workspace }}\release-files\SecureLibrary-SQL.dll `
+                   /keyfile:${{ github.workspace }}\Simple-Crypt4PB.snk `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\SecureLibrary.SQL.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\BCrypt.Net-Next.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\System.Buffers.dll `
@@ -83,6 +87,7 @@ jobs:
         ilrepack /out:${{ github.workspace }}\release-files\SecureLibrary-Core.dll `
                    /union `
                    /internalize `
+                   /keyfile:${{ github.workspace }}\Simple-Crypt4PB.snk `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\SecureLibrary-Core.dll `
                    ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\BCrypt.Net-Next.dll
 
