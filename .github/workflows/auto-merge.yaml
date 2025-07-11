@@ -19,8 +19,8 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { owner, repo, pull_number } = context.issue;
             await github.graphql(`
+              mutation enablePullRequestAutoMerge($pullRequestId: ID!) {
               mutation enablePullRequestAutoMerge($pullRequestId: ID!) {
                 enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId}) {
                   pullRequest {
