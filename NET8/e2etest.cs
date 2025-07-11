@@ -77,7 +77,7 @@ namespace SecureLibrary.Tests
 
         // Extra tests for SQL CLR, this created to test the SQL CLR code in the SecureLibrary-SQL project
         // These tests are not part of the main test suite, but are included for testing the SQL CLR code
-        // Well SQL CLR require special Security permissions, so this solution's test pattern couldn't be applied
+        // CLR requires special security permissions, so these tests are included here separately
         // Thus, these tests are included here to test the SQL CLR code in the SecureLibrary-SQL project
         [TestMethod]
         public void TestSqlCLR_GenerateAESKey()
