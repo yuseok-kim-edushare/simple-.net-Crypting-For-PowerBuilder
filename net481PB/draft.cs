@@ -48,6 +48,7 @@ namespace SecureLibrary
         }
 
         // this section for Symmetric Encryption with AES CBC mode
+        [Obsolete("This method is deprecated because AES-CBC without an authentication mechanism is insecure. Please use EncryptAesGcm instead.")]
         public static string[] EncryptAesCbcWithIv(string plainText, string base64Key)
         {    
             byte[] key = Convert.FromBase64String(base64Key);
@@ -83,6 +84,7 @@ namespace SecureLibrary
                 Array.Clear(key, 0, key.Length);
             }
         }
+        [Obsolete("This method is deprecated because AES-CBC without an authentication mechanism is insecure. Please use DecryptAesGcm instead.")]
         public static string DecryptAesCbcWithIv(string base64CipherText, string base64Key, string base64IV)
         {
             byte[] key = Convert.FromBase64String(base64Key);
@@ -148,11 +150,11 @@ namespace SecureLibrary
 
         public static string DeriveSharedKey(string otherPartyPublicKeyBase64, string privateKeyBase64)
         {
+            byte[] otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64);
+            byte[] privateKey = Convert.FromBase64String(privateKeyBase64);
+            
             try
             {
-                byte[] otherPartyPublicKey = Convert.FromBase64String(otherPartyPublicKeyBase64);
-                byte[] privateKey = Convert.FromBase64String(privateKeyBase64);
-                
                 using (ECDiffieHellmanCng dh = new ECDiffieHellmanCng(CngKey.Import(privateKey, CngKeyBlobFormat.EccPrivateBlob)))
                 {
                     dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
@@ -174,21 +176,18 @@ namespace SecureLibrary
                             return Convert.ToBase64String(dh.DeriveKeyMaterial(importedKey));
                         }
                     }
-                    finally {
-                        Array.Clear(otherPartyPublicKey, 0, otherPartyPublicKey.Length);
-                        Array.Clear(privateKey, 0, privateKey.Length);
-                    }
                 }
             }
-            catch
+            finally
             {
-                return null;
+                Array.Clear(otherPartyPublicKey, 0, otherPartyPublicKey.Length);
+                Array.Clear(privateKey, 0, privateKey.Length);
             }
         }
         // this section related about bcrypt
-        public static string BcryptEncoding(string password)
+        public static string BcryptEncoding(string password, int workFactor = 12)
         {
-            return BCrypt.Net.BCrypt.HashPassword(password, 12);
+            return BCrypt.Net.BCrypt.HashPassword(password, workFactor);
         }
         public static bool VerifyBcryptPassword(string password, string hashedPassword)
         {

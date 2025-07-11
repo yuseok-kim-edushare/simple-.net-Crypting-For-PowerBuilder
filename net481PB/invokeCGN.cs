@@ -111,6 +111,9 @@ namespace SecureLibrary
 
             IntPtr hAlg = IntPtr.Zero;
             IntPtr hKey = IntPtr.Zero;
+            byte[] plainBytes = null;
+            byte[] tagBuffer = null;
+            byte[] cipherText = null;
 
             try
             {
@@ -128,12 +131,12 @@ namespace SecureLibrary
                 status = BCryptGenerateSymmetricKey(hAlg, out hKey, IntPtr.Zero, 0, key, key.Length, 0);
                 if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptGenerateSymmetricKey failed with status " + status);
 
-                byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+                plainBytes = Encoding.UTF8.GetBytes(plainText);
                 const int tagLength = 16;  // GCM tag length
 
                 var authInfo = BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO.Initialize();
                 var nonceHandle = GCHandle.Alloc(nonce, GCHandleType.Pinned);
-                var tagBuffer = new byte[tagLength];
+                tagBuffer = new byte[tagLength];
                 var tagHandle = GCHandle.Alloc(tagBuffer, GCHandleType.Pinned);
 
                 try
@@ -149,7 +152,7 @@ namespace SecureLibrary
                         null, 0, null, 0, out cipherLength, 0);
                     if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptEncrypt size failed with status " + status);
 
-                    byte[] cipherText = new byte[cipherLength];
+                    cipherText = new byte[cipherLength];
 
                     // Encrypt
                     int bytesWritten;
@@ -163,7 +166,9 @@ namespace SecureLibrary
                     Buffer.BlockCopy(tagBuffer, 0, result, bytesWritten, tagLength);
 
                     // Convert final result to Base64
-                    return Convert.ToBase64String(result);
+                    var base64Result = Convert.ToBase64String(result);
+                    Array.Clear(result, 0, result.Length);
+                    return base64Result;
                 }
                 finally
                 {
@@ -175,6 +180,13 @@ namespace SecureLibrary
             {
                 if (hKey != IntPtr.Zero) BCryptDestroyKey(hKey);
                 if (hAlg != IntPtr.Zero) BCryptCloseAlgorithmProvider(hAlg, 0);
+                
+                // Clear sensitive data
+                if (key != null) Array.Clear(key, 0, key.Length);
+                if (nonce != null) Array.Clear(nonce, 0, nonce.Length);
+                if (plainBytes != null) Array.Clear(plainBytes, 0, plainBytes.Length);
+                if (tagBuffer != null) Array.Clear(tagBuffer, 0, tagBuffer.Length);
+                if (cipherText != null) Array.Clear(cipherText, 0, cipherText.Length);
             }
         }
 
@@ -198,6 +210,9 @@ namespace SecureLibrary
 
             IntPtr hAlg = IntPtr.Zero;
             IntPtr hKey = IntPtr.Zero;
+            byte[] encryptedData = null;
+            byte[] tag = null;
+            byte[] plainText = null;
 
             try
             {
@@ -217,8 +232,8 @@ namespace SecureLibrary
 
                 // Separate ciphertext and tag
                 int encryptedDataLength = cipherText.Length - tagLength;
-                byte[] encryptedData = new byte[encryptedDataLength];
-                byte[] tag = new byte[tagLength];
+                encryptedData = new byte[encryptedDataLength];
+                tag = new byte[tagLength];
                 Buffer.BlockCopy(cipherText, 0, encryptedData, 0, encryptedDataLength);
                 Buffer.BlockCopy(cipherText, encryptedDataLength, tag, 0, tagLength);
 
@@ -239,7 +254,7 @@ namespace SecureLibrary
                         null, 0, null, 0, out plainTextLength, 0);
                     if (status != STATUS_SUCCESS) throw new CryptographicException("BCryptDecrypt size failed with status " + status);
 
-                    byte[] plainText = new byte[plainTextLength];
+                    plainText = new byte[plainTextLength];
 
                     // Decrypt
                     int bytesWritten;
@@ -259,6 +274,14 @@ namespace SecureLibrary
             {
                 if (hKey != IntPtr.Zero) BCryptDestroyKey(hKey);
                 if (hAlg != IntPtr.Zero) BCryptCloseAlgorithmProvider(hAlg, 0);
+
+                // Clear sensitive data
+                if (key != null) Array.Clear(key, 0, key.Length);
+                if (nonce != null) Array.Clear(nonce, 0, nonce.Length);
+                if (cipherText != null) Array.Clear(cipherText, 0, cipherText.Length);
+                if (encryptedData != null) Array.Clear(encryptedData, 0, encryptedData.Length);
+                if (tag != null) Array.Clear(tag, 0, tag.Length);
+                if (plainText != null) Array.Clear(plainText, 0, plainText.Length);
             }
         }
     }
