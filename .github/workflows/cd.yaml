@@ -1,10 +1,9 @@
 name: Continuous Deployment
 on:
-  workflow_run:
-    workflows: ["CI tests"]
-    types:
-      - completed
-    branches: [ "main" ]
+  push:
+    branches:
+      - main # main 브랜치로의 모든 push 이벤트 (PR 병합 포함) 에 실행
+
 
 permissions:
   contents: write
@@ -12,8 +11,7 @@ permissions:
 
 jobs:
   deploy:
-    # Only run if CI workflow was successful
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
     runs-on: windows-2022
 
     steps:
@@ -134,8 +132,9 @@ jobs:
         files: |
             ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
             ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll
-            ${{ github.workspace }}\release-files\NET8.dll
-            ${{ github.workspace }}\release-files\NET8.comhost.dll
+            ${{ github.workspace }}\release-files\SecureLibrary-Core.dll
+            ${{ github.workspace }}\release-files\SecureLibrary-Core.comhost.dll
+            ${{ github.workspace }}\release-files\SecureLibrary-Core.runtimeconfig.json
         tag_name: ${{ env.new_release }}
         name: ${{ env.new_release }}
         body: ${{ env.release_notes }}
