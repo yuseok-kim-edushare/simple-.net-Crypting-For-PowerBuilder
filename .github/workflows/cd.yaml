@@ -23,11 +23,20 @@ jobs:
         fetch-tags: true
         fetch-depth: 0
 
+    - name: Get USERPROFILE and set CACHE_PATH
+      id: set_cache_path
+      shell: pwsh
+      run: |
+        $cachePath = "$env:USERPROFILE\.nuget\packages"
+        echo "CACHE_PATH=$cachePath" >> $env:GITHUB_ENV
+
     - name: Cache NuGet packages
       uses: actions/cache@v4
       with:
-        path: ${{ github.workspace }}/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.sln*', '**/*.csproj*') }}
+        path: |
+          ~/.nuget/packages
+          ${{ env.CACHE_PATH }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
 
