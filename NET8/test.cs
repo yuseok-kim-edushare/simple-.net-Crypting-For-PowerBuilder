@@ -1,14 +1,14 @@
 #if !RELEASE_WITHOUT_TESTS
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SecureLibrary;
 using System;
 
 namespace SecureLibrary.Tests
 {
-    [TestFixture]
+    [TestClass]
     public class EncryptionHelperTests
     {
-        [Test]
+        [TestMethod]
         public void TestAesGcmEncryptionDecryption()
         {
             // Arrange
@@ -20,10 +20,10 @@ namespace SecureLibrary.Tests
             string decrypted = EncryptionHelper.DecryptAesGcm(encrypted, key);
 
             // Assert
-            Assert.That(decrypted, Is.EqualTo(plainText));
+            Assert.AreEqual(plainText, decrypted);
         }
 
-        [Test]
+        [TestMethod]
         public void TestAesCbcEncryptionDecryption()
         {
             // Arrange
@@ -35,10 +35,10 @@ namespace SecureLibrary.Tests
             string decrypted = EncryptionHelper.DecryptAesCbcWithIv(encryptionResult[0], key, encryptionResult[1]);
 
             // Assert
-            Assert.That(decrypted, Is.EqualTo(plainText));
+            Assert.AreEqual(plainText, decrypted);
         }
 
-        [Test]
+        [TestMethod]
         public void TestDiffieHellmanKeyExchange()
         {
             // Arrange
@@ -50,10 +50,10 @@ namespace SecureLibrary.Tests
             string bobSharedKey = EncryptionHelper.DeriveSharedKey(aliceKeys[0], bobKeys[1]);
 
             // Assert
-            Assert.That(aliceSharedKey, Is.EqualTo(bobSharedKey));
+            Assert.AreEqual(aliceSharedKey, bobSharedKey);
         }
 
-        [Test]
+        [TestMethod]
         public void TestBcryptPasswordVerification()
         {
             // Arrange
@@ -65,8 +65,8 @@ namespace SecureLibrary.Tests
             bool isInvalid = EncryptionHelper.VerifyBcryptPassword("WrongPassword", hashedPassword);
 
             // Assert
-            Assert.That(isValid, Is.True);
-            Assert.That(isInvalid, Is.False);
+            Assert.IsTrue(isValid);
+            Assert.IsFalse(isInvalid);
         }
     }
 }

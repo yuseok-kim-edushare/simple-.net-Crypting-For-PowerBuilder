@@ -1,23 +1,25 @@
 #if !RELEASE_WITHOUT_TESTS
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SecureLibrary;
+using System;
 
 namespace SecureLibrary.Tests
 {
-    [TestFixture]
+    [TestClass]
     public class EncryptionHelperTests
     {
         private string plainText;
         private string key;
         private string password;
         
-        [SetUp]
+        [TestInitialize]
         public void Setup()
         {
             plainText = "This is a test string";
             key = EncryptionHelper.KeyGenAES256();
             password = "securePassword123";
         }
-        [Test]
+        [TestMethod]
         public void EncryptAesGcm_ShouldEncryptAndDecryptSuccessfully()
         {
             // Act
@@ -25,11 +27,10 @@ namespace SecureLibrary.Tests
             var decrypted = EncryptionHelper.DecryptAesGcm(encrypted, key);
 
             // Assert
-            Assert.That(plainText.Equals(decrypted));
+            Assert.AreEqual(plainText, decrypted);
         }
 
-
-        [Test]
+        [TestMethod]
         public void EncryptAesCbcWithIv_ShouldEncryptAndDecryptSuccessfully()
         {
             // Act
@@ -37,34 +38,34 @@ namespace SecureLibrary.Tests
             var decrypted = EncryptionHelper.DecryptAesCbcWithIv(encrypted[0], key, encrypted[1]);
             
             // Assert
-            Assert.That(plainText.Equals(decrypted));
+            Assert.AreEqual(plainText, decrypted);
         }
         
-        [Test]
+        [TestMethod]
         public void KeyGenAES256_ShouldGenerateValidKey()
         {
             // Act
             var generatedKey = EncryptionHelper.KeyGenAES256();
             
             // Assert
-            Assert.That(!generatedKey.Equals(null));
-            Assert.That(generatedKey.Length.Equals(44)); // Base64 length of 256-bit key
+            Assert.IsNotNull(generatedKey);
+            Assert.AreEqual(44, generatedKey.Length); // Base64 length of 256-bit key
         }
         
-        [Test]
+        [TestMethod]
         public void GenerateDiffieHellmanKeys_ShouldGenerateKeysSuccessfully()
         {
             // Act
             var keys = EncryptionHelper.GenerateDiffieHellmanKeys();
             
             // Assert
-            Assert.That(!keys.Equals(null));
-            Assert.That(keys.Length.Equals(2));
-            Assert.That(!keys[0].Equals(null)); // Public key
-            Assert.That(!keys[1].Equals(null)); // Private key
+            Assert.IsNotNull(keys);
+            Assert.AreEqual(2, keys.Length);
+            Assert.IsNotNull(keys[0]); // Public key
+            Assert.IsNotNull(keys[1]); // Private key
         }
         
-        [Test]
+        [TestMethod]
         public void DeriveSharedKey_ShouldDeriveKeySuccessfully()
         {
             // Arrange
@@ -76,12 +77,12 @@ namespace SecureLibrary.Tests
             var sharedKey2 = EncryptionHelper.DeriveSharedKey(keys1[0], keys2[1]);
             
             // Assert
-            Assert.That(!sharedKey1.Equals(null));
-            Assert.That(!sharedKey2.Equals(null));
-            Assert.That(sharedKey1.Equals(sharedKey2));
+            Assert.IsNotNull(sharedKey1);
+            Assert.IsNotNull(sharedKey2);
+            Assert.AreEqual(sharedKey1, sharedKey2);
         }
         
-        [Test]
+        [TestMethod]
         public void BcryptEncoding_ShouldEncodeAndVerifyPasswordSuccessfully()
         {
             // Act
@@ -89,7 +90,7 @@ namespace SecureLibrary.Tests
             var isValid = EncryptionHelper.VerifyBcryptPassword(password, hashedPassword);
             
             // Assert
-            Assert.That(isValid.Equals(true));
+            Assert.IsTrue(isValid);
         }
     }
 }
