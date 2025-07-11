@@ -21,7 +21,6 @@ jobs:
           script: |
             await github.graphql(`
               mutation enablePullRequestAutoMerge($pullRequestId: ID!) {
-              mutation enablePullRequestAutoMerge($pullRequestId: ID!) {
                 enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId}) {
                   pullRequest {
                     id
