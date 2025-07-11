@@ -8,8 +8,17 @@
     <ComVisible>true</ComVisible>
     <IsTestProject>true</IsTestProject>
     <ExcludeTests Condition="'$(Configuration)'=='Release'">true</ExcludeTests>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    
+    <!-- Assembly Information -->
+    <AssemblyTitle>simple-.NET-Crypting-For-PowerBuilder</AssemblyTitle>
+    <AssemblyDescription>.NET library for PowerBuilder providing AES-GCM encryption, Bcrypt password hashing, and ECDH key exchange functionality</AssemblyDescription>
+    <AssemblyCompany>김유석(Yu Seok Kim)</AssemblyCompany>
+    <AssemblyProduct>simple-.NET-Crypting-For-PowerBuilder</AssemblyProduct>
+    <AssemblyCopyright>Copyright © 2025 김유석(Yu Seok Kim)</AssemblyCopyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <AssemblyFileVersion>1.0.0.0</AssemblyFileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release' and '$(ExcludeTests)'=='true'">
@@ -39,7 +48,6 @@
   <ItemGroup>
     <Compile Include="draft.cs" />
     <Compile Include="invokeCGN.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)'!='Release'">

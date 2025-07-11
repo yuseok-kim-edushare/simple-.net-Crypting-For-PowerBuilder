@@ -5,8 +5,18 @@
     <RootNamespace>SecureLibrary.SQL</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLSCompliant>true</CLSCompliant>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    
+    <!-- Assembly Information -->
+    <AssemblyTitle>simple-.NET-Crypting-For-PowerBuilder-SQL</AssemblyTitle>
+    <AssemblyDescription>.NET library for SQL Server CLR providing AES-GCM encryption, Bcrypt password hashing, and ECDH key exchange functionality for PowerBuilder applications</AssemblyDescription>
+    <AssemblyCompany>김유석(Yu Seok Kim)</AssemblyCompany>
+    <AssemblyProduct>simple-.NET-Crypting-For-PowerBuilder</AssemblyProduct>
+    <AssemblyCopyright>Copyright © 2025 김유석(Yu Seok Kim)</AssemblyCopyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <AssemblyFileVersion>1.0.0.0</AssemblyFileVersion>
+    <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,6 +31,5 @@
   <ItemGroup>
     <Compile Include="draft.cs" />
     <Compile Include="invokeCGN.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
 </Project>
