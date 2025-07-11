@@ -8,7 +8,18 @@
     <EnableComHosting>false</EnableComHosting>
     <IsTestProject>true</IsTestProject>
     <ExcludeTests Condition="'$(Configuration)'=='Release'">true</ExcludeTests>
+    
+    <!-- Assembly Information -->
+    <AssemblyTitle>simple-.NET-Crypting-For-PowerBuilder-NET8</AssemblyTitle>
+    <AssemblyDescription>.NET 8 library for PowerBuilder providing AES-GCM encryption, Bcrypt password hashing, and ECDH key exchange functionality</AssemblyDescription>
+    <AssemblyCompany>김유석(Yu Seok Kim)</AssemblyCompany>
+    <AssemblyProduct>simple-.NET-Crypting-For-PowerBuilder</AssemblyProduct>
+    <AssemblyCopyright>Copyright © 2025 김유석(Yu Seok Kim)</AssemblyCopyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <AssemblyFileVersion>1.0.0.0</AssemblyFileVersion>
+    <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
+  
   <PropertyGroup Condition="'$(Configuration)'=='Release' and '$(ExcludeTests)'=='true'">
     <DefineConstants>TRACE;RELEASE;RELEASE_WITHOUT_TESTS</DefineConstants>
     <IsTestProject>false</IsTestProject>
@@ -20,9 +31,9 @@
 
   <ItemGroup Condition="'$(Configuration)'!='Release'">
     <ProjectReference Include="..\net481SQL-server\SecureLibrary-SQL.csproj" />
-    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.2.2" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.2.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.2" />
   </ItemGroup>
 
