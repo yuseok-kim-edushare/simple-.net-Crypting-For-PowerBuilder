@@ -53,42 +53,42 @@ jobs:
 
     - name: Merge and Create Release Files
       run: |
+        New-Item -ItemType Directory -Path ${{ github.workspace }}\release-files -Force
+
         # Merge NET 4.8 PB DLLs (using ILRepack)
-        ilrepack /out:${{ github.workspace }}\net481PB\bin\Release\net481\SecureLibrary-PB-Merged.dll `
+        ilrepack /out:${{ github.workspace }}\release-files\SecureLibrary-PB.dll `
                    /lib:${{ github.workspace }}\net481PB\bin\Release\net481 `
                    /targetplatform:"v4,C:\Windows\Microsoft.NET\Framework\v4.0.30319" `
                    /union `
                    /copyattrs `
                    /internalize `
-                   ${{ github.workspace }}\net481PB\bin\Release\net481\SecureLibrary.dll `
-                   ${{ github.workspace }}\net481PB\bin\Release\net481\BCrypt.Net-Next.dll `
-                   ${{ github.workspace }}\net481PB\bin\Release\net481\System.Buffers.dll `
-                   ${{ github.workspace }}\net481PB\bin\Release\net481\System.Memory.dll `
-                   ${{ github.workspace }}\net481PB\bin\Release\net481\System.Numerics.Vectors.dll `
-                   ${{ github.workspace }}\net481PB\bin\Release\net481\System.Runtime.CompilerServices.Unsafe.dll
+                   ${{ github.workspace }}\net481PB\bin\Release\net481\publish\SecureLibrary.dll `
+                   ${{ github.workspace }}\net481PB\bin\Release\net481\publish\BCrypt.Net-Next.dll `
+                   ${{ github.workspace }}\net481PB\bin\Release\net481\publish\System.Buffers.dll `
+                   ${{ github.workspace }}\net481PB\bin\Release\net481\publish\System.Memory.dll `
+                   ${{ github.workspace }}\net481PB\bin\Release\net481\publish\System.Numerics.Vectors.dll `
+                   ${{ github.workspace }}\net481PB\bin\Release\net481\publish\System.Runtime.CompilerServices.Unsafe.dll
         
         # Merge NET 4.8 SQL DLLs (using ILMerge)
-        ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\net481SQL-server\bin\Release\net481\SecureLibrary-SQL-Merged.dll `
-                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\SecureLibrary.SQL.dll `
-                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\BCrypt.Net-Next.dll `
-                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\System.Buffers.dll `
-                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\System.Memory.dll `
-                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\System.Numerics.Vectors.dll `
-                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\System.Runtime.CompilerServices.Unsafe.dll `
-                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\Microsoft.SqlServer.Server.dll
+        ${{ github.workspace }}\packages\ILMerge.3.0.41\tools\net452\ILMerge.exe /out:${{ github.workspace }}\release-files\SecureLibrary-SQL.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\SecureLibrary.SQL.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\BCrypt.Net-Next.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\System.Buffers.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\System.Memory.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\System.Numerics.Vectors.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\System.Runtime.CompilerServices.Unsafe.dll `
+                   ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\Microsoft.SqlServer.Server.dll
 
         # Merge NET 8 DLLs (using ILRepack)
-        ilrepack /out:${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll `
+        ilrepack /out:${{ github.workspace }}\release-files\SecureLibrary-Core.dll `
                    /union `
                    /internalize `
-                   ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll `
-                   ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\BCrypt.Net-Next.dll
+                   ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\SecureLibrary-Core.dll `
+                   ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\BCrypt.Net-Next.dll
 
-        # Copy all release files to a single directory for easier release
-        New-Item -ItemType Directory -Path ${{ github.workspace }}\release-files -Force
-        Copy-Item ${{ github.workspace }}\net481PB\bin\Release\net481\SecureLibrary-PB-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-PB.dll
-        Copy-Item ${{ github.workspace }}\net481SQL-server\bin\Release\net481\SecureLibrary-SQL-Merged.dll ${{ github.workspace }}\release-files\SecureLibrary-SQL.dll        
-        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\win-x64\NET8.dll ${{ github.workspace }}\release-files\NET8.dll
+        # copy Comhost and runtimeconfig.json to release-files
+        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\SecureLibrary-Core.comhost.dll ${{ github.workspace }}\release-files\SecureLibrary-Core.comhost.dll
+        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\SecureLibrary-Core.runtimeconfig.json ${{ github.workspace }}\release-files\SecureLibrary-Core.runtimeconfig.json
 
     - name: Get latest release version and Generate release notes
       id: get_latest_release
