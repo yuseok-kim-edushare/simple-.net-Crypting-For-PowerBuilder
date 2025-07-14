@@ -22,26 +22,6 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
-    - name: Debug workflow trigger
-      shell: pwsh
-      run: |
-        Write-Output "Workflow triggered by: ${{ github.event_name }}"
-        Write-Output "Ref: ${{ github.ref }}"
-        Write-Output "Actor: ${{ github.actor }}"
-        Write-Output "Repository: ${{ github.repository }}"
-        if ('${{ github.event_name }}' -eq 'push') {
-          Write-Output "Push event details:"
-          Write-Output "  Before: ${{ github.event.before }}"
-          Write-Output "  After: ${{ github.event.after }}"
-          Write-Output "  Pusher: ${{ github.event.pusher.name }}"
-        } elseif ('${{ github.event_name }}' -eq 'workflow_run') {
-          Write-Output "Workflow run event details:"
-          Write-Output "  Workflow: ${{ github.event.workflow_run.name }}"
-          Write-Output "  Conclusion: ${{ github.event.workflow_run.conclusion }}"
-          Write-Output "  Head SHA: ${{ github.event.workflow_run.head_sha }}"
-          Write-Output "  Head Branch: ${{ github.event.workflow_run.head_branch }}"
-        }
-        
     - name: Checkout code
       uses: actions/checkout@v4
       with:
@@ -68,10 +48,10 @@ jobs:
           ${{ runner.os }}-nuget-
 
     - name: Restore dependencies
-      run: dotnet restore simple-.net-Crypting-For-PowerBuilder.sln
+      run: dotnet restore simple-.net-Crypting-For-PowerBuilder.slnx
 
     - name: Build solution for release (without tests)
-      run: dotnet publish simple-.net-Crypting-For-PowerBuilder.sln --configuration Release
+      run: dotnet publish simple-.net-Crypting-For-PowerBuilder.slnx --configuration Release
 
     - name: Install ILMerge and ILRepack
       run: |
