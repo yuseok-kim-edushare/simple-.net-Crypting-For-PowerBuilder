@@ -1,4 +1,4 @@
-﻿name: Enable Auto-merge on Pull Request
+name: Enable Auto-merge on Pull Request
 
 on:
   pull_request_target:
@@ -22,7 +22,7 @@ jobs:
           script: |
             await github.graphql(`
               mutation enablePullRequestAutoMerge($pullRequestId: ID!) {
-                enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId}) {
+                enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId, mergeMethod: SQUASH}) {
                   pullRequest {
                     id
                     autoMergeRequest {
@@ -30,6 +30,7 @@ jobs:
                       enabledBy {
                         login
                       }
+                      mergeMethod
                     }
                   }
                 }
