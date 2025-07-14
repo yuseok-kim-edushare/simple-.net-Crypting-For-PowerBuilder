@@ -3,6 +3,12 @@ on:
   push:
     branches:
       - main # main 브랜치로의 모든 push 이벤트 (PR 병합 포함) 에 실행
+  workflow_run:
+    workflows: ["CI tests"]
+    types:
+      - completed
+    branches:
+      - main
 
 
 permissions:
@@ -11,8 +17,9 @@ permissions:
 
 jobs:
   deploy:
-
     runs-on: windows-2022
+    # Only run if this was triggered by a push OR if the CI workflow completed successfully
+    if: github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
     - name: Debug workflow trigger
@@ -27,6 +34,12 @@ jobs:
           Write-Output "  Before: ${{ github.event.before }}"
           Write-Output "  After: ${{ github.event.after }}"
           Write-Output "  Pusher: ${{ github.event.pusher.name }}"
+        } elseif ('${{ github.event_name }}' -eq 'workflow_run') {
+          Write-Output "Workflow run event details:"
+          Write-Output "  Workflow: ${{ github.event.workflow_run.name }}"
+          Write-Output "  Conclusion: ${{ github.event.workflow_run.conclusion }}"
+          Write-Output "  Head SHA: ${{ github.event.workflow_run.head_sha }}"
+          Write-Output "  Head Branch: ${{ github.event.workflow_run.head_branch }}"
         }
         
     - name: Checkout code
@@ -34,6 +47,8 @@ jobs:
       with:
         fetch-tags: true
         fetch-depth: 0
+        # If triggered by workflow_run, checkout the specific commit that was tested
+        ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
     - name: Get USERPROFILE and set CACHE_PATH
       id: set_cache_path
