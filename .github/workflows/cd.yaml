@@ -19,8 +19,11 @@ permissions:
 jobs:
   deploy:
     runs-on: windows-2022
-    # Only run if this was triggered by a push OR if the CI workflow completed successfully
-    if: github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    # Only run if this was triggered by a push OR if the CI workflow completed successfully OR workflow_dispatch
+    if: |
+      github.event_name == 'push' || 
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
     - name: Checkout code
@@ -49,10 +52,10 @@ jobs:
           ${{ runner.os }}-nuget-
 
     - name: Restore dependencies
-      run: dotnet restore simple-.net-Crypting-For-PowerBuilder.slnx
+      run: dotnet restore simple-.net-Crypting-For-PowerBuilder.sln
 
     - name: Build solution for release (without tests)
-      run: dotnet publish simple-.net-Crypting-For-PowerBuilder.slnx --configuration Release
+      run: dotnet publish simple-.net-Crypting-For-PowerBuilder.sln --configuration Release
 
     - name: Install ILMerge and ILRepack
       run: |

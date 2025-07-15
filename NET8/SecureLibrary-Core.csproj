@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
-    <EnableComHosting>true</EnableComHosting>
+    <EnableComHosting Condition="$([MSBuild]::IsOSPlatform('Windows'))">true</EnableComHosting>
     <IsTestProject>true</IsTestProject>
     <ExcludeTests Condition="'$(Configuration)'=='Release'">true</ExcludeTests>
     <SignAssembly>true</SignAssembly>
