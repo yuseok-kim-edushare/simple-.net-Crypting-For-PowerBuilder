@@ -32,8 +32,8 @@ jobs:
           ${{ runner.os }}-nuget-
      
     - name: Restore NuGet packages
-      run: dotnet restore simple-.net-Crypting-For-PowerBuilder.sln
+      run: dotnet restore simple-.net-Crypting-For-PowerBuilder.slnx
 
     - name: Run Tests for solution
-      run: dotnet test simple-.net-Crypting-For-PowerBuilder.sln --configuration Debug
+      run: dotnet test simple-.net-Crypting-For-PowerBuilder.slnx --configuration Debug
 

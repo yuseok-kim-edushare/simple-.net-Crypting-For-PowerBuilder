@@ -55,3 +55,21 @@ jobs:
         run: |
           echo "Auto-merge has been enabled for dependabot PR #${{ github.event.pull_request.number }}"
           echo "The CD workflow will be triggered automatically after merge."
+          
+      - name: Trigger CD workflow for dependabot auto-merge
+        if: steps.check_dependabot.outputs.is_dependabot == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Trigger CD workflow via repository_dispatch for dependabot PRs
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'dependabot-auto-merged',
+              client_payload: {
+                pr_number: context.payload.pull_request.number,
+                pr_title: context.payload.pull_request.title,
+                triggered_by: 'dependabot-auto-merge'
+              }
+            });
+            console.log('Repository dispatch event sent to trigger CD workflow for dependabot auto-merge');
