@@ -1,4 +1,4 @@
-name: Enable Auto-merge on Pull Request
+﻿name: Enable Auto-merge on Pull Request
 
 on:
   pull_request_target:
@@ -73,3 +73,20 @@ jobs:
               }
             });
             console.log('Repository dispatch event sent to trigger CD workflow for dependabot auto-merge');
+      
+      - name: Trigger CD workflow for non-dependabot auto-merge
+        if: steps.check_dependabot.outputs.is_dependabot == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+                await github.rest.repos.createDispatchEvent({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  event_type: 'non-dependabot-auto-merged',
+                  client_payload: {
+                    pr_number: context.payload.pull_request.number,
+                    pr_title: context.payload.pull_request.title,
+                    triggered_by: 'non-dependabot-auto-merge'
+                  }
+                });
+                console.log('Repository dispatch event sent to trigger CD workflow for non-dependabot auto-merge');
