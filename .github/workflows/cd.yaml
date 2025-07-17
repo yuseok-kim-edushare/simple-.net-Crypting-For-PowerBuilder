@@ -10,6 +10,8 @@ on:
     branches:
       - main
   workflow_dispatch:
+  repository_dispatch:
+    types: [dependabot-auto-merged, non-dependabot-auto-merged]
 
 
 permissions:
@@ -19,8 +21,8 @@ permissions:
 jobs:
   deploy:
     runs-on: windows-2022
-    # Only run if this was triggered by a push OR if the CI workflow completed successfully
-    if: github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    # Only run if this was triggered by a push OR if the CI workflow completed successfully OR repository_dispatch
+    if: github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch'
 
     steps:
     - name: Checkout code
