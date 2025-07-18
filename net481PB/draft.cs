@@ -297,7 +297,7 @@ namespace SecureLibrary
         public static string DeriveKeyFromPassword(string password, string base64Salt, int iterations = 2000)
         {
             if (password == null) throw new ArgumentNullException("password");
-            if (string.IsNullOrEmpty(base64Salt)) throw new ArgumentNullException("base64Salt");
+            if (base64Salt == null) throw new ArgumentNullException("base64Salt");
 
             byte[] saltBytes = Convert.FromBase64String(base64Salt);
             
