@@ -369,5 +369,236 @@ namespace SecureLibrary.SQL
                 if (nonceBytes != null) Array.Clear(nonceBytes, 0, nonceBytes.Length);
             }
         }
+
+        /// <summary>
+        /// Encrypts text using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (optional, default: 2000)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
+        [SqlFunction(
+            IsDeterministic = false, // Not deterministic due to random salt/nonce generation
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptAesGcmWithPassword(SqlString plainText, SqlString password, SqlInt32 iterations)
+        {
+            if (plainText.IsNull || password.IsNull)
+                return SqlString.Null;
+
+            try
+            {
+                int iterationCount = iterations.IsNull ? 2000 : iterations.Value;
+                
+                // Validate iteration count
+                if (iterationCount < 1000 || iterationCount > 100000)
+                    throw new ArgumentException("Iteration count must be between 1000 and 100000", "iterations");
+
+                string encrypted = BcryptInterop.EncryptAesGcmWithPassword(plainText.Value, password.Value, null, iterationCount);
+                
+                if (string.IsNullOrEmpty(encrypted))
+                    throw new CryptographicException("Encryption returned null or empty");
+
+                return new SqlString(encrypted);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+        }
+
+        /// <summary>
+        /// Encrypts text using AES-GCM with password-based key derivation (default iterations)
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
+        [SqlFunction(
+            IsDeterministic = false, // Not deterministic due to random salt/nonce generation
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptAesGcmWithPassword(SqlString plainText, SqlString password)
+        {
+            return EncryptAesGcmWithPassword(plainText, password, SqlInt32.Null);
+        }
+
+        /// <summary>
+        /// Decrypts text using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="base64EncryptedData">Base64 encoded encrypted data</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (optional, default: 2000)</param>
+        /// <returns>Decrypted text</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString DecryptAesGcmWithPassword(SqlString base64EncryptedData, SqlString password, SqlInt32 iterations)
+        {
+            if (base64EncryptedData.IsNull || password.IsNull)
+                return SqlString.Null;
+
+            try
+            {
+                int iterationCount = iterations.IsNull ? 2000 : iterations.Value;
+                
+                // Validate iteration count
+                if (iterationCount < 1000 || iterationCount > 100000)
+                    throw new ArgumentException("Iteration count must be between 1000 and 100000", "iterations");
+
+                string decrypted = BcryptInterop.DecryptAesGcmWithPassword(base64EncryptedData.Value, password.Value, iterationCount);
+                
+                if (decrypted == null)
+                    throw new CryptographicException("Decryption returned null");
+
+                return new SqlString(decrypted);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+        }
+
+        /// <summary>
+        /// Decrypts text using AES-GCM with password-based key derivation (default iterations)
+        /// </summary>
+        /// <param name="base64EncryptedData">Base64 encoded encrypted data</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <returns>Decrypted text</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString DecryptAesGcmWithPassword(SqlString base64EncryptedData, SqlString password)
+        {
+            return DecryptAesGcmWithPassword(base64EncryptedData, password, SqlInt32.Null);
+        }
+
+        /// <summary>
+        /// Generates a cryptographically secure random salt for key derivation
+        /// </summary>
+        /// <param name="saltLength">Length of salt in bytes (optional, default: 16)</param>
+        /// <returns>Base64 encoded salt</returns>
+        [SqlFunction(
+            IsDeterministic = false, // Not deterministic due to random generation
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString GenerateSalt(SqlInt32 saltLength)
+        {
+            try
+            {
+                int length = saltLength.IsNull ? 16 : saltLength.Value;
+                
+                // Validate salt length
+                if (length < 8 || length > 64)
+                    throw new ArgumentException("Salt length must be between 8 and 64 bytes", "saltLength");
+
+                byte[] salt = new byte[length];
+                using (var rng = new RNGCryptoServiceProvider())
+                {
+                    rng.GetBytes(salt);
+                }
+                
+                return new SqlString(Convert.ToBase64String(salt));
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+        }
+
+        /// <summary>
+        /// Generates a cryptographically secure random salt (default 16 bytes)
+        /// </summary>
+        /// <returns>Base64 encoded salt</returns>
+        [SqlFunction(
+            IsDeterministic = false, // Not deterministic due to random generation
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString GenerateSalt()
+        {
+            return GenerateSalt(SqlInt32.Null);
+        }
+
+        /// <summary>
+        /// Encrypts text using AES-GCM with password and custom salt
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="base64Salt">Base64 encoded salt for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (optional, default: 2000)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
+        [SqlFunction(
+            IsDeterministic = false, // Not deterministic due to random nonce generation
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptAesGcmWithPasswordAndSalt(SqlString plainText, SqlString password, SqlString base64Salt, SqlInt32 iterations)
+        {
+            if (plainText.IsNull || password.IsNull || base64Salt.IsNull)
+                return SqlString.Null;
+
+            byte[] saltBytes = null;
+            try
+            {
+                saltBytes = Convert.FromBase64String(base64Salt.Value);
+                
+                // Validate salt length
+                if (saltBytes.Length < 8 || saltBytes.Length > 64)
+                    throw new ArgumentException("Salt length must be between 8 and 64 bytes", "base64Salt");
+
+                int iterationCount = iterations.IsNull ? 2000 : iterations.Value;
+                
+                // Validate iteration count
+                if (iterationCount < 1000 || iterationCount > 100000)
+                    throw new ArgumentException("Iteration count must be between 1000 and 100000", "iterations");
+
+                string encrypted = BcryptInterop.EncryptAesGcmWithPassword(plainText.Value, password.Value, saltBytes, iterationCount);
+                
+                if (string.IsNullOrEmpty(encrypted))
+                    throw new CryptographicException("Encryption returned null or empty");
+
+                return new SqlString(encrypted);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+            finally
+            {
+                if (saltBytes != null) Array.Clear(saltBytes, 0, saltBytes.Length);
+            }
+        }
+
+        /// <summary>
+        /// Encrypts text using AES-GCM with password and custom salt (default iterations)
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="base64Salt">Base64 encoded salt for key derivation</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
+        [SqlFunction(
+            IsDeterministic = false, // Not deterministic due to random nonce generation
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptAesGcmWithPasswordAndSalt(SqlString plainText, SqlString password, SqlString base64Salt)
+        {
+            return EncryptAesGcmWithPasswordAndSalt(plainText, password, base64Salt, SqlInt32.Null);
+        }
     }
 }

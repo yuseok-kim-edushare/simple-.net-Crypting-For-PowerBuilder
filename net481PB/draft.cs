@@ -193,5 +193,97 @@ namespace SecureLibrary
         {
             return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
         }
+
+        // Password-based AES-GCM encryption methods
+        /// <summary>
+        /// Encrypts text using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
+        public static string EncryptAesGcmWithPassword(string plainText, string password, int iterations = 2000)
+        {
+            if (string.IsNullOrEmpty(plainText)) throw new ArgumentNullException("plainText");
+            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+
+            // Validate iteration count
+            if (iterations < 1000 || iterations > 100000)
+                throw new ArgumentException("Iteration count must be between 1000 and 100000", "iterations");
+
+            return BcryptInterop.EncryptAesGcmWithPassword(plainText, password, null, iterations);
+        }
+
+        /// <summary>
+        /// Decrypts text using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="base64EncryptedData">Base64 encoded encrypted data</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Decrypted text</returns>
+        public static string DecryptAesGcmWithPassword(string base64EncryptedData, string password, int iterations = 2000)
+        {
+            if (string.IsNullOrEmpty(base64EncryptedData)) throw new ArgumentNullException("base64EncryptedData");
+            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+
+            // Validate iteration count
+            if (iterations < 1000 || iterations > 100000)
+                throw new ArgumentException("Iteration count must be between 1000 and 100000", "iterations");
+
+            return BcryptInterop.DecryptAesGcmWithPassword(base64EncryptedData, password, iterations);
+        }
+
+        /// <summary>
+        /// Generates a cryptographically secure random salt for key derivation
+        /// </summary>
+        /// <param name="saltLength">Length of salt in bytes (optional, default: 16)</param>
+        /// <returns>Base64 encoded salt</returns>
+        public static string GenerateSalt(int saltLength = 16)
+        {
+            if (saltLength < 8 || saltLength > 64)
+                throw new ArgumentException("Salt length must be between 8 and 64 bytes", "saltLength");
+
+            byte[] salt = new byte[saltLength];
+            using (var rng = new RNGCryptoServiceProvider())
+            {
+                rng.GetBytes(salt);
+            }
+            
+            return Convert.ToBase64String(salt);
+        }
+
+        /// <summary>
+        /// Encrypts text using AES-GCM with password and custom salt
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="base64Salt">Base64 encoded salt for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (optional, default: 2000)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
+        public static string EncryptAesGcmWithPasswordAndSalt(string plainText, string password, string base64Salt, int iterations = 2000)
+        {
+            if (string.IsNullOrEmpty(plainText)) throw new ArgumentNullException("plainText");
+            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+            if (string.IsNullOrEmpty(base64Salt)) throw new ArgumentNullException("base64Salt");
+
+            byte[] saltBytes = Convert.FromBase64String(base64Salt);
+            
+            // Validate salt length
+            if (saltBytes.Length < 8 || saltBytes.Length > 64)
+                throw new ArgumentException("Salt length must be between 8 and 64 bytes", "base64Salt");
+
+            // Validate iteration count
+            if (iterations < 1000 || iterations > 100000)
+                throw new ArgumentException("Iteration count must be between 1000 and 100000", "iterations");
+
+            try
+            {
+                return BcryptInterop.EncryptAesGcmWithPassword(plainText, password, saltBytes, iterations);
+            }
+            finally
+            {
+                Array.Clear(saltBytes, 0, saltBytes.Length);
+            }
+        }
     }
 }
