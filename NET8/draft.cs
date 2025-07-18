@@ -579,7 +579,6 @@ namespace SecureLibrary
                 throw new ArgumentException("Salt length must be between 8 and 64 bytes", nameof(base64Salt));
 
             byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-            byte[] encryptedBytes = EncryptAesGcmBytesWithPassword(plainBytes, "dummy", saltBytes, 1000);
             
             // Replace the derived key portion with our pre-derived key to avoid PBKDF2
             // This is a performance optimization that skips key derivation
