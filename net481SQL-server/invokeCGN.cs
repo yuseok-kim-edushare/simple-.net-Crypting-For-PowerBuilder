@@ -161,7 +161,7 @@ namespace SecureLibrary.SQL
             if (salt == null)
             {
                 salt = new byte[16];
-                using (var rng = new RNGCryptoServiceProvider())
+                using (var rng = RandomNumberGenerator.Create())
                 {
                     rng.GetBytes(salt);
                 }
