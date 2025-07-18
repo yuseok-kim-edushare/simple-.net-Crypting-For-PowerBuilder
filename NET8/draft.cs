@@ -629,7 +629,7 @@ namespace SecureLibrary
         /// </summary>
         /// <param name="plainData">Data to encrypt</param>
         /// <param name="key">32-byte encryption key</param>
-        /// <param name="salt">Salt bytes for output format compatibility</param>
+        /// <param name="salt">Salt bytes, this must be the same as the one used to derive the key</param>
         /// <returns>Encrypted data with salt, nonce, and tag (same format as password-based methods)</returns>
         private static byte[] EncryptAesGcmBytesWithDerivedKey(byte[] plainData, byte[] key, byte[] salt)
         {
