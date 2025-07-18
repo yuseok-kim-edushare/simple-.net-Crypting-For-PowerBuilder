@@ -362,7 +362,7 @@ namespace SecureLibrary
                 throw new ArgumentException("Encrypted data too short", nameof(encryptedData));
             // Extract salt length from the header
             int saltLength = BitConverter.ToInt32(encryptedData, 0);
-            if (saltLength <= 0 || encryptedData.Length < headerLength + saltLength + nonceLength + tagLength)
+            if (saltLength < 8 || saltLength > 64 || encryptedData.Length < headerLength + saltLength + nonceLength + tagLength)
                 throw new ArgumentException("Invalid salt length in encrypted data", nameof(encryptedData));
             byte[] salt = new byte[saltLength];
             byte[] nonce = new byte[nonceLength];
@@ -587,8 +587,8 @@ namespace SecureLibrary
             // Clear sensitive data
             Array.Clear(plainBytes, 0, plainBytes.Length);
             Array.Clear(key, 0, key.Length);
-            Array.Clear(saltBytes, 0, saltBytes.Length);
-            Array.Clear(encryptedBytes, 0, encryptedBytes.Length);
+            // Note: saltBytes is used in the output format, so we don't clear it here
+            // Array.Clear(optimizedEncryptedBytes, 0, optimizedEncryptedBytes.Length);
             
             return Convert.ToBase64String(optimizedEncryptedBytes);
         }
@@ -684,7 +684,7 @@ namespace SecureLibrary
 
             // Extract salt length from the header
             int saltLength = BitConverter.ToInt32(encryptedData, 0);
-            if (saltLength <= 0 || encryptedData.Length < headerLength + saltLength + nonceLength + tagLength)
+            if (saltLength < 8 || saltLength > 64 || encryptedData.Length < headerLength + saltLength + nonceLength + tagLength)
                 throw new ArgumentException("Invalid salt length in encrypted data", nameof(encryptedData));
 
             byte[] nonce = new byte[nonceLength];
