@@ -296,7 +296,7 @@ namespace SecureLibrary
         /// <returns>Base64 encoded 32-byte AES key that can be cached and reused</returns>
         public static string DeriveKeyFromPassword(string password, string base64Salt, int iterations = 2000)
         {
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+            if (password == null) throw new ArgumentNullException("password");
             if (string.IsNullOrEmpty(base64Salt)) throw new ArgumentNullException("base64Salt");
 
             byte[] saltBytes = Convert.FromBase64String(base64Salt);
