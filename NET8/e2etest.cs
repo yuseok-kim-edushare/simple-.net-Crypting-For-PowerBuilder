@@ -109,13 +109,29 @@ namespace SecureLibrary.Tests
         
         [TestMethod]
         [TestCategory("SQLCLR")]
-        public void TestSqlCLR_HashPassword()
+        public void TestSqlCLR_HashPasswordDefault()
         {
             // Arrange
             var password = new SqlString("securePassword123");
             
             // Act
-            var hashedPassword = SqlCLRCrypting.HashPassword(password);
+            var hashedPassword = SqlCLRCrypting.HashPasswordDefault(password);
+            
+            // Assert
+            Assert.IsFalse(string.IsNullOrEmpty(hashedPassword.Value), "Hashed password should not be null");
+            Assert.IsTrue(hashedPassword.Value.StartsWith("$2"), "Hash should be in BCrypt format");
+        }
+        
+        [TestMethod]
+        [TestCategory("SQLCLR")]
+        public void TestSqlCLR_HashPasswordWithWorkFactor()
+        {
+            // Arrange
+            var password = new SqlString("securePassword123");
+            var workFactor = new SqlInt32(14);
+            
+            // Act
+            var hashedPassword = SqlCLRCrypting.HashPasswordWithWorkFactor(password, workFactor);
             
             // Assert
             Assert.IsFalse(string.IsNullOrEmpty(hashedPassword.Value), "Hashed password should not be null");
@@ -128,7 +144,7 @@ namespace SecureLibrary.Tests
         {
             // Arrange
             var password = new SqlString("securePassword123");
-            var hashedPassword = SqlCLRCrypting.HashPassword(password);
+            var hashedPassword = SqlCLRCrypting.HashPasswordDefault(password);
             
             // Act
             var isValid = SqlCLRCrypting.VerifyPassword(password, hashedPassword);
@@ -232,7 +248,7 @@ namespace SecureLibrary.Tests
 
         [TestMethod]
         [TestCategory("SQLCLR")]
-        public void TestSqlCLR_EncryptAesGcmWithPassword_CustomIterations()
+        public void TestSqlCLR_EncryptAesGcmWithPasswordIterations()
         {
             // Arrange
             var plainText = new SqlString("Test with custom iterations");
@@ -240,11 +256,11 @@ namespace SecureLibrary.Tests
             var iterations = new SqlInt32(5000);
             
             // Act - Encryption with custom iterations
-            var encrypted = SqlCLRCrypting.EncryptAesGcmWithPassword(plainText, password, iterations);
+            var encrypted = SqlCLRCrypting.EncryptAesGcmWithPasswordIterations(plainText, password, iterations);
             Assert.IsFalse(encrypted.IsNull, "Encrypted value should not be null");
             
             // Act - Decryption with same iterations
-            var decrypted = SqlCLRCrypting.DecryptAesGcmWithPassword(encrypted, password, iterations);
+            var decrypted = SqlCLRCrypting.DecryptAesGcmWithPasswordIterations(encrypted, password, iterations);
             Assert.IsFalse(decrypted.IsNull, "Decrypted value should not be null");
             
             // Assert
@@ -262,11 +278,11 @@ namespace SecureLibrary.Tests
             var decryptIterations = new SqlInt32(5000);
             
             // Act - Encryption
-            var encrypted = SqlCLRCrypting.EncryptAesGcmWithPassword(plainText, password, encryptIterations);
+            var encrypted = SqlCLRCrypting.EncryptAesGcmWithPasswordIterations(plainText, password, encryptIterations);
             Assert.IsFalse(encrypted.IsNull, "Encrypted value should not be null");
             
             // Act - Decryption with different iterations (should fail)
-            var decrypted = SqlCLRCrypting.DecryptAesGcmWithPassword(encrypted, password, decryptIterations);
+            var decrypted = SqlCLRCrypting.DecryptAesGcmWithPasswordIterations(encrypted, password, decryptIterations);
             
             // Assert - Should return null due to decryption failure
             Assert.IsTrue(decrypted.IsNull, "Decryption with wrong iterations should fail");
@@ -290,13 +306,13 @@ namespace SecureLibrary.Tests
 
         [TestMethod]
         [TestCategory("SQLCLR")]
-        public void TestSqlCLR_GenerateSalt_CustomLength()
+        public void TestSqlCLR_GenerateSaltWithLength()
         {
             // Arrange
             var saltLength = new SqlInt32(32);
             
             // Act
-            var salt = SqlCLRCrypting.GenerateSalt(saltLength);
+            var salt = SqlCLRCrypting.GenerateSaltWithLength(saltLength);
             
             // Assert
             Assert.IsFalse(salt.IsNull, "Generated salt should not be null");
@@ -315,10 +331,10 @@ namespace SecureLibrary.Tests
             var tooLarge = new SqlInt32(128); // Above maximum of 64
             
             // Act & Assert
-            var smallSalt = SqlCLRCrypting.GenerateSalt(tooSmall);
+            var smallSalt = SqlCLRCrypting.GenerateSaltWithLength(tooSmall);
             Assert.IsTrue(smallSalt.IsNull, "Salt with length < 8 should return null");
             
-            var largeSalt = SqlCLRCrypting.GenerateSalt(tooLarge);
+            var largeSalt = SqlCLRCrypting.GenerateSaltWithLength(tooLarge);
             Assert.IsTrue(largeSalt.IsNull, "Salt with length > 64 should return null");
         }
 
@@ -347,22 +363,22 @@ namespace SecureLibrary.Tests
 
         [TestMethod]
         [TestCategory("SQLCLR")]
-        public void TestSqlCLR_EncryptAesGcmWithPasswordAndSalt_CustomIterations()
+        public void TestSqlCLR_EncryptAesGcmWithPasswordAndSaltIterations()
         {
             // Arrange
             var plainText = new SqlString("Test with custom salt and iterations");
             var password = new SqlString("myPassword");
-            var salt = SqlCLRCrypting.GenerateSalt(new SqlInt32(24));
+            var salt = SqlCLRCrypting.GenerateSaltWithLength(new SqlInt32(24));
             var iterations = new SqlInt32(3000);
             
             Assert.IsFalse(salt.IsNull, "Generated salt should not be null");
             
             // Act - Encryption with custom salt and iterations
-            var encrypted = SqlCLRCrypting.EncryptAesGcmWithPasswordAndSalt(plainText, password, salt, iterations);
+            var encrypted = SqlCLRCrypting.EncryptAesGcmWithPasswordAndSaltIterations(plainText, password, salt, iterations);
             Assert.IsFalse(encrypted.IsNull, "Encrypted value should not be null");
             
             // Act - Decryption with same iterations
-            var decrypted = SqlCLRCrypting.DecryptAesGcmWithPassword(encrypted, password, iterations);
+            var decrypted = SqlCLRCrypting.DecryptAesGcmWithPasswordIterations(encrypted, password, iterations);
             Assert.IsFalse(decrypted.IsNull, "Decrypted value should not be null");
             
             // Assert
@@ -421,10 +437,10 @@ namespace SecureLibrary.Tests
             var tooHigh = new SqlInt32(200000); // Above maximum of 100000
             
             // Act & Assert
-            var lowResult = SqlCLRCrypting.EncryptAesGcmWithPassword(plainText, password, tooLow);
+            var lowResult = SqlCLRCrypting.EncryptAesGcmWithPasswordIterations(plainText, password, tooLow);
             Assert.IsTrue(lowResult.IsNull, "Iterations < 1000 should return null");
             
-            var highResult = SqlCLRCrypting.EncryptAesGcmWithPassword(plainText, password, tooHigh);
+            var highResult = SqlCLRCrypting.EncryptAesGcmWithPasswordIterations(plainText, password, tooHigh);
             Assert.IsTrue(highResult.IsNull, "Iterations > 100000 should return null");
         }
 

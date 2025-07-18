@@ -233,10 +233,10 @@ namespace SecureLibrary.SQL
             DataAccess = DataAccessKind.None
         )]
         [SecuritySafeCritical]
-        public static SqlString HashPassword(SqlString password)
+        public static SqlString HashPasswordDefault(SqlString password)
         {
-            // Overload for backward compatibility, defaults to a work factor of 12
-            return HashPassword(password, 12);
+            // Default overload with work factor of 12
+            return HashPasswordWithWorkFactor(password, 12);
         }
 
         [SqlFunction(
@@ -245,13 +245,13 @@ namespace SecureLibrary.SQL
             DataAccess = DataAccessKind.None
         )]
         [SecuritySafeCritical]
-        public static SqlString HashPassword(SqlString password, SqlInt32 workFactor)
+        public static SqlString HashPasswordWithWorkFactor(SqlString password, SqlInt32 workFactor)
         {
             if (password.IsNull)
                 return SqlString.Null;
             
             if (workFactor.IsNull)
-                return HashPassword(password); // Call overload to use default
+                return HashPasswordDefault(password); // Call default overload
 
             return new SqlString(BCrypt.Net.BCrypt.HashPassword(password.Value, workFactor.Value));
         }
@@ -383,7 +383,7 @@ namespace SecureLibrary.SQL
             DataAccess = DataAccessKind.None
         )]
         [SecuritySafeCritical]
-        public static SqlString EncryptAesGcmWithPassword(SqlString plainText, SqlString password, SqlInt32 iterations)
+        public static SqlString EncryptAesGcmWithPasswordIterations(SqlString plainText, SqlString password, SqlInt32 iterations)
         {
             if (plainText.IsNull || password.IsNull)
                 return SqlString.Null;
@@ -423,7 +423,7 @@ namespace SecureLibrary.SQL
         [SecuritySafeCritical]
         public static SqlString EncryptAesGcmWithPassword(SqlString plainText, SqlString password)
         {
-            return EncryptAesGcmWithPassword(plainText, password, SqlInt32.Null);
+            return EncryptAesGcmWithPasswordIterations(plainText, password, SqlInt32.Null);
         }
 
         /// <summary>
@@ -439,7 +439,7 @@ namespace SecureLibrary.SQL
             DataAccess = DataAccessKind.None
         )]
         [SecuritySafeCritical]
-        public static SqlString DecryptAesGcmWithPassword(SqlString base64EncryptedData, SqlString password, SqlInt32 iterations)
+        public static SqlString DecryptAesGcmWithPasswordIterations(SqlString base64EncryptedData, SqlString password, SqlInt32 iterations)
         {
             if (base64EncryptedData.IsNull || password.IsNull)
                 return SqlString.Null;
@@ -479,7 +479,7 @@ namespace SecureLibrary.SQL
         [SecuritySafeCritical]
         public static SqlString DecryptAesGcmWithPassword(SqlString base64EncryptedData, SqlString password)
         {
-            return DecryptAesGcmWithPassword(base64EncryptedData, password, SqlInt32.Null);
+            return DecryptAesGcmWithPasswordIterations(base64EncryptedData, password, SqlInt32.Null);
         }
 
         /// <summary>
@@ -493,7 +493,7 @@ namespace SecureLibrary.SQL
             DataAccess = DataAccessKind.None
         )]
         [SecuritySafeCritical]
-        public static SqlString GenerateSalt(SqlInt32 saltLength)
+        public static SqlString GenerateSaltWithLength(SqlInt32 saltLength)
         {
             try
             {
@@ -529,7 +529,7 @@ namespace SecureLibrary.SQL
         [SecuritySafeCritical]
         public static SqlString GenerateSalt()
         {
-            return GenerateSalt(SqlInt32.Null);
+            return GenerateSaltWithLength(SqlInt32.Null);
         }
 
         /// <summary>
@@ -546,7 +546,7 @@ namespace SecureLibrary.SQL
             DataAccess = DataAccessKind.None
         )]
         [SecuritySafeCritical]
-        public static SqlString EncryptAesGcmWithPasswordAndSalt(SqlString plainText, SqlString password, SqlString base64Salt, SqlInt32 iterations)
+        public static SqlString EncryptAesGcmWithPasswordAndSaltIterations(SqlString plainText, SqlString password, SqlString base64Salt, SqlInt32 iterations)
         {
             if (plainText.IsNull || password.IsNull || base64Salt.IsNull)
                 return SqlString.Null;
@@ -598,7 +598,7 @@ namespace SecureLibrary.SQL
         [SecuritySafeCritical]
         public static SqlString EncryptAesGcmWithPasswordAndSalt(SqlString plainText, SqlString password, SqlString base64Salt)
         {
-            return EncryptAesGcmWithPasswordAndSalt(plainText, password, base64Salt, SqlInt32.Null);
+            return EncryptAesGcmWithPasswordAndSaltIterations(plainText, password, base64Salt, SqlInt32.Null);
         }
     }
 }

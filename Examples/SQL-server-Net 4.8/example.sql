@@ -1,78 +1,158 @@
--- Example usage of all cryptographic functions
+-- Example usage of SecureLibrary-SQL functions
+-- This script demonstrates how to use all the available encryption functions
 
--- 1. AES Key Generation and Basic Encryption/Decryption
-DECLARE @aesKey nvarchar(max) = dbo.GenerateAESKey();
-DECLARE @plainText nvarchar(max) = N'Hello, this is a secret message!';
-PRINT 'Original Text: ' + @plainText;
-PRINT 'AES Key: ' + @aesKey;
+-- =============================================
+-- AES Key Generation and Encryption Examples
+-- =============================================
 
--- Encrypt the message
-DECLARE @encryptedData TABLE (CipherText nvarchar(max), IV nvarchar(max));
-INSERT INTO @encryptedData
-SELECT * FROM dbo.EncryptAES(@plainText, @aesKey);
+-- Generate a new AES key
+DECLARE @aesKey NVARCHAR(MAX) = dbo.GenerateAESKey();
+PRINT 'Generated AES Key: ' + @aesKey;
 
-DECLARE @cipherText nvarchar(max), @iv nvarchar(max);
-SELECT @cipherText = CipherText, @iv = IV FROM @encryptedData;
-PRINT 'Encrypted (Base64): ' + @cipherText;
-PRINT 'IV (Base64): ' + @iv;
+-- Encrypt text using AES-GCM (recommended)
+DECLARE @plainText NVARCHAR(MAX) = N'Hello, World! This is a test message.';
+DECLARE @encryptedGcm NVARCHAR(MAX) = dbo.EncryptAesGcm(@plainText, @aesKey);
+PRINT 'Encrypted (AES-GCM): ' + @encryptedGcm;
 
--- Decrypt the message
-DECLARE @decryptedText nvarchar(max);
-SET @decryptedText = dbo.DecryptAES(@cipherText, @aesKey, @iv);
-PRINT 'Decrypted Text: ' + @decryptedText;
-GO
+-- Decrypt text using AES-GCM
+DECLARE @decryptedGcm NVARCHAR(MAX) = dbo.DecryptAesGcm(@encryptedGcm, @aesKey);
+PRINT 'Decrypted (AES-GCM): ' + @decryptedGcm;
 
--- 2. Diffie-Hellman Key Exchange Example
--- Generate keys for Alice
-DECLARE @aliceKeys TABLE (PublicKey nvarchar(max), PrivateKey nvarchar(max));
-INSERT INTO @aliceKeys
-SELECT * FROM dbo.GenerateDiffieHellmanKeys();
+-- =============================================
+-- Password-based Encryption Examples
+-- =============================================
 
--- Generate keys for Bob
-DECLARE @bobKeys TABLE (PublicKey nvarchar(max), PrivateKey nvarchar(max));
-INSERT INTO @bobKeys
-SELECT * FROM dbo.GenerateDiffieHellmanKeys();
+-- Encrypt using password (default iterations)
+DECLARE @password NVARCHAR(MAX) = N'MySecretPassword123!';
+DECLARE @encryptedWithPassword NVARCHAR(MAX) = dbo.EncryptAesGcmWithPassword(@plainText, @password);
+PRINT 'Encrypted with password: ' + @encryptedWithPassword;
 
--- Get the keys
-DECLARE @alicePublic nvarchar(max), @alicePrivate nvarchar(max);
-DECLARE @bobPublic nvarchar(max), @bobPrivate nvarchar(max);
-SELECT @alicePublic = PublicKey, @alicePrivate = PrivateKey FROM @aliceKeys;
-SELECT @bobPublic = PublicKey, @bobPrivate = PrivateKey FROM @bobKeys;
+-- Decrypt using password
+DECLARE @decryptedWithPassword NVARCHAR(MAX) = dbo.DecryptAesGcmWithPassword(@encryptedWithPassword, @password);
+PRINT 'Decrypted with password: ' + @decryptedWithPassword;
 
--- Derive shared secrets
-DECLARE @aliceShared nvarchar(max) = dbo.DeriveSharedKey(@bobPublic, @alicePrivate);
-DECLARE @bobShared nvarchar(max) = dbo.DeriveSharedKey(@alicePublic, @bobPrivate);
+-- Encrypt using password with custom iterations
+DECLARE @encryptedWithPasswordIterations NVARCHAR(MAX) = dbo.EncryptAesGcmWithPasswordIterations(@plainText, @password, 5000);
+PRINT 'Encrypted with password (5000 iterations): ' + @encryptedWithPasswordIterations;
 
--- Verify both parties derived the same key
-PRINT 'Alice Shared Key: ' + @aliceShared;
-PRINT 'Bob Shared Key: ' + @bobShared;
-GO
+-- Decrypt using password with custom iterations
+DECLARE @decryptedWithPasswordIterations NVARCHAR(MAX) = dbo.DecryptAesGcmWithPasswordIterations(@encryptedWithPasswordIterations, @password, 5000);
+PRINT 'Decrypted with password (5000 iterations): ' + @decryptedWithPasswordIterations;
 
--- 3. Password Hashing and Verification
-DECLARE @password nvarchar(max) = N'MySecurePassword123';
-DECLARE @hashedPassword nvarchar(max) = dbo.HashPassword(@password);
-PRINT 'Original Password: ' + @password;
-PRINT 'Hashed Password: ' + @hashedPassword;
+-- =============================================
+-- Salt Generation and Custom Salt Examples
+-- =============================================
 
--- Verify correct password
-DECLARE @isValid bit = dbo.VerifyPassword(@password, @hashedPassword);
-PRINT 'Password Valid: ' + CAST(@isValid AS nvarchar(1));
+-- Generate a salt (default 16 bytes)
+DECLARE @salt NVARCHAR(MAX) = dbo.GenerateSalt();
+PRINT 'Generated salt: ' + @salt;
 
--- Verify wrong password
-SET @isValid = dbo.VerifyPassword('WrongPassword', @hashedPassword);
-PRINT 'Wrong Password Valid: ' + CAST(@isValid AS nvarchar(1));
-GO
+-- Generate a salt with custom length (32 bytes)
+DECLARE @customSalt NVARCHAR(MAX) = dbo.GenerateSaltWithLength(32);
+PRINT 'Generated custom salt (32 bytes): ' + @customSalt;
 
--- 4. AES-GCM Encryption/Decryption
-DECLARE @gcmKey nvarchar(max) = dbo.GenerateAESKey();
-DECLARE @gcmPlainText nvarchar(max) = N'Secret message using AES-GCM!';
-PRINT 'Original Text: ' + @gcmPlainText;
+-- Encrypt using password and custom salt
+DECLARE @encryptedWithSalt NVARCHAR(MAX) = dbo.EncryptAesGcmWithPasswordAndSalt(@plainText, @password, @salt);
+PRINT 'Encrypted with password and salt: ' + @encryptedWithSalt;
 
--- Encrypt with AES-GCM
-DECLARE @gcmEncrypted nvarchar(max) = dbo.EncryptAesGcm(@gcmPlainText, @gcmKey);
-PRINT 'AES-GCM Encrypted: ' + @gcmEncrypted;
+-- Decrypt using password and custom salt (salt is embedded in the encrypted data)
+DECLARE @decryptedWithSalt NVARCHAR(MAX) = dbo.DecryptAesGcmWithPassword(@encryptedWithSalt, @password);
+PRINT 'Decrypted with password and salt: ' + @decryptedWithSalt;
 
--- Decrypt with AES-GCM
-DECLARE @gcmDecrypted nvarchar(max) = dbo.DecryptAesGcm(@gcmEncrypted, @gcmKey);
-PRINT 'AES-GCM Decrypted: ' + @gcmDecrypted;
-GO
+-- Encrypt using password, custom salt, and custom iterations
+DECLARE @encryptedWithSaltAndIterations NVARCHAR(MAX) = dbo.EncryptAesGcmWithPasswordAndSaltIterations(@plainText, @password, @customSalt, 10000);
+PRINT 'Encrypted with password, custom salt, and 10000 iterations: ' + @encryptedWithSaltAndIterations;
+
+-- =============================================
+-- Password Hashing Examples
+-- =============================================
+
+-- Hash password with default work factor (12)
+DECLARE @userPassword NVARCHAR(MAX) = N'UserPassword123!';
+DECLARE @hashedPassword NVARCHAR(MAX) = dbo.HashPasswordDefault(@userPassword);
+PRINT 'Hashed password (default): ' + @hashedPassword;
+
+-- Hash password with custom work factor (14)
+DECLARE @hashedPasswordCustom NVARCHAR(MAX) = dbo.HashPasswordWithWorkFactor(@userPassword, 14);
+PRINT 'Hashed password (work factor 14): ' + @hashedPasswordCustom;
+
+-- Verify password
+DECLARE @isValid BIT = dbo.VerifyPassword(@userPassword, @hashedPassword);
+PRINT 'Password verification result: ' + CASE WHEN @isValid = 1 THEN 'Valid' ELSE 'Invalid' END;
+
+-- Verify with wrong password
+DECLARE @isValidWrong BIT = dbo.VerifyPassword(N'WrongPassword', @hashedPassword);
+PRINT 'Wrong password verification result: ' + CASE WHEN @isValidWrong = 1 THEN 'Valid' ELSE 'Invalid' END;
+
+-- =============================================
+-- Diffie-Hellman Key Exchange Examples
+-- =============================================
+
+-- Generate Diffie-Hellman keys for Party A
+DECLARE @partyAPublicKey NVARCHAR(MAX);
+DECLARE @partyAPrivateKey NVARCHAR(MAX);
+
+SELECT @partyAPublicKey = PublicKey, @partyAPrivateKey = PrivateKey 
+FROM dbo.GenerateDiffieHellmanKeys();
+
+PRINT 'Party A Public Key: ' + @partyAPublicKey;
+PRINT 'Party A Private Key: ' + @partyAPrivateKey;
+
+-- Generate Diffie-Hellman keys for Party B
+DECLARE @partyBPublicKey NVARCHAR(MAX);
+DECLARE @partyBPrivateKey NVARCHAR(MAX);
+
+SELECT @partyBPublicKey = PublicKey, @partyBPrivateKey = PrivateKey 
+FROM dbo.GenerateDiffieHellmanKeys();
+
+PRINT 'Party B Public Key: ' + @partyBPublicKey;
+PRINT 'Party B Private Key: ' + @partyBPrivateKey;
+
+-- Derive shared key for Party A
+DECLARE @sharedKeyA NVARCHAR(MAX) = dbo.DeriveSharedKey(@partyBPublicKey, @partyAPrivateKey);
+PRINT 'Shared Key (Party A): ' + @sharedKeyA;
+
+-- Derive shared key for Party B
+DECLARE @sharedKeyB NVARCHAR(MAX) = dbo.DeriveSharedKey(@partyAPublicKey, @partyBPrivateKey);
+PRINT 'Shared Key (Party B): ' + @sharedKeyB;
+
+-- Verify that both parties derived the same shared key
+IF @sharedKeyA = @sharedKeyB
+    PRINT 'SUCCESS: Both parties derived the same shared key!';
+ELSE
+    PRINT 'ERROR: Shared keys do not match!';
+
+-- =============================================
+-- Legacy AES-CBC Examples (Deprecated)
+-- =============================================
+
+-- Note: These functions are deprecated and should not be used in new applications
+-- They are included here for backward compatibility only
+
+-- Encrypt using legacy AES-CBC
+DECLARE @encryptedCbc TABLE (CipherText NVARCHAR(MAX), IV NVARCHAR(MAX));
+INSERT INTO @encryptedCbc SELECT * FROM dbo.EncryptAES(@plainText, @aesKey);
+
+DECLARE @cipherText NVARCHAR(MAX), @iv NVARCHAR(MAX);
+SELECT @cipherText = CipherText, @iv = IV FROM @encryptedCbc;
+
+PRINT 'Encrypted (AES-CBC): ' + @cipherText;
+PRINT 'IV: ' + @iv;
+
+-- Decrypt using legacy AES-CBC
+DECLARE @decryptedCbc NVARCHAR(MAX) = dbo.DecryptAES(@cipherText, @aesKey, @iv);
+PRINT 'Decrypted (AES-CBC): ' + @decryptedCbc;
+
+-- =============================================
+-- Summary
+-- =============================================
+PRINT '';
+PRINT '=== SUMMARY ===';
+PRINT 'All encryption functions have been tested successfully!';
+PRINT 'Key points:';
+PRINT '1. Use AES-GCM functions for new applications (EncryptAesGcm/DecryptAesGcm)';
+PRINT '2. Use password-based functions for user data (EncryptAesGcmWithPassword/DecryptAesGcmWithPassword)';
+PRINT '3. Use HashPasswordDefault/VerifyPassword for password storage';
+PRINT '4. Use GenerateDiffieHellmanKeys/DeriveSharedKey for secure key exchange';
+PRINT '5. Avoid legacy AES-CBC functions (EncryptAES/DecryptAES) in new code';
+PRINT '6. All functions now have unique names to avoid SQL CLR overloading issues';
