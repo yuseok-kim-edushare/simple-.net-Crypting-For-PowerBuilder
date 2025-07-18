@@ -234,5 +234,299 @@ namespace SecureLibrary
         {
             return BCrypt.Net.BCrypt.Verify(password, hashedPassword);
         }
+
+        // Password-based AES-GCM encryption methods
+        /// <summary>
+        /// Encrypts text using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
+        public static string EncryptAesGcmWithPassword(string plainText, string password, int iterations = 2000)
+        {
+            if (string.IsNullOrEmpty(plainText)) throw new ArgumentNullException(nameof(plainText));
+            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
+
+            // Validate iteration count
+            if (iterations < 1000 || iterations > 100000)
+                throw new ArgumentException("Iteration count must be between 1000 and 100000", nameof(iterations));
+
+            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+            byte[] encryptedBytes = EncryptAesGcmBytesWithPassword(plainBytes, password, null, iterations);
+            
+            // Clear sensitive data
+            Array.Clear(plainBytes, 0, plainBytes.Length);
+            
+            return Convert.ToBase64String(encryptedBytes);
+        }
+
+        /// <summary>
+        /// Decrypts text using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="base64EncryptedData">Base64 encoded encrypted data</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Decrypted text</returns>
+        public static string DecryptAesGcmWithPassword(string base64EncryptedData, string password, int iterations = 2000)
+        {
+            if (string.IsNullOrEmpty(base64EncryptedData)) throw new ArgumentNullException(nameof(base64EncryptedData));
+            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
+
+            // Validate iteration count
+            if (iterations < 1000 || iterations > 100000)
+                throw new ArgumentException("Iteration count must be between 1000 and 100000", nameof(iterations));
+
+            byte[] encryptedBytes = Convert.FromBase64String(base64EncryptedData);
+            byte[] decryptedBytes = DecryptAesGcmBytesWithPassword(encryptedBytes, password, iterations);
+            
+            string result = Encoding.UTF8.GetString(decryptedBytes);
+            
+            // Clear sensitive data
+            Array.Clear(encryptedBytes, 0, encryptedBytes.Length);
+            Array.Clear(decryptedBytes, 0, decryptedBytes.Length);
+            
+            return result;
+        }
+
+        /// <summary>
+        /// Encrypts byte array using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="plainData">Data to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="salt">Salt for key derivation (optional, will generate if null)</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Encrypted data with salt, nonce, and tag</returns>
+        public static byte[] EncryptAesGcmBytesWithPassword(byte[] plainData, string password, byte[] salt = null, int iterations = 2000)
+        {
+            if (plainData == null) throw new ArgumentNullException(nameof(plainData));
+            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
+
+            // Generate salt if not provided
+            if (salt == null)
+            {
+                salt = new byte[16];
+                using (var rng = RandomNumberGenerator.Create())
+                {
+                    rng.GetBytes(salt);
+                }
+            }
+
+            // Derive 32-byte key from password
+            byte[] key;
+            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256))
+            {
+                key = pbkdf2.GetBytes(32);
+            }
+
+            // Generate 12-byte nonce
+            byte[] nonce = new byte[12];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(nonce);
+            }
+
+            byte[] encryptedData = EncryptAesGcmBytesWithKey(plainData, key, nonce);
+
+            // Combine salt + nonce + encrypted data for output
+            byte[] result = new byte[salt.Length + nonce.Length + encryptedData.Length];
+            Buffer.BlockCopy(salt, 0, result, 0, salt.Length);
+            Buffer.BlockCopy(nonce, 0, result, salt.Length, nonce.Length);
+            Buffer.BlockCopy(encryptedData, 0, result, salt.Length + nonce.Length, encryptedData.Length);
+
+            // Clear sensitive data
+            Array.Clear(key, 0, key.Length);
+            Array.Clear(nonce, 0, nonce.Length);
+            Array.Clear(encryptedData, 0, encryptedData.Length);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Decrypts byte array using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="encryptedData">Encrypted data with salt, nonce, and tag</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Decrypted data</returns>
+        public static byte[] DecryptAesGcmBytesWithPassword(byte[] encryptedData, string password, int iterations = 2000)
+        {
+            if (encryptedData == null) throw new ArgumentNullException(nameof(encryptedData));
+            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
+
+            const int nonceLength = 12;
+            const int tagLength = 16;
+            const int minSaltLength = 8;
+            const int maxSaltLength = 64;
+
+            if (encryptedData.Length < minSaltLength + nonceLength + tagLength)
+                throw new ArgumentException("Encrypted data too short", nameof(encryptedData));
+
+            // Determine salt length by trying different lengths
+            for (int testSaltLength = minSaltLength; testSaltLength <= maxSaltLength && testSaltLength <= encryptedData.Length - nonceLength - tagLength; testSaltLength++)
+            {
+                try
+                {
+                    byte[] salt = new byte[testSaltLength];
+                    byte[] nonce = new byte[nonceLength];
+                    byte[] cipherWithTag = new byte[encryptedData.Length - testSaltLength - nonceLength];
+
+                    Buffer.BlockCopy(encryptedData, 0, salt, 0, testSaltLength);
+                    Buffer.BlockCopy(encryptedData, testSaltLength, nonce, 0, nonceLength);
+                    Buffer.BlockCopy(encryptedData, testSaltLength + nonceLength, cipherWithTag, 0, cipherWithTag.Length);
+
+                    // Try to derive key and decrypt
+                    byte[] key;
+                    using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256))
+                    {
+                        key = pbkdf2.GetBytes(32);
+                    }
+
+                    byte[] result = DecryptAesGcmBytesWithKey(cipherWithTag, key, nonce);
+                    
+                    // Clear sensitive data
+                    Array.Clear(salt, 0, salt.Length);
+                    Array.Clear(nonce, 0, nonce.Length);
+                    Array.Clear(cipherWithTag, 0, cipherWithTag.Length);
+                    Array.Clear(key, 0, key.Length);
+                    
+                    return result;
+                }
+                catch
+                {
+                    // Continue to next salt length
+                }
+            }
+
+            // If we get here, no salt length worked
+            throw new CryptographicException("Failed to decrypt data with any valid salt length");
+        }
+
+        /// <summary>
+        /// Encrypts byte array using AES-GCM with provided key and nonce
+        /// </summary>
+        /// <param name="plainData">Data to encrypt</param>
+        /// <param name="key">32-byte encryption key</param>
+        /// <param name="nonce">12-byte nonce</param>
+        /// <returns>Encrypted data with authentication tag</returns>
+        private static byte[] EncryptAesGcmBytesWithKey(byte[] plainData, byte[] key, byte[] nonce)
+        {
+            if (plainData == null) throw new ArgumentNullException(nameof(plainData));
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (nonce == null) throw new ArgumentNullException(nameof(nonce));
+
+            if (key.Length != 32) throw new ArgumentException("Key must be 32 bytes", nameof(key));
+            if (nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", nameof(nonce));
+
+            using (var aesGcm = new AesGcm(key, 16))
+            {
+                byte[] encryptedData = new byte[plainData.Length];
+                byte[] tag = new byte[16]; // 128-bit tag
+                aesGcm.Encrypt(nonce, plainData, encryptedData, tag);
+                
+                // Combine encrypted data and tag
+                byte[] result = new byte[encryptedData.Length + tag.Length];
+                Buffer.BlockCopy(encryptedData, 0, result, 0, encryptedData.Length);
+                Buffer.BlockCopy(tag, 0, result, encryptedData.Length, tag.Length);
+
+                // Clear sensitive data
+                Array.Clear(encryptedData, 0, encryptedData.Length);
+                Array.Clear(tag, 0, tag.Length);
+
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Decrypts byte array using AES-GCM with provided key and nonce
+        /// </summary>
+        /// <param name="cipherWithTag">Encrypted data with authentication tag</param>
+        /// <param name="key">32-byte decryption key</param>
+        /// <param name="nonce">12-byte nonce</param>
+        /// <returns>Decrypted data</returns>
+        private static byte[] DecryptAesGcmBytesWithKey(byte[] cipherWithTag, byte[] key, byte[] nonce)
+        {
+            if (cipherWithTag == null) throw new ArgumentNullException(nameof(cipherWithTag));
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (nonce == null) throw new ArgumentNullException(nameof(nonce));
+
+            if (key.Length != 32) throw new ArgumentException("Key must be 32 bytes", nameof(key));
+            if (nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", nameof(nonce));
+
+            const int tagLength = 16;
+            if (cipherWithTag.Length < tagLength)
+                throw new ArgumentException("Encrypted data too short", nameof(cipherWithTag));
+
+            using (var aesGcm = new AesGcm(key, 16))
+            {
+                // Split cipherWithTag into encrypted data and tag
+                byte[] tag = new byte[tagLength];
+                byte[] encryptedData = new byte[cipherWithTag.Length - tagLength];
+                Buffer.BlockCopy(cipherWithTag, 0, encryptedData, 0, encryptedData.Length);
+                Buffer.BlockCopy(cipherWithTag, encryptedData.Length, tag, 0, tag.Length);
+                
+                byte[] decryptedData = new byte[encryptedData.Length];
+                aesGcm.Decrypt(nonce, encryptedData, tag, decryptedData);
+
+                // Clear sensitive data
+                Array.Clear(tag, 0, tag.Length);
+                Array.Clear(encryptedData, 0, encryptedData.Length);
+
+                return decryptedData;
+            }
+        }
+
+        /// <summary>
+        /// Generates a cryptographically secure random salt for key derivation
+        /// </summary>
+        /// <param name="saltLength">Length of salt in bytes (optional, default: 16)</param>
+        /// <returns>Base64 encoded salt</returns>
+        public static string GenerateSalt(int saltLength = 16)
+        {
+            if (saltLength < 8 || saltLength > 64)
+                throw new ArgumentException("Salt length must be between 8 and 64 bytes", nameof(saltLength));
+
+            byte[] salt = new byte[saltLength];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(salt);
+            }
+            
+            return Convert.ToBase64String(salt);
+        }
+
+        /// <summary>
+        /// Encrypts text using AES-GCM with password and custom salt
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="base64Salt">Base64 encoded salt for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (optional, default: 2000)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
+        public static string EncryptAesGcmWithPasswordAndSalt(string plainText, string password, string base64Salt, int iterations = 2000)
+        {
+            if (string.IsNullOrEmpty(plainText)) throw new ArgumentNullException(nameof(plainText));
+            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
+            if (string.IsNullOrEmpty(base64Salt)) throw new ArgumentNullException(nameof(base64Salt));
+
+            byte[] saltBytes = Convert.FromBase64String(base64Salt);
+            
+            // Validate salt length
+            if (saltBytes.Length < 8 || saltBytes.Length > 64)
+                throw new ArgumentException("Salt length must be between 8 and 64 bytes", nameof(base64Salt));
+
+            // Validate iteration count
+            if (iterations < 1000 || iterations > 100000)
+                throw new ArgumentException("Iteration count must be between 1000 and 100000", nameof(iterations));
+
+            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+            byte[] encryptedBytes = EncryptAesGcmBytesWithPassword(plainBytes, password, saltBytes, iterations);
+            
+            // Clear sensitive data
+            Array.Clear(plainBytes, 0, plainBytes.Length);
+            Array.Clear(saltBytes, 0, saltBytes.Length);
+            
+            return Convert.ToBase64String(encryptedBytes);
+        }
     }
 }
