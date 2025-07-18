@@ -285,5 +285,108 @@ namespace SecureLibrary
                 Array.Clear(saltBytes, 0, saltBytes.Length);
             }
         }
+
+        /// <summary>
+        /// Derives an AES-256 key from a password using PBKDF2. 
+        /// This key can be cached and reused for multiple encrypt/decrypt operations for performance.
+        /// </summary>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="base64Salt">Base64 encoded salt for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Base64 encoded 32-byte AES key that can be cached and reused</returns>
+        public static string DeriveKeyFromPassword(string password, string base64Salt, int iterations = 2000)
+        {
+            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+            if (string.IsNullOrEmpty(base64Salt)) throw new ArgumentNullException("base64Salt");
+
+            byte[] saltBytes = Convert.FromBase64String(base64Salt);
+            
+            // Validate salt length
+            if (saltBytes.Length < 8 || saltBytes.Length > 64)
+                throw new ArgumentException("Salt length must be between 8 and 64 bytes", "base64Salt");
+
+            // Validate iteration count
+            if (iterations < 1000 || iterations > 100000)
+                throw new ArgumentException("Iteration count must be between 1000 and 100000", "iterations");
+
+            byte[] key;
+            using (var pbkdf2 = new Rfc2898DeriveBytes(password, saltBytes, iterations, HashAlgorithmName.SHA256))
+            {
+                key = pbkdf2.GetBytes(32);
+            }
+
+            string result = Convert.ToBase64String(key);
+            
+            // Clear sensitive data
+            Array.Clear(key, 0, key.Length);
+            Array.Clear(saltBytes, 0, saltBytes.Length);
+            
+            return result;
+        }
+
+        /// <summary>
+        /// Encrypts text using AES-GCM with a pre-derived key. 
+        /// This method produces the same output format as EncryptAesGcmWithPassword but avoids key derivation overhead.
+        /// Use DeriveKeyFromPassword to get the key first, then cache and reuse it for multiple operations.
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="base64DerivedKey">Base64 encoded 32-byte AES key from DeriveKeyFromPassword</param>
+        /// <param name="base64Salt">Base64 encoded salt used for key derivation (needed for output format compatibility)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag (same format as password-based methods)</returns>
+        public static string EncryptAesGcmWithDerivedKey(string plainText, string base64DerivedKey, string base64Salt)
+        {
+            if (string.IsNullOrEmpty(plainText)) throw new ArgumentNullException("plainText");
+            if (string.IsNullOrEmpty(base64DerivedKey)) throw new ArgumentNullException("base64DerivedKey");
+            if (string.IsNullOrEmpty(base64Salt)) throw new ArgumentNullException("base64Salt");
+
+            byte[] key = Convert.FromBase64String(base64DerivedKey);
+            byte[] saltBytes = Convert.FromBase64String(base64Salt);
+            
+            // Validate key length
+            if (key.Length != 32)
+                throw new ArgumentException("Derived key must be 32 bytes", "base64DerivedKey");
+            
+            // Validate salt length
+            if (saltBytes.Length < 8 || saltBytes.Length > 64)
+                throw new ArgumentException("Salt length must be between 8 and 64 bytes", "base64Salt");
+
+            try
+            {
+                return BcryptInterop.EncryptAesGcmWithDerivedKey(plainText, key, saltBytes);
+            }
+            finally
+            {
+                Array.Clear(key, 0, key.Length);
+                Array.Clear(saltBytes, 0, saltBytes.Length);
+            }
+        }
+
+        /// <summary>
+        /// Decrypts text using AES-GCM with a pre-derived key.
+        /// This method can decrypt data encrypted with either EncryptAesGcmWithPassword or EncryptAesGcmWithDerivedKey.
+        /// </summary>
+        /// <param name="base64EncryptedData">Base64 encoded encrypted data</param>
+        /// <param name="base64DerivedKey">Base64 encoded 32-byte AES key from DeriveKeyFromPassword</param>
+        /// <returns>Decrypted text</returns>
+        public static string DecryptAesGcmWithDerivedKey(string base64EncryptedData, string base64DerivedKey)
+        {
+            if (string.IsNullOrEmpty(base64EncryptedData)) throw new ArgumentNullException("base64EncryptedData");
+            if (string.IsNullOrEmpty(base64DerivedKey)) throw new ArgumentNullException("base64DerivedKey");
+
+            byte[] key = Convert.FromBase64String(base64DerivedKey);
+            
+            // Validate key length
+            if (key.Length != 32)
+                throw new ArgumentException("Derived key must be 32 bytes", "base64DerivedKey");
+
+            try
+            {
+                return BcryptInterop.DecryptAesGcmWithDerivedKey(base64EncryptedData, key);
+            }
+            finally
+            {
+                Array.Clear(key, 0, key.Length);
+            }
+        }
     }
 }

@@ -600,5 +600,176 @@ namespace SecureLibrary.SQL
         {
             return EncryptAesGcmWithPasswordAndSaltIterations(plainText, password, base64Salt, SqlInt32.Null);
         }
+
+        /// <summary>
+        /// Derives an AES-256 key from a password using PBKDF2. 
+        /// This key can be cached and reused for multiple encrypt/decrypt operations for performance.
+        /// </summary>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="base64Salt">Base64 encoded salt for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Base64 encoded 32-byte AES key that can be cached and reused</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString DeriveKeyFromPasswordIterations(SqlString password, SqlString base64Salt, SqlInt32 iterations)
+        {
+            if (password.IsNull || base64Salt.IsNull)
+                return SqlString.Null;
+
+            byte[] saltBytes = null;
+            try
+            {
+                saltBytes = Convert.FromBase64String(base64Salt.Value);
+                
+                // Validate salt length
+                if (saltBytes.Length < 8 || saltBytes.Length > 64)
+                    throw new ArgumentException("Salt length must be between 8 and 64 bytes", "base64Salt");
+
+                int iterationCount = iterations.IsNull ? 2000 : iterations.Value;
+                
+                // Validate iteration count
+                if (iterationCount < 1000 || iterationCount > 100000)
+                    throw new ArgumentException("Iteration count must be between 1000 and 100000", "iterations");
+
+                byte[] key;
+                using (var pbkdf2 = new Rfc2898DeriveBytes(password.Value, saltBytes, iterationCount, HashAlgorithmName.SHA256))
+                {
+                    key = pbkdf2.GetBytes(32);
+                }
+
+                string result = Convert.ToBase64String(key);
+                
+                // Clear sensitive data
+                Array.Clear(key, 0, key.Length);
+                
+                return new SqlString(result);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+            finally
+            {
+                if (saltBytes != null) Array.Clear(saltBytes, 0, saltBytes.Length);
+            }
+        }
+
+        /// <summary>
+        /// Derives an AES-256 key from a password using PBKDF2 (default iterations)
+        /// </summary>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="base64Salt">Base64 encoded salt for key derivation</param>
+        /// <returns>Base64 encoded 32-byte AES key that can be cached and reused</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString DeriveKeyFromPassword(SqlString password, SqlString base64Salt)
+        {
+            return DeriveKeyFromPasswordIterations(password, base64Salt, SqlInt32.Null);
+        }
+
+        /// <summary>
+        /// Encrypts text using AES-GCM with a pre-derived key. 
+        /// This method produces the same output format as EncryptAesGcmWithPassword but avoids key derivation overhead.
+        /// Use DeriveKeyFromPassword to get the key first, then cache and reuse it for multiple operations.
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="base64DerivedKey">Base64 encoded 32-byte AES key from DeriveKeyFromPassword</param>
+        /// <param name="base64Salt">Base64 encoded salt used for key derivation (needed for output format compatibility)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag (same format as password-based methods)</returns>
+        [SqlFunction(
+            IsDeterministic = false, // Not deterministic due to random nonce generation
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptAesGcmWithDerivedKey(SqlString plainText, SqlString base64DerivedKey, SqlString base64Salt)
+        {
+            if (plainText.IsNull || base64DerivedKey.IsNull || base64Salt.IsNull)
+                return SqlString.Null;
+
+            byte[] key = null;
+            byte[] saltBytes = null;
+            try
+            {
+                key = Convert.FromBase64String(base64DerivedKey.Value);
+                saltBytes = Convert.FromBase64String(base64Salt.Value);
+                
+                // Validate key length
+                if (key.Length != 32)
+                    throw new ArgumentException("Derived key must be 32 bytes", "base64DerivedKey");
+                
+                // Validate salt length
+                if (saltBytes.Length < 8 || saltBytes.Length > 64)
+                    throw new ArgumentException("Salt length must be between 8 and 64 bytes", "base64Salt");
+
+                string encrypted = BcryptInterop.EncryptAesGcmWithDerivedKey(plainText.Value, key, saltBytes);
+                
+                if (string.IsNullOrEmpty(encrypted))
+                    throw new CryptographicException("Encryption returned null or empty");
+
+                return new SqlString(encrypted);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+            finally
+            {
+                if (key != null) Array.Clear(key, 0, key.Length);
+                if (saltBytes != null) Array.Clear(saltBytes, 0, saltBytes.Length);
+            }
+        }
+
+        /// <summary>
+        /// Decrypts text using AES-GCM with a pre-derived key.
+        /// This method can decrypt data encrypted with either EncryptAesGcmWithPassword or EncryptAesGcmWithDerivedKey.
+        /// </summary>
+        /// <param name="base64EncryptedData">Base64 encoded encrypted data</param>
+        /// <param name="base64DerivedKey">Base64 encoded 32-byte AES key from DeriveKeyFromPassword</param>
+        /// <returns>Decrypted text</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString DecryptAesGcmWithDerivedKey(SqlString base64EncryptedData, SqlString base64DerivedKey)
+        {
+            if (base64EncryptedData.IsNull || base64DerivedKey.IsNull)
+                return SqlString.Null;
+
+            byte[] key = null;
+            try
+            {
+                key = Convert.FromBase64String(base64DerivedKey.Value);
+                
+                // Validate key length
+                if (key.Length != 32)
+                    throw new ArgumentException("Derived key must be 32 bytes", "base64DerivedKey");
+
+                string decrypted = BcryptInterop.DecryptAesGcmWithDerivedKey(base64EncryptedData.Value, key);
+                
+                if (decrypted == null)
+                    throw new CryptographicException("Decryption returned null");
+
+                return new SqlString(decrypted);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+            finally
+            {
+                if (key != null) Array.Clear(key, 0, key.Length);
+            }
+        }
     }
 }
