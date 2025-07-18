@@ -690,8 +690,20 @@ namespace SecureLibrary.SQL
             DataAccess = DataAccessKind.None
         )]
         [SecuritySafeCritical]
+        /// <summary>
+        /// Encrypts text using AES-GCM with a pre-derived key and the *same* salt that was used to derive the key.
+        /// The salt parameter here must be exactly the same as the one used in DeriveKeyFromPassword/DeriveKeyFromPasswordIterations.
+        /// Do NOT use a random salt here; using a different salt will make decryption impossible.
+        /// The salt is included in the output for compatibility with password-based encryption formats.
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="base64DerivedKey">Base64 encoded 32-byte AES key from DeriveKeyFromPassword</param>
+        /// <param name="base64Salt">Base64 encoded salt used for key derivation (must be the same as used to derive the key)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
         public static SqlString EncryptAesGcmWithDerivedKey(SqlString plainText, SqlString base64DerivedKey, SqlString base64Salt)
         {
+            // The salt provided here MUST be the same as the one used to derive the key.
+            // Do NOT use a random salt for this function.
             if (plainText.IsNull || base64DerivedKey.IsNull || base64Salt.IsNull)
                 return SqlString.Null;
 
@@ -701,17 +713,18 @@ namespace SecureLibrary.SQL
             {
                 key = Convert.FromBase64String(base64DerivedKey.Value);
                 saltBytes = Convert.FromBase64String(base64Salt.Value);
-                
+
                 // Validate key length
                 if (key.Length != 32)
                     throw new ArgumentException("Derived key must be 32 bytes", "base64DerivedKey");
-                
+
                 // Validate salt length
                 if (saltBytes.Length < 8 || saltBytes.Length > 64)
                     throw new ArgumentException("Salt length must be between 8 and 64 bytes", "base64Salt");
 
+                // The salt is included in the output for compatibility, but must match the key derivation salt.
                 string encrypted = BcryptInterop.EncryptAesGcmWithDerivedKey(plainText.Value, key, saltBytes);
-                
+
                 if (string.IsNullOrEmpty(encrypted))
                     throw new CryptographicException("Encryption returned null or empty");
 

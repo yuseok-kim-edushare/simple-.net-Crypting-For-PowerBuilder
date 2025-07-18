@@ -97,6 +97,30 @@ BEGIN
     PRINT 'Dropped EncryptAesGcmWithPasswordAndSalt function';
 END
 
+IF OBJECT_ID('dbo.DeriveKeyFromPassword') IS NOT NULL 
+BEGIN
+    DROP FUNCTION dbo.DeriveKeyFromPassword;
+    PRINT 'Dropped DeriveKeyFromPassword function';
+END
+
+IF OBJECT_ID('dbo.DeriveKeyFromPasswordIterations') IS NOT NULL 
+BEGIN
+    DROP FUNCTION dbo.DeriveKeyFromPasswordIterations;
+    PRINT 'Dropped DeriveKeyFromPasswordIterations function';
+END
+
+IF OBJECT_ID('dbo.EncryptAesGcmWithDerivedKey') IS NOT NULL 
+BEGIN
+    DROP FUNCTION dbo.EncryptAesGcmWithDerivedKey;
+    PRINT 'Dropped EncryptAesGcmWithDerivedKey function';
+END
+
+IF OBJECT_ID('dbo.DecryptAesGcmWithDerivedKey') IS NOT NULL 
+BEGIN
+    DROP FUNCTION dbo.DecryptAesGcmWithDerivedKey;
+    PRINT 'Dropped DecryptAesGcmWithDerivedKey function';
+END
+
 -- =============================================
 -- Drop existing assemblies
 -- =============================================

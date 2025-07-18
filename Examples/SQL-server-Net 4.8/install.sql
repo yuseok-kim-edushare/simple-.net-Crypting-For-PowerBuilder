@@ -65,6 +65,10 @@ IF OBJECT_ID('dbo.GenerateSalt') IS NOT NULL DROP FUNCTION dbo.GenerateSalt;
 IF OBJECT_ID('dbo.GenerateSaltWithLength') IS NOT NULL DROP FUNCTION dbo.GenerateSaltWithLength;
 IF OBJECT_ID('dbo.EncryptAesGcmWithPasswordAndSalt') IS NOT NULL DROP FUNCTION dbo.EncryptAesGcmWithPasswordAndSalt;
 IF OBJECT_ID('dbo.EncryptAesGcmWithPasswordAndSaltIterations') IS NOT NULL DROP FUNCTION dbo.EncryptAesGcmWithPasswordAndSaltIterations;
+IF OBJECT_ID('dbo.DeriveKeyFromPassword') IS NOT NULL DROP FUNCTION dbo.DeriveKeyFromPassword;
+IF OBJECT_ID('dbo.DeriveKeyFromPasswordIterations') IS NOT NULL DROP FUNCTION dbo.DeriveKeyFromPasswordIterations;
+IF OBJECT_ID('dbo.EncryptAesGcmWithDerivedKey') IS NOT NULL DROP FUNCTION dbo.EncryptAesGcmWithDerivedKey;
+IF OBJECT_ID('dbo.DecryptAesGcmWithDerivedKey') IS NOT NULL DROP FUNCTION dbo.DecryptAesGcmWithDerivedKey;
 
 PRINT 'Dropped existing functions';
 
@@ -288,6 +292,52 @@ AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptA
 GO
 
 PRINT 'EncryptAesGcmWithPasswordAndSaltIterations created';
+GO
+
+-- DeriveKeyFromPassword (default overload)
+CREATE FUNCTION dbo.DeriveKeyFromPassword(
+    @password nvarchar(max), 
+    @base64Salt nvarchar(max))
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DeriveKeyFromPassword;
+GO
+
+PRINT 'DeriveKeyFromPassword (default) created';
+GO
+
+-- DeriveKeyFromPasswordIterations (with iterations)
+CREATE FUNCTION dbo.DeriveKeyFromPasswordIterations(
+    @password nvarchar(max), 
+    @base64Salt nvarchar(max), 
+    @iterations int)
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DeriveKeyFromPasswordIterations;
+GO
+
+PRINT 'DeriveKeyFromPasswordIterations created';
+GO
+
+-- EncryptAesGcmWithDerivedKey
+CREATE FUNCTION dbo.EncryptAesGcmWithDerivedKey(
+    @plainText nvarchar(max), 
+    @base64DerivedKey nvarchar(max), 
+    @base64Salt nvarchar(max))
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptAesGcmWithDerivedKey;
+GO
+
+PRINT 'EncryptAesGcmWithDerivedKey created';
+GO
+
+-- DecryptAesGcmWithDerivedKey
+CREATE FUNCTION dbo.DecryptAesGcmWithDerivedKey(
+    @base64EncryptedData nvarchar(max), 
+    @base64DerivedKey nvarchar(max))
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DecryptAesGcmWithDerivedKey;
+GO
+
+PRINT 'DecryptAesGcmWithDerivedKey created';
 
 PRINT 'Deployment completed for database: ' + DB_NAME();
 
