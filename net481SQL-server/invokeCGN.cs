@@ -109,7 +109,7 @@ namespace SecureLibrary.SQL
         public static string EncryptAesGcmWithPassword(string plainText, string password, byte[] salt = null, int iterations = 2000)
         {
             if (plainText == null) throw new ArgumentNullException("plainText");
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+            if (password == null) throw new ArgumentNullException("password");
 
             byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
             byte[] encryptedBytes = EncryptAesGcmBytes(plainBytes, password, salt, iterations);
@@ -129,8 +129,8 @@ namespace SecureLibrary.SQL
         /// <returns>Decrypted text</returns>
         public static string DecryptAesGcmWithPassword(string base64EncryptedData, string password, int iterations = 2000)
         {
-            if (string.IsNullOrEmpty(base64EncryptedData)) throw new ArgumentNullException("base64EncryptedData");
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+            if (base64EncryptedData == null) throw new ArgumentNullException("base64EncryptedData");
+            if (password == null) throw new ArgumentNullException("password");
 
             byte[] encryptedBytes = Convert.FromBase64String(base64EncryptedData);
             byte[] decryptedBytes = DecryptAesGcmBytes(encryptedBytes, password, iterations);
@@ -155,7 +155,7 @@ namespace SecureLibrary.SQL
         public static byte[] EncryptAesGcmBytes(byte[] plainData, string password, byte[] salt = null, int iterations = 2000)
         {
             if (plainData == null) throw new ArgumentNullException("plainData");
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+            if (password == null) throw new ArgumentNullException("password");
 
             // Generate salt if not provided
             if (salt == null)
@@ -208,7 +208,7 @@ namespace SecureLibrary.SQL
         public static byte[] DecryptAesGcmBytes(byte[] encryptedData, string password, int iterations = 2000)
         {
             if (encryptedData == null) throw new ArgumentNullException("encryptedData");
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+            if (password == null) throw new ArgumentNullException("password");
 
             const int nonceLength = 12;
             const int tagLength = 16;

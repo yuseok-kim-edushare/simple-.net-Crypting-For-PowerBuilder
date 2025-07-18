@@ -204,8 +204,8 @@ namespace SecureLibrary
         /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
         public static string EncryptAesGcmWithPassword(string plainText, string password, int iterations = 2000)
         {
-            if (string.IsNullOrEmpty(plainText)) throw new ArgumentNullException("plainText");
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+            if (plainText == null) throw new ArgumentNullException("plainText");
+            if (password == null) throw new ArgumentNullException("password");
 
             // Validate iteration count
             if (iterations < 1000 || iterations > 100000)
@@ -223,8 +223,8 @@ namespace SecureLibrary
         /// <returns>Decrypted text</returns>
         public static string DecryptAesGcmWithPassword(string base64EncryptedData, string password, int iterations = 2000)
         {
-            if (string.IsNullOrEmpty(base64EncryptedData)) throw new ArgumentNullException("base64EncryptedData");
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException("password");
+            if (base64EncryptedData == null) throw new ArgumentNullException("base64EncryptedData");
+            if (password == null) throw new ArgumentNullException("password");
 
             // Validate iteration count
             if (iterations < 1000 || iterations > 100000)
@@ -335,9 +335,9 @@ namespace SecureLibrary
         /// <returns>Base64 encoded encrypted data with salt, nonce, and tag (same format as password-based methods)</returns>
         public static string EncryptAesGcmWithDerivedKey(string plainText, string base64DerivedKey, string base64Salt)
         {
-            if (string.IsNullOrEmpty(plainText)) throw new ArgumentNullException("plainText");
-            if (string.IsNullOrEmpty(base64DerivedKey)) throw new ArgumentNullException("base64DerivedKey");
-            if (string.IsNullOrEmpty(base64Salt)) throw new ArgumentNullException("base64Salt");
+            if (plainText == null) throw new ArgumentNullException("plainText");
+            if (base64DerivedKey == null) throw new ArgumentNullException("base64DerivedKey");
+            if (base64Salt == null) throw new ArgumentNullException("base64Salt");
 
             byte[] key = Convert.FromBase64String(base64DerivedKey);
             byte[] saltBytes = Convert.FromBase64String(base64Salt);
@@ -370,8 +370,8 @@ namespace SecureLibrary
         /// <returns>Decrypted text</returns>
         public static string DecryptAesGcmWithDerivedKey(string base64EncryptedData, string base64DerivedKey)
         {
-            if (string.IsNullOrEmpty(base64EncryptedData)) throw new ArgumentNullException("base64EncryptedData");
-            if (string.IsNullOrEmpty(base64DerivedKey)) throw new ArgumentNullException("base64DerivedKey");
+            if (base64EncryptedData == null) throw new ArgumentNullException("base64EncryptedData");
+            if (base64DerivedKey == null) throw new ArgumentNullException("base64DerivedKey");
 
             byte[] key = Convert.FromBase64String(base64DerivedKey);
             
