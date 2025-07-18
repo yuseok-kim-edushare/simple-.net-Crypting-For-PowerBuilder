@@ -144,6 +144,51 @@ DECLARE @decryptedCbc NVARCHAR(MAX) = dbo.DecryptAES(@cipherText, @aesKey, @iv);
 PRINT 'Decrypted (AES-CBC): ' + @decryptedCbc;
 
 -- =============================================
+-- Key Derivation and Performance Optimization Examples
+-- =============================================
+
+-- Derive a key from password and salt (default iterations)
+DECLARE @derivedKey NVARCHAR(MAX) = dbo.DeriveKeyFromPassword(@password, @salt);
+PRINT 'Derived key (default iterations): ' + @derivedKey;
+
+-- Derive a key from password and salt with custom iterations
+DECLARE @derivedKeyCustom NVARCHAR(MAX) = dbo.DeriveKeyFromPasswordIterations(@password, @customSalt, 10000);
+PRINT 'Derived key (10000 iterations): ' + @derivedKeyCustom;
+
+-- Encrypt using pre-derived key (for performance optimization)
+DECLARE @encryptedWithDerivedKey NVARCHAR(MAX) = dbo.EncryptAesGcmWithDerivedKey(@plainText, @derivedKey, @salt);
+PRINT 'Encrypted with derived key: ' + @encryptedWithDerivedKey;
+
+-- Decrypt using pre-derived key
+DECLARE @decryptedWithDerivedKey NVARCHAR(MAX) = dbo.DecryptAesGcmWithDerivedKey(@encryptedWithDerivedKey, @derivedKey);
+PRINT 'Decrypted with derived key: ' + @decryptedWithDerivedKey;
+
+-- Verify that derived key encryption produces compatible output
+DECLARE @decryptedWithPasswordFromDerived NVARCHAR(MAX) = dbo.DecryptAesGcmWithPassword(@encryptedWithDerivedKey, @password);
+PRINT 'Decrypted derived key output with password: ' + @decryptedWithPasswordFromDerived;
+
+-- Performance comparison: multiple encryptions with same derived key
+DECLARE @testText1 NVARCHAR(MAX) = N'Test message 1';
+DECLARE @testText2 NVARCHAR(MAX) = N'Test message 2';
+DECLARE @testText3 NVARCHAR(MAX) = N'Test message 3';
+
+-- Using derived key (faster for multiple operations)
+DECLARE @encrypted1 NVARCHAR(MAX) = dbo.EncryptAesGcmWithDerivedKey(@testText1, @derivedKey, @salt);
+DECLARE @encrypted2 NVARCHAR(MAX) = dbo.EncryptAesGcmWithDerivedKey(@testText2, @derivedKey, @salt);
+DECLARE @encrypted3 NVARCHAR(MAX) = dbo.EncryptAesGcmWithDerivedKey(@testText3, @derivedKey, @salt);
+
+PRINT 'Multiple encryptions with derived key completed';
+
+-- Decrypt all three
+DECLARE @decrypted1 NVARCHAR(MAX) = dbo.DecryptAesGcmWithDerivedKey(@encrypted1, @derivedKey);
+DECLARE @decrypted2 NVARCHAR(MAX) = dbo.DecryptAesGcmWithDerivedKey(@encrypted2, @derivedKey);
+DECLARE @decrypted3 NVARCHAR(MAX) = dbo.DecryptAesGcmWithDerivedKey(@encrypted3, @derivedKey);
+
+PRINT 'Test 1: ' + @decrypted1;
+PRINT 'Test 2: ' + @decrypted2;
+PRINT 'Test 3: ' + @decrypted3;
+
+-- =============================================
 -- Summary
 -- =============================================
 PRINT '';
@@ -154,5 +199,7 @@ PRINT '1. Use AES-GCM functions for new applications (EncryptAesGcm/DecryptAesGc
 PRINT '2. Use password-based functions for user data (EncryptAesGcmWithPassword/DecryptAesGcmWithPassword)';
 PRINT '3. Use HashPasswordDefault/VerifyPassword for password storage';
 PRINT '4. Use GenerateDiffieHellmanKeys/DeriveSharedKey for secure key exchange';
-PRINT '5. Avoid legacy AES-CBC functions (EncryptAES/DecryptAES) in new code';
-PRINT '6. All functions now have unique names to avoid SQL CLR overloading issues';
+PRINT '5. Use DeriveKeyFromPassword + EncryptAesGcmWithDerivedKey for performance optimization';
+PRINT '6. Avoid legacy AES-CBC functions (EncryptAES/DecryptAES) in new code';
+PRINT '7. All functions now have unique names to avoid SQL CLR overloading issues';
+PRINT '8. Derived key functions provide the same security with better performance for multiple operations';
