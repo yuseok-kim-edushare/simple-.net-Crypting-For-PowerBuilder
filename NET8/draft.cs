@@ -245,8 +245,8 @@ namespace SecureLibrary
         /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
         public static string EncryptAesGcmWithPassword(string plainText, string password, int iterations = 2000)
         {
-            if (string.IsNullOrEmpty(plainText)) throw new ArgumentNullException(nameof(plainText));
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
+            if (plainText == null) throw new ArgumentNullException(nameof(plainText));
+            if (password == null) throw new ArgumentNullException(nameof(password));
 
             // Validate iteration count
             if (iterations < 1000 || iterations > 100000)
@@ -270,8 +270,8 @@ namespace SecureLibrary
         /// <returns>Decrypted text</returns>
         public static string DecryptAesGcmWithPassword(string base64EncryptedData, string password, int iterations = 2000)
         {
-            if (string.IsNullOrEmpty(base64EncryptedData)) throw new ArgumentNullException(nameof(base64EncryptedData));
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
+            if (base64EncryptedData == null) throw new ArgumentNullException(nameof(base64EncryptedData));
+            if (password == null) throw new ArgumentNullException(nameof(password));
 
             // Validate iteration count
             if (iterations < 1000 || iterations > 100000)
@@ -300,7 +300,7 @@ namespace SecureLibrary
         public static byte[] EncryptAesGcmBytesWithPassword(byte[] plainData, string password, byte[]? salt = null, int iterations = 2000)
         {
             if (plainData == null) throw new ArgumentNullException(nameof(plainData));
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
+            if (password == null) throw new ArgumentNullException(nameof(password));
 
             // Generate salt if not provided
             if (salt == null)
@@ -353,7 +353,7 @@ namespace SecureLibrary
         public static byte[] DecryptAesGcmBytesWithPassword(byte[] encryptedData, string password, int iterations = 2000)
         {
             if (encryptedData == null) throw new ArgumentNullException(nameof(encryptedData));
-            if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
+            if (password == null) throw new ArgumentNullException(nameof(password));
 
             const int nonceLength = 12;
             const int tagLength = 16;
@@ -362,7 +362,7 @@ namespace SecureLibrary
                 throw new ArgumentException("Encrypted data too short", nameof(encryptedData));
             // Extract salt length from the header
             int saltLength = BitConverter.ToInt32(encryptedData, 0);
-            if (saltLength <= 0 || encryptedData.Length < headerLength + saltLength + nonceLength + tagLength)
+            if (saltLength < 8 || saltLength > 64 || encryptedData.Length < headerLength + saltLength + nonceLength + tagLength)
                 throw new ArgumentException("Invalid salt length in encrypted data", nameof(encryptedData));
             byte[] salt = new byte[saltLength];
             byte[] nonce = new byte[nonceLength];
@@ -512,6 +512,195 @@ namespace SecureLibrary
             Array.Clear(saltBytes, 0, saltBytes.Length);
             
             return Convert.ToBase64String(encryptedBytes);
+        }
+
+        /// <summary>
+        /// Derives an AES-256 key from a password using PBKDF2. 
+        /// This key can be cached and reused for multiple encrypt/decrypt operations for performance.
+        /// </summary>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="base64Salt">Base64 encoded salt for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Base64 encoded 32-byte AES key that can be cached and reused</returns>
+        public static string DeriveKeyFromPassword(string password, string base64Salt, int iterations = 2000)
+        {
+            if (password == null) throw new ArgumentNullException(nameof(password));
+            if (base64Salt == null) throw new ArgumentNullException(nameof(base64Salt));
+
+            byte[] saltBytes = Convert.FromBase64String(base64Salt);
+            
+            // Validate salt length
+            if (saltBytes.Length < 8 || saltBytes.Length > 64)
+                throw new ArgumentException("Salt length must be between 8 and 64 bytes", nameof(base64Salt));
+
+            // Validate iteration count
+            if (iterations < 1000 || iterations > 100000)
+                throw new ArgumentException("Iteration count must be between 1000 and 100000", nameof(iterations));
+
+            byte[] key;
+            using (var pbkdf2 = new Rfc2898DeriveBytes(password, saltBytes, iterations, HashAlgorithmName.SHA256))
+            {
+                key = pbkdf2.GetBytes(32);
+            }
+
+            string result = Convert.ToBase64String(key);
+            
+            // Clear sensitive data
+            Array.Clear(key, 0, key.Length);
+            Array.Clear(saltBytes, 0, saltBytes.Length);
+            
+            return result;
+        }
+
+        /// <summary>
+        /// Encrypts text using AES-GCM with a pre-derived key. 
+        /// This method produces the same output format as EncryptAesGcmWithPassword but avoids key derivation overhead.
+        /// Use DeriveKeyFromPassword to get the key first, then cache and reuse it for multiple operations.
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="base64DerivedKey">Base64 encoded 32-byte AES key from DeriveKeyFromPassword</param>
+        /// <param name="base64Salt">Base64 encoded salt used for key derivation (needed for output format compatibility)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag (same format as password-based methods)</returns>
+        public static string EncryptAesGcmWithDerivedKey(string plainText, string base64DerivedKey, string base64Salt)
+        {
+            if (plainText == null) throw new ArgumentNullException(nameof(plainText));
+            if (base64DerivedKey == null) throw new ArgumentNullException(nameof(base64DerivedKey));
+            if (base64Salt == null) throw new ArgumentNullException(nameof(base64Salt));
+
+            byte[] key = Convert.FromBase64String(base64DerivedKey);
+            byte[] saltBytes = Convert.FromBase64String(base64Salt);
+            
+            // Validate key length
+            if (key.Length != 32)
+                throw new ArgumentException("Derived key must be 32 bytes", nameof(base64DerivedKey));
+            
+            // Validate salt length
+            if (saltBytes.Length < 8 || saltBytes.Length > 64)
+                throw new ArgumentException("Salt length must be between 8 and 64 bytes", nameof(base64Salt));
+
+            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+            
+            // Replace the derived key portion with our pre-derived key to avoid PBKDF2
+            // This is a performance optimization that skips key derivation
+            byte[] optimizedEncryptedBytes = EncryptAesGcmBytesWithDerivedKey(plainBytes, key, saltBytes);
+            
+            // Clear sensitive data
+            Array.Clear(plainBytes, 0, plainBytes.Length);
+            Array.Clear(key, 0, key.Length);
+            // Note: saltBytes is used in the output format, so we don't clear it here
+            // Array.Clear(optimizedEncryptedBytes, 0, optimizedEncryptedBytes.Length);
+            
+            return Convert.ToBase64String(optimizedEncryptedBytes);
+        }
+
+        /// <summary>
+        /// Decrypts text using AES-GCM with a pre-derived key.
+        /// This method can decrypt data encrypted with either EncryptAesGcmWithPassword or EncryptAesGcmWithDerivedKey.
+        /// </summary>
+        /// <param name="base64EncryptedData">Base64 encoded encrypted data</param>
+        /// <param name="base64DerivedKey">Base64 encoded 32-byte AES key from DeriveKeyFromPassword</param>
+        /// <returns>Decrypted text</returns>
+        public static string DecryptAesGcmWithDerivedKey(string base64EncryptedData, string base64DerivedKey)
+        {
+            if (base64EncryptedData == null) throw new ArgumentNullException(nameof(base64EncryptedData));
+            if (base64DerivedKey == null) throw new ArgumentNullException(nameof(base64DerivedKey));
+
+            byte[] key = Convert.FromBase64String(base64DerivedKey);
+            
+            // Validate key length
+            if (key.Length != 32)
+                throw new ArgumentException("Derived key must be 32 bytes", nameof(base64DerivedKey));
+
+            byte[] encryptedBytes = Convert.FromBase64String(base64EncryptedData);
+            byte[] decryptedBytes = DecryptAesGcmBytesWithDerivedKey(encryptedBytes, key);
+            
+            string result = Encoding.UTF8.GetString(decryptedBytes);
+            
+            // Clear sensitive data
+            Array.Clear(key, 0, key.Length);
+            Array.Clear(encryptedBytes, 0, encryptedBytes.Length);
+            Array.Clear(decryptedBytes, 0, decryptedBytes.Length);
+            
+            return result;
+        }
+
+        /// <summary>
+        /// Encrypts byte array using AES-GCM with a pre-derived key (performance optimized)
+        /// </summary>
+        /// <param name="plainData">Data to encrypt</param>
+        /// <param name="key">32-byte encryption key</param>
+        /// <param name="salt">Salt bytes for output format compatibility</param>
+        /// <returns>Encrypted data with salt, nonce, and tag (same format as password-based methods)</returns>
+        private static byte[] EncryptAesGcmBytesWithDerivedKey(byte[] plainData, byte[] key, byte[] salt)
+        {
+            if (plainData == null) throw new ArgumentNullException(nameof(plainData));
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (salt == null) throw new ArgumentNullException(nameof(salt));
+
+            if (key.Length != 32) throw new ArgumentException("Key must be 32 bytes", nameof(key));
+
+            // Generate 12-byte nonce
+            byte[] nonce = new byte[12];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(nonce);
+            }
+
+            byte[] encryptedData = EncryptAesGcmBytesWithKey(plainData, key, nonce);
+
+            // Combine salt length (4 bytes) + salt + nonce + encrypted data for output
+            // This matches the format used by EncryptAesGcmBytesWithPassword
+            byte[] result = new byte[4 + salt.Length + nonce.Length + encryptedData.Length];
+            Buffer.BlockCopy(BitConverter.GetBytes(salt.Length), 0, result, 0, 4);
+            Buffer.BlockCopy(salt, 0, result, 4, salt.Length);
+            Buffer.BlockCopy(nonce, 0, result, 4 + salt.Length, nonce.Length);
+            Buffer.BlockCopy(encryptedData, 0, result, 4 + salt.Length + nonce.Length, encryptedData.Length);
+
+            // Clear sensitive data
+            Array.Clear(nonce, 0, nonce.Length);
+            Array.Clear(encryptedData, 0, encryptedData.Length);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Decrypts byte array using AES-GCM with a pre-derived key (performance optimized)
+        /// </summary>
+        /// <param name="encryptedData">Encrypted data with salt, nonce, and tag</param>
+        /// <param name="key">32-byte decryption key</param>
+        /// <returns>Decrypted data</returns>
+        private static byte[] DecryptAesGcmBytesWithDerivedKey(byte[] encryptedData, byte[] key)
+        {
+            if (encryptedData == null) throw new ArgumentNullException(nameof(encryptedData));
+            if (key == null) throw new ArgumentNullException(nameof(key));
+
+            if (key.Length != 32) throw new ArgumentException("Key must be 32 bytes", nameof(key));
+
+            const int nonceLength = 12;
+            const int tagLength = 16;
+            const int headerLength = 4;
+            if (encryptedData.Length < headerLength + nonceLength + tagLength)
+                throw new ArgumentException("Encrypted data too short", nameof(encryptedData));
+
+            // Extract salt length from the header
+            int saltLength = BitConverter.ToInt32(encryptedData, 0);
+            if (saltLength < 8 || saltLength > 64 || encryptedData.Length < headerLength + saltLength + nonceLength + tagLength)
+                throw new ArgumentException("Invalid salt length in encrypted data", nameof(encryptedData));
+
+            byte[] nonce = new byte[nonceLength];
+            byte[] cipherWithTag = new byte[encryptedData.Length - headerLength - saltLength - nonceLength];
+
+            // Skip salt since we already have the derived key
+            Buffer.BlockCopy(encryptedData, headerLength + saltLength, nonce, 0, nonceLength);
+            Buffer.BlockCopy(encryptedData, headerLength + saltLength + nonceLength, cipherWithTag, 0, cipherWithTag.Length);
+
+            byte[] result = DecryptAesGcmBytesWithKey(cipherWithTag, key, nonce);
+
+            // Clear sensitive data
+            Array.Clear(nonce, 0, nonce.Length);
+            Array.Clear(cipherWithTag, 0, cipherWithTag.Length);
+
+            return result;
         }
     }
 }
