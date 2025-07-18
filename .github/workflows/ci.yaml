@@ -9,7 +9,6 @@ on:
       - "**/*.log"
       - "**/*.json"
       - "**/*.xml"
-      - "**/*.yml"
 
 jobs:
   build:
