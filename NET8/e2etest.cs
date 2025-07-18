@@ -80,6 +80,7 @@ namespace SecureLibrary.Tests
         // CLR requires special security permissions, so these tests are included here separately
         // Thus, these tests are included here to test the SQL CLR code in the SecureLibrary-SQL project
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_GenerateAESKey()
         {
             // Act
@@ -91,6 +92,7 @@ namespace SecureLibrary.Tests
         }
         
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_EncryptAES()
         {
             // Arrange
@@ -106,6 +108,7 @@ namespace SecureLibrary.Tests
         }
         
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_HashPassword()
         {
             // Arrange
@@ -120,6 +123,7 @@ namespace SecureLibrary.Tests
         }
         
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_VerifyPassword()
         {
             // Arrange
@@ -136,6 +140,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_GenerateDiffieHellmanKeys()
         {
             // Act
@@ -147,6 +152,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_DeriveSharedKey()
         {
             // Arrange
@@ -164,6 +170,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_EncryptAesGcm()
         {
             // Arrange
@@ -196,6 +203,8 @@ namespace SecureLibrary.Tests
 
         // New tests for password-based AES-GCM encryption
         [TestMethod]
+        [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_EncryptAesGcmWithPassword()
         {
             // Arrange
@@ -222,6 +231,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_EncryptAesGcmWithPassword_CustomIterations()
         {
             // Arrange
@@ -242,6 +252,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_EncryptAesGcmWithPassword_DifferentIterationsShouldFail()
         {
             // Arrange
@@ -262,6 +273,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_GenerateSalt()
         {
             // Act
@@ -277,6 +289,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_GenerateSalt_CustomLength()
         {
             // Arrange
@@ -294,6 +307,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_GenerateSalt_InvalidLength()
         {
             // Arrange
@@ -309,6 +323,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_EncryptAesGcmWithPasswordAndSalt()
         {
             // Arrange
@@ -331,6 +346,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_EncryptAesGcmWithPasswordAndSalt_CustomIterations()
         {
             // Arrange
@@ -354,6 +370,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_PasswordBasedEncryption_CrossCompatibility()
         {
             // Test that the same password produces different encrypted results (due to random salt/nonce)
@@ -378,6 +395,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_PasswordBasedEncryption_InvalidInputs()
         {
             // Test null inputs
@@ -393,6 +411,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_PasswordBasedEncryption_InvalidIterations()
         {
             // Arrange
@@ -410,6 +429,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_PasswordBasedEncryption_LargeData()
         {
             // Arrange
@@ -428,6 +448,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_PasswordBasedEncryption_SpecialCharacters()
         {
             // Arrange
@@ -446,6 +467,7 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        [TestCategory("SQLCLR")]
         public void TestSqlCLR_PasswordBasedEncryption_UnicodeCharacters()
         {
             // Arrange

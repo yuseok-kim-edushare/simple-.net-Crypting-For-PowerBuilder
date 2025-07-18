@@ -297,7 +297,7 @@ namespace SecureLibrary
         /// <param name="salt">Salt for key derivation (optional, will generate if null)</param>
         /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
         /// <returns>Encrypted data with salt, nonce, and tag</returns>
-        public static byte[] EncryptAesGcmBytesWithPassword(byte[] plainData, string password, byte[] salt = null, int iterations = 2000)
+        public static byte[] EncryptAesGcmBytesWithPassword(byte[] plainData, string password, byte[]? salt = null, int iterations = 2000)
         {
             if (plainData == null) throw new ArgumentNullException(nameof(plainData));
             if (string.IsNullOrEmpty(password)) throw new ArgumentNullException(nameof(password));
@@ -328,11 +328,12 @@ namespace SecureLibrary
 
             byte[] encryptedData = EncryptAesGcmBytesWithKey(plainData, key, nonce);
 
-            // Combine salt + nonce + encrypted data for output
-            byte[] result = new byte[salt.Length + nonce.Length + encryptedData.Length];
-            Buffer.BlockCopy(salt, 0, result, 0, salt.Length);
-            Buffer.BlockCopy(nonce, 0, result, salt.Length, nonce.Length);
-            Buffer.BlockCopy(encryptedData, 0, result, salt.Length + nonce.Length, encryptedData.Length);
+            // Combine salt length (4 bytes) + salt + nonce + encrypted data for output
+            byte[] result = new byte[4 + salt.Length + nonce.Length + encryptedData.Length];
+            Buffer.BlockCopy(BitConverter.GetBytes(salt.Length), 0, result, 0, 4); // Store salt length in first 4 bytes
+            Buffer.BlockCopy(salt, 0, result, 4, salt.Length);
+            Buffer.BlockCopy(nonce, 0, result, 4 + salt.Length, nonce.Length);
+            Buffer.BlockCopy(encryptedData, 0, result, 4 + salt.Length + nonce.Length, encryptedData.Length);
 
             // Clear sensitive data
             Array.Clear(key, 0, key.Length);
@@ -356,50 +357,34 @@ namespace SecureLibrary
 
             const int nonceLength = 12;
             const int tagLength = 16;
-            const int minSaltLength = 8;
-            const int maxSaltLength = 64;
-
-            if (encryptedData.Length < minSaltLength + nonceLength + tagLength)
+            const int headerLength = 4;
+            if (encryptedData.Length < headerLength + nonceLength + tagLength)
                 throw new ArgumentException("Encrypted data too short", nameof(encryptedData));
-
-            // Determine salt length by trying different lengths
-            for (int testSaltLength = minSaltLength; testSaltLength <= maxSaltLength && testSaltLength <= encryptedData.Length - nonceLength - tagLength; testSaltLength++)
+            // Extract salt length from the header
+            int saltLength = BitConverter.ToInt32(encryptedData, 0);
+            if (saltLength <= 0 || encryptedData.Length < headerLength + saltLength + nonceLength + tagLength)
+                throw new ArgumentException("Invalid salt length in encrypted data", nameof(encryptedData));
+            byte[] salt = new byte[saltLength];
+            byte[] nonce = new byte[nonceLength];
+            byte[] cipherWithTag = new byte[encryptedData.Length - headerLength - saltLength - nonceLength];
+            Buffer.BlockCopy(encryptedData, headerLength, salt, 0, saltLength);
+            Buffer.BlockCopy(encryptedData, headerLength + saltLength, nonce, 0, nonceLength);
+            Buffer.BlockCopy(encryptedData, headerLength + saltLength + nonceLength, cipherWithTag, 0, cipherWithTag.Length);
+            // Derive key and decrypt
+            byte[] key;
+            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256))
             {
-                try
-                {
-                    byte[] salt = new byte[testSaltLength];
-                    byte[] nonce = new byte[nonceLength];
-                    byte[] cipherWithTag = new byte[encryptedData.Length - testSaltLength - nonceLength];
-
-                    Buffer.BlockCopy(encryptedData, 0, salt, 0, testSaltLength);
-                    Buffer.BlockCopy(encryptedData, testSaltLength, nonce, 0, nonceLength);
-                    Buffer.BlockCopy(encryptedData, testSaltLength + nonceLength, cipherWithTag, 0, cipherWithTag.Length);
-
-                    // Try to derive key and decrypt
-                    byte[] key;
-                    using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256))
-                    {
-                        key = pbkdf2.GetBytes(32);
-                    }
-
-                    byte[] result = DecryptAesGcmBytesWithKey(cipherWithTag, key, nonce);
-                    
-                    // Clear sensitive data
-                    Array.Clear(salt, 0, salt.Length);
-                    Array.Clear(nonce, 0, nonce.Length);
-                    Array.Clear(cipherWithTag, 0, cipherWithTag.Length);
-                    Array.Clear(key, 0, key.Length);
-                    
-                    return result;
-                }
-                catch
-                {
-                    // Continue to next salt length
-                }
+                key = pbkdf2.GetBytes(32);
             }
-
-            // If we get here, no salt length worked
-            throw new CryptographicException("Failed to decrypt data with any valid salt length");
+            byte[] result = DecryptAesGcmBytesWithKey(cipherWithTag, key, nonce);
+            
+            // Clear sensitive data
+            Array.Clear(salt, 0, salt.Length);
+            Array.Clear(nonce, 0, nonce.Length);
+            Array.Clear(cipherWithTag, 0, cipherWithTag.Length);
+            Array.Clear(key, 0, key.Length);
+            
+            return result;
         }
 
         /// <summary>

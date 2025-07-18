@@ -115,7 +115,7 @@ namespace SecureLibrary.Tests
             string encrypted = EncryptionHelper.EncryptAesGcmWithPassword(plainText, password, encryptIterations);
             
             // Assert - Should throw exception due to wrong iterations
-            Assert.ThrowsException<CryptographicException>(() => 
+            Assert.ThrowsException<AuthenticationTagMismatchException>(() => 
                 EncryptionHelper.DecryptAesGcmWithPassword(encrypted, password, decryptIterations));
         }
 
