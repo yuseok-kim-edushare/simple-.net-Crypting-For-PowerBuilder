@@ -16,7 +16,8 @@ jobs:
       id: set_cache_path
       shell: pwsh
       run: |
-        $cachePath = "$env:USERPROFILE\.nuget\packages"
+        $userProfile = [System.Environment]::GetEnvironmentVariable("USERPROFILE")
+        $cachePath = Join-Path $userProfile ".nuget\packages"
         echo "CACHE_PATH=$cachePath" >> $env:GITHUB_ENV
 
     - name: Cache NuGet packages
