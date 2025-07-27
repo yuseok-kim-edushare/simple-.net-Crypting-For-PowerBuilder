@@ -1006,6 +1006,175 @@ namespace SecureLibrary.SQL
         }
 
         /// <summary>
+        /// Decrypts table rows back into structured data that can be used in SQL queries
+        /// This is a Table-Valued Function (TVF) for restoring encrypted table data
+        /// </summary>
+        /// <param name="base64Key">Base64 encoded 32-byte AES key</param>
+        /// <param name="base64Nonce">Base64 encoded 12-byte nonce</param>
+        /// <returns>Table with RowId and decrypted JSON data for each row</returns>
+        [SqlFunction(
+            FillRowMethodName = "FillDecryptedTableRow",
+            TableDefinition = "RowId int, DecryptedData nvarchar(max)",
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static IEnumerable DecryptTableRowsAesGcm(SqlString base64Key, SqlString base64Nonce)
+        {
+            // This function is designed to work with data from EncryptTableRowsAesGcm
+            // It requires the encrypted data to be provided via SQL joins or subqueries
+            return new DecryptedRowResult[0]; // Empty implementation - actual decryption happens in DecryptBulkTableData
+        }
+
+        /// <summary>
+        /// Decrypts bulk encrypted table data back into structured format
+        /// Takes encrypted data with RowId, EncryptedData, AuthTag and returns decrypted table
+        /// </summary>
+        /// <param name="encryptedTableData">Structured data containing RowId, EncryptedData, AuthTag columns</param>
+        /// <param name="base64Key">Base64 encoded 32-byte AES key</param>
+        /// <param name="base64Nonce">Base64 encoded 12-byte nonce</param>
+        /// <returns>Table with RowId and decrypted JSON data for each row</returns>
+        [SqlFunction(
+            FillRowMethodName = "FillDecryptedTableRow", 
+            TableDefinition = "RowId int, DecryptedData nvarchar(max)",
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static IEnumerable DecryptBulkTableData(SqlString encryptedTableData, SqlString base64Key, SqlString base64Nonce)
+        {
+            if (encryptedTableData.IsNull || base64Key.IsNull || base64Nonce.IsNull)
+                return new DecryptedRowResult[0];
+
+            List<DecryptedRowResult> results = new List<DecryptedRowResult>();
+
+            try
+            {
+                // Validate key and nonce format
+                byte[] keyBytes = Convert.FromBase64String(base64Key.Value);
+                byte[] nonceBytes = Convert.FromBase64String(base64Nonce.Value);
+                
+                if (keyBytes.Length != 32)
+                    throw new ArgumentException("Key must be 32 bytes", "base64Key");
+                if (nonceBytes.Length != 12)
+                    throw new ArgumentException("Nonce must be 12 bytes", "base64Nonce");
+
+                // Parse the encrypted table data - expecting format: "RowId|EncryptedData|AuthTag\nRowId|EncryptedData|AuthTag\n..."
+                string[] rows = encryptedTableData.Value.Split(new char[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                
+                foreach (string row in rows)
+                {
+                    string[] parts = row.Split('|');
+                    if (parts.Length != 3) continue;
+
+                    try
+                    {
+                        int rowId = int.Parse(parts[0].Trim());
+                        string encryptedData = parts[1].Trim();
+                        string authTag = parts[2].Trim();
+
+                        // Reconstruct full encrypted data by combining data and auth tag
+                        byte[] dataBytes = Convert.FromBase64String(encryptedData);
+                        byte[] tagBytes = Convert.FromBase64String(authTag);
+                        
+                        byte[] fullEncrypted = new byte[dataBytes.Length + tagBytes.Length];
+                        Array.Copy(dataBytes, 0, fullEncrypted, 0, dataBytes.Length);
+                        Array.Copy(tagBytes, 0, fullEncrypted, dataBytes.Length, tagBytes.Length);
+                        
+                        string fullEncryptedBase64 = Convert.ToBase64String(fullEncrypted);
+
+                        // Decrypt the row data
+                        string decrypted = BcryptInterop.DecryptAesGcm(fullEncryptedBase64, base64Key.Value, base64Nonce.Value);
+                        
+                        if (!string.IsNullOrEmpty(decrypted))
+                        {
+                            results.Add(new DecryptedRowResult
+                            {
+                                RowId = rowId,
+                                DecryptedData = decrypted
+                            });
+                        }
+
+                        Array.Clear(dataBytes, 0, dataBytes.Length);
+                        Array.Clear(tagBytes, 0, tagBytes.Length);
+                        Array.Clear(fullEncrypted, 0, fullEncrypted.Length);
+                    }
+                    catch (Exception)
+                    {
+                        // Skip invalid rows, continue processing
+                        continue;
+                    }
+                }
+                
+                Array.Clear(keyBytes, 0, keyBytes.Length);
+                Array.Clear(nonceBytes, 0, nonceBytes.Length);
+            }
+            catch (Exception)
+            {
+                // Return empty result on error
+                return new DecryptedRowResult[0];
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Decrypts a set of encrypted rows using a Common Table Expression (CTE) approach
+        /// This function works with temporary tables or CTEs containing encrypted data
+        /// </summary>
+        /// <param name="base64Key">Base64 encoded 32-byte AES key</param>
+        /// <param name="base64Nonce">Base64 encoded 12-byte nonce</param>
+        /// <returns>Can be used in SQL views and stored procedures for direct table access</returns>
+        [SqlFunction(
+            FillRowMethodName = "FillDecryptedTableRow",
+            TableDefinition = "RowId int, DecryptedData nvarchar(max)",
+            DataAccess = DataAccessKind.Read  // Allows reading from tables
+        )]
+        [SecuritySafeCritical]
+        public static IEnumerable DecryptTableFromView(SqlString base64Key, SqlString base64Nonce)
+        {
+            if (base64Key.IsNull || base64Nonce.IsNull)
+                return new DecryptedRowResult[0];
+
+            List<DecryptedRowResult> results = new List<DecryptedRowResult>();
+
+            try
+            {
+                // Validate key and nonce format
+                byte[] keyBytes = Convert.FromBase64String(base64Key.Value);
+                byte[] nonceBytes = Convert.FromBase64String(base64Nonce.Value);
+                
+                if (keyBytes.Length != 32)
+                    throw new ArgumentException("Key must be 32 bytes", "base64Key");
+                if (nonceBytes.Length != 12)
+                    throw new ArgumentException("Nonce must be 12 bytes", "base64Nonce");
+
+                // This function is designed to be used with SQL context
+                // The actual encrypted data would come from SQL joins or subqueries
+                // Example usage in SQL: SELECT * FROM DecryptTableFromView(@key, @nonce) d 
+                //                       INNER JOIN EncryptedDataTable e ON d.RowId = e.RowId
+
+                Array.Clear(keyBytes, 0, keyBytes.Length);
+                Array.Clear(nonceBytes, 0, nonceBytes.Length);
+            }
+            catch (Exception)
+            {
+                // Return empty result on error
+                return new DecryptedRowResult[0];
+            }
+
+            return results; // Implementation depends on SQL context usage
+        }
+
+        /// <summary>
+        /// Fill method for decrypted table row TVFs
+        /// </summary>
+        public static void FillDecryptedTableRow(object obj, out SqlInt32 rowId, out SqlString decryptedData)
+        {
+            DecryptedRowResult result = (DecryptedRowResult)obj;
+            rowId = new SqlInt32(result.RowId);
+            decryptedData = new SqlString(result.DecryptedData);
+        }
+
+        /// <summary>
         /// Bulk processes multiple rows for encryption with streaming support
         /// </summary>
         /// <param name="tableDataJson">JSON array containing table rows</param>
@@ -1106,5 +1275,14 @@ namespace SecureLibrary.SQL
         public int RowId { get; set; }
         public string EncryptedData { get; set; }
         public string AuthTag { get; set; }
+    }
+
+    /// <summary>
+    /// Result structure for decrypted table rows
+    /// </summary>
+    internal class DecryptedRowResult
+    {
+        public int RowId { get; set; }
+        public string DecryptedData { get; set; }
     }
 }

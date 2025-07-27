@@ -428,3 +428,364 @@ SELECT * FROM EncryptionPerformanceLog ORDER BY TestDate DESC;
 6. **Performance Testing**: Benchmark with your actual data volumes
 7. **Security**: Store encryption keys securely, separate from encrypted data
 8. **Compliance**: Document encryption methods for audit and compliance requirements
+
+## NEW: SQL Server-Side Decryption Examples
+
+The following examples demonstrate the new decryption capabilities that restore table structures for direct SQL querying.
+
+### Example 8: PowerBuilder Direct Database Access with Decryption
+
+```sql
+-- Scenario: Small business using PowerBuilder with direct database access
+-- Need to decrypt data server-side for views and stored procedures
+
+-- Step 1: Create a permanent encrypted customer table
+CREATE TABLE EncryptedCustomers (
+    CustomerID INT,
+    RowId INT,
+    EncryptedData NVARCHAR(MAX),
+    AuthTag NVARCHAR(32),
+    CreatedDate DATETIME2 DEFAULT SYSDATETIME(),
+    INDEX IX_EncryptedCustomers_Customer (CustomerID, RowId)
+);
+
+-- Step 2: Encrypt and store customer data
+DECLARE @pbKey NVARCHAR(64) = 'powerbuilder-direct-access-key-base64-12345678901234567890123456';
+DECLARE @pbNonce NVARCHAR(24) = 'pb-direct-nonce-b64';
+
+-- Sample Korean customer data (common in Korean businesses)
+DECLARE @koreanCustomers NVARCHAR(MAX) = '[
+    {"customer_id": 1001, "name": "김철수", "company": "테크솔루션", "phone": "02-123-4567", "email": "kim@techsol.kr"},
+    {"customer_id": 1002, "name": "이영희", "company": "디지털코리아", "phone": "02-234-5678", "email": "lee@digital.kr"},
+    {"customer_id": 1003, "name": "박민수", "company": "스마트비즈", "phone": "02-345-6789", "email": "park@smart.kr"}
+]';
+
+-- Insert encrypted customer data
+INSERT INTO EncryptedCustomers (CustomerID, RowId, EncryptedData, AuthTag)
+SELECT 
+    JSON_VALUE(DecryptedData, '$.customer_id') AS CustomerID,
+    RowId,
+    -- Re-encrypt individual rows for storage
+    dbo.EncryptRowDataAesGcm(DecryptedData, @pbKey, @pbNonce),
+    'individual-auth-tag'
+FROM (
+    SELECT RowId, DecryptedData
+    FROM dbo.DecryptBulkTableData(@koreanCustomers, @pbKey, @pbNonce)
+) AS temp;
+
+-- Step 3: Create a view that PowerBuilder can query directly
+CREATE VIEW vw_DecryptedCustomers AS
+SELECT 
+    ec.CustomerID,
+    ec.RowId,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ec.EncryptedData, @pbKey, @pbNonce), '$.name') AS CustomerName,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ec.EncryptedData, @pbKey, @pbNonce), '$.company') AS Company,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ec.EncryptedData, @pbKey, @pbNonce), '$.phone') AS Phone,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ec.EncryptedData, @pbKey, @pbNonce), '$.email') AS Email,
+    ec.CreatedDate
+FROM EncryptedCustomers ec;
+
+-- PowerBuilder can now query this view with standard SQL:
+SELECT * FROM vw_DecryptedCustomers WHERE Company LIKE '%디지털%';
+SELECT CustomerName, Phone FROM vw_DecryptedCustomers WHERE CustomerID = 1001;
+```
+
+### Example 9: Bulk Table Decryption for Data Analysis
+
+```sql
+-- Scenario: Business intelligence and reporting on encrypted data
+CREATE PROCEDURE sp_DecryptTableForAnalysis
+    @TableName NVARCHAR(100),
+    @AnalysisKey NVARCHAR(64),
+    @AnalysisNonce NVARCHAR(24)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Create temporary table for decrypted results
+    CREATE TABLE #DecryptedAnalysis (
+        RowId INT,
+        OriginalJSON NVARCHAR(MAX),
+        CustomerID INT,
+        CustomerName NVARCHAR(100),
+        Revenue DECIMAL(18,2),
+        AnalysisDate DATETIME2 DEFAULT SYSDATETIME()
+    );
+    
+    -- Sample: Decrypt sales data for analysis
+    DECLARE @encryptedSales NVARCHAR(MAX) = (
+        SELECT STRING_AGG(
+            CAST(RowId AS NVARCHAR(10)) + '|' + EncryptedData + '|' + AuthTag, 
+            CHAR(13) + CHAR(10)
+        )
+        FROM EncryptedSales 
+        WHERE SalesDate >= DATEADD(MONTH, -1, GETDATE())
+    );
+    
+    -- Decrypt bulk sales data
+    INSERT INTO #DecryptedAnalysis (RowId, OriginalJSON, CustomerID, CustomerName, Revenue)
+    SELECT 
+        d.RowId,
+        d.DecryptedData,
+        JSON_VALUE(d.DecryptedData, '$.customer_id'),
+        JSON_VALUE(d.DecryptedData, '$.customer_name'),
+        CAST(JSON_VALUE(d.DecryptedData, '$.total_amount') AS DECIMAL(18,2))
+    FROM dbo.DecryptBulkTableData(@encryptedSales, @AnalysisKey, @AnalysisNonce) d;
+    
+    -- Return analysis results
+    SELECT 
+        'Sales Analysis Results' AS ReportType,
+        COUNT(*) AS TotalTransactions,
+        SUM(Revenue) AS TotalRevenue,
+        AVG(Revenue) AS AverageTransaction,
+        COUNT(DISTINCT CustomerID) AS UniqueCustomers
+    FROM #DecryptedAnalysis;
+    
+    -- Return detailed decrypted data
+    SELECT 
+        RowId,
+        CustomerID,
+        CustomerName,
+        Revenue,
+        AnalysisDate
+    FROM #DecryptedAnalysis
+    ORDER BY Revenue DESC;
+    
+    DROP TABLE #DecryptedAnalysis;
+END
+GO
+```
+
+### Example 10: Decrypted Data Views for Korean Privacy Law Compliance
+
+```sql
+-- Scenario: Comply with Korean Personal Information Protection Act (PIPA)
+-- Need selective decryption based on user permissions
+
+-- Create role-based decryption function
+CREATE FUNCTION dbo.GetDecryptedCustomerData(
+    @UserRole NVARCHAR(50),
+    @CustomerID INT = NULL
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 
+        ec.CustomerID,
+        ec.RowId,
+        CASE 
+            WHEN @UserRole IN ('Administrator', 'Manager') THEN
+                JSON_VALUE(dbo.DecryptRowDataAesGcm(ec.EncryptedData, 'admin-key-base64-encoded123456789012345678901234567890', 'admin-nonce-base64'), '$.name')
+            WHEN @UserRole = 'Sales' THEN
+                LEFT(JSON_VALUE(dbo.DecryptRowDataAesGcm(ec.EncryptedData, 'sales-key-base64-encoded123456789012345678901234567890', 'sales-nonce-base64'), '$.name'), 1) + '***'
+            ELSE 'RESTRICTED'
+        END AS CustomerName,
+        CASE 
+            WHEN @UserRole IN ('Administrator', 'Manager') THEN
+                JSON_VALUE(dbo.DecryptRowDataAesGcm(ec.EncryptedData, 'admin-key-base64-encoded123456789012345678901234567890', 'admin-nonce-base64'), '$.phone')
+            ELSE 'XXX-XXXX-XXXX'
+        END AS Phone,
+        CASE 
+            WHEN @UserRole IN ('Administrator', 'Manager', 'Sales') THEN
+                JSON_VALUE(dbo.DecryptRowDataAesGcm(ec.EncryptedData, 'business-key-base64-encoded123456789012345678901234567890', 'business-nonce-b64'), '$.company')
+            ELSE 'RESTRICTED'
+        END AS Company
+    FROM EncryptedCustomers ec
+    WHERE (@CustomerID IS NULL OR ec.CustomerID = @CustomerID)
+);
+
+-- Usage examples for different user roles:
+-- Administrator access (full decryption)
+SELECT * FROM dbo.GetDecryptedCustomerData('Administrator', NULL);
+
+-- Sales staff access (partial decryption)
+SELECT * FROM dbo.GetDecryptedCustomerData('Sales', 1001);
+
+-- Guest access (minimal decryption)
+SELECT * FROM dbo.GetDecryptedCustomerData('Guest', NULL);
+```
+
+### Example 11: PowerBuilder Integration with Stored Procedures
+
+```sql
+-- Scenario: PowerBuilder applications calling stored procedures for encrypted data
+CREATE PROCEDURE sp_PowerBuilderCustomerLookup
+    @SearchTerm NVARCHAR(100),
+    @SearchType NVARCHAR(20) = 'NAME', -- 'NAME', 'COMPANY', 'PHONE'
+    @MaxResults INT = 50
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @pbKey NVARCHAR(64) = 'powerbuilder-lookup-key-base64-encoded123456789012345678901234';
+    DECLARE @pbNonce NVARCHAR(24) = 'pb-lookup-nonce-b64';
+    
+    -- Create temporary results table
+    CREATE TABLE #SearchResults (
+        CustomerID INT,
+        RowId INT,
+        CustomerName NVARCHAR(100),
+        Company NVARCHAR(100),
+        Phone NVARCHAR(20),
+        Email NVARCHAR(100),
+        MatchScore INT
+    );
+    
+    -- Decrypt all customer data for searching
+    DECLARE @allEncryptedData NVARCHAR(MAX) = (
+        SELECT STRING_AGG(
+            CAST(RowId AS NVARCHAR(10)) + '|' + EncryptedData + '|' + AuthTag, 
+            CHAR(13) + CHAR(10)
+        )
+        FROM EncryptedCustomers
+    );
+    
+    -- Insert decrypted data into temp table for searching
+    INSERT INTO #SearchResults (CustomerID, RowId, CustomerName, Company, Phone, Email, MatchScore)
+    SELECT 
+        JSON_VALUE(d.DecryptedData, '$.customer_id'),
+        d.RowId,
+        JSON_VALUE(d.DecryptedData, '$.name'),
+        JSON_VALUE(d.DecryptedData, '$.company'),
+        JSON_VALUE(d.DecryptedData, '$.phone'),
+        JSON_VALUE(d.DecryptedData, '$.email'),
+        CASE 
+            WHEN @SearchType = 'NAME' AND JSON_VALUE(d.DecryptedData, '$.name') LIKE '%' + @SearchTerm + '%' THEN 100
+            WHEN @SearchType = 'COMPANY' AND JSON_VALUE(d.DecryptedData, '$.company') LIKE '%' + @SearchTerm + '%' THEN 100
+            WHEN @SearchType = 'PHONE' AND JSON_VALUE(d.DecryptedData, '$.phone') LIKE '%' + @SearchTerm + '%' THEN 100
+            ELSE 0
+        END
+    FROM dbo.DecryptBulkTableData(@allEncryptedData, @pbKey, @pbNonce) d;
+    
+    -- Return filtered results for PowerBuilder
+    SELECT TOP (@MaxResults)
+        CustomerID,
+        CustomerName,
+        Company,
+        Phone,
+        Email,
+        MatchScore
+    FROM #SearchResults
+    WHERE MatchScore > 0
+    ORDER BY MatchScore DESC, CustomerName;
+    
+    DROP TABLE #SearchResults;
+END
+GO
+
+-- PowerBuilder can call this procedure:
+-- EXEC sp_PowerBuilderCustomerLookup '김철수', 'NAME', 10
+-- EXEC sp_PowerBuilderCustomerLookup '테크솔루션', 'COMPANY', 20
+```
+
+### Example 12: Complete Round-Trip Encryption/Decryption Workflow
+
+```sql
+-- Scenario: Complete workflow from plain data to encryption to decryption
+-- Suitable for small businesses with direct database access needs
+
+-- Step 1: Original business data
+CREATE TABLE BusinessContacts (
+    ContactID INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100),
+    Company NVARCHAR(100),
+    Title NVARCHAR(50),
+    Phone NVARCHAR(20),
+    Email NVARCHAR(100),
+    Address NVARCHAR(200),
+    Notes NVARCHAR(500)
+);
+
+-- Insert sample Korean business data
+INSERT INTO BusinessContacts (Name, Company, Title, Phone, Email, Address, Notes) VALUES
+('김대표', '한국소프트웨어', '대표이사', '02-555-1234', 'kim@korsoftware.co.kr', '서울시 강남구', '주요 거래처'),
+('이부장', '디지털솔루션', '영업부장', '02-555-5678', 'lee@digitalsol.co.kr', '서울시 서초구', 'PowerBuilder 전문'),
+('박과장', '테크이노베이션', '개발과장', '02-555-9012', 'park@techinno.co.kr', '경기도 성남시', '신규 프로젝트 협의');
+
+-- Step 2: Convert to JSON and encrypt
+DECLARE @businessKey NVARCHAR(64) = 'business-contacts-key-base64-encoded123456789012345678901234567';
+DECLARE @businessNonce NVARCHAR(24) = 'business-nonce-b64';
+
+DECLARE @contactsJson NVARCHAR(MAX) = (
+    SELECT * FROM BusinessContacts FOR JSON PATH
+);
+
+-- Create encrypted storage table
+CREATE TABLE EncryptedBusinessContacts (
+    ContactID INT,
+    RowId INT,
+    EncryptedData NVARCHAR(MAX),
+    AuthTag NVARCHAR(32),
+    EncryptedDate DATETIME2 DEFAULT SYSDATETIME(),
+    INDEX IX_EncryptedContacts (ContactID, RowId)
+);
+
+-- Insert encrypted data
+INSERT INTO EncryptedBusinessContacts (ContactID, RowId, EncryptedData, AuthTag)
+SELECT 
+    JSON_VALUE(DecryptedData, '$.ContactID') AS ContactID,
+    RowId,
+    EncryptedData,
+    AuthTag
+FROM dbo.EncryptTableRowsAesGcm(@contactsJson, @businessKey, @businessNonce);
+
+-- Step 3: Create decryption view for business users
+CREATE VIEW vw_BusinessContactsDecrypted AS
+SELECT 
+    ebc.ContactID,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ebc.EncryptedData, @businessKey, @businessNonce), '$.Name') AS Name,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ebc.EncryptedData, @businessKey, @businessNonce), '$.Company') AS Company,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ebc.EncryptedData, @businessKey, @businessNonce), '$.Title') AS Title,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ebc.EncryptedData, @businessKey, @businessNonce), '$.Phone') AS Phone,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ebc.EncryptedData, @businessKey, @businessNonce), '$.Email') AS Email,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ebc.EncryptedData, @businessKey, @businessNonce), '$.Address') AS Address,
+    JSON_VALUE(dbo.DecryptRowDataAesGcm(ebc.EncryptedData, @businessKey, @businessNonce), '$.Notes') AS Notes,
+    ebc.EncryptedDate
+FROM EncryptedBusinessContacts ebc;
+
+-- Step 4: PowerBuilder and other applications can now query normally
+SELECT * FROM vw_BusinessContactsDecrypted WHERE Company LIKE '%소프트웨어%';
+SELECT Name, Phone, Email FROM vw_BusinessContactsDecrypted WHERE Title LIKE '%부장%';
+
+-- Step 5: Bulk decryption for reports
+DECLARE @bulkContactData NVARCHAR(MAX) = (
+    SELECT STRING_AGG(
+        CAST(RowId AS NVARCHAR(10)) + '|' + EncryptedData + '|' + AuthTag, 
+        CHAR(13) + CHAR(10)
+    )
+    FROM EncryptedBusinessContacts
+);
+
+SELECT 
+    'Business Contacts Report' AS ReportTitle,
+    RowId,
+    JSON_VALUE(DecryptedData, '$.Name') AS Name,
+    JSON_VALUE(DecryptedData, '$.Company') AS Company,
+    JSON_VALUE(DecryptedData, '$.Phone') AS Phone
+FROM dbo.DecryptBulkTableData(@bulkContactData, @businessKey, @businessNonce)
+ORDER BY JSON_VALUE(DecryptedData, '$.Company'), JSON_VALUE(DecryptedData, '$.Name');
+```
+
+## Summary of New Decryption Capabilities
+
+### Available Functions:
+1. **`DecryptRowDataAesGcm`** - Decrypt single encrypted rows back to JSON
+2. **`DecryptBulkTableData`** - Bulk decrypt structured table data back to JSON rows  
+3. **`DecryptTableFromView`** - Decrypt table data for use in views and stored procedures
+
+### Key Benefits for PowerBuilder Applications:
+- **Direct SQL Querying**: Decrypted views can be queried with standard SQL
+- **Korean Business Support**: Full support for Korean characters and business practices
+- **Small Business Friendly**: Simple integration with existing PowerBuilder applications
+- **Compliance Ready**: Role-based access and privacy law compliance capabilities
+- **Performance Optimized**: Bulk operations for efficient processing
+
+### PowerBuilder Integration Patterns:
+1. **View-Based Access**: Create views that decrypt data transparently
+2. **Stored Procedure Access**: Use procedures that return decrypted results
+3. **Selective Decryption**: Role-based decryption based on user permissions
+4. **Bulk Processing**: Efficient handling of large datasets
+5. **Search Functionality**: Server-side searching of encrypted data
+
+These new capabilities address the specific needs mentioned for small businesses using direct database access via PowerBuilder, providing complete round-trip encryption/decryption while maintaining compatibility with existing applications.

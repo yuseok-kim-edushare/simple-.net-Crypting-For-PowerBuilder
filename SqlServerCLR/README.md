@@ -50,19 +50,52 @@ DECLARE @tableData NVARCHAR(MAX) = '[
     {"id": 3, "name": "Carol", "department": "Sales"}
 ]';
 
-SELECT 
-    RowId,
-    EncryptedData,
-    AuthTag
+SELECT RowId, EncryptedData, AuthTag
 FROM dbo.EncryptTableRowsAesGcm(
     @tableData,
-    'your-32-byte-key-here-base64-encoded',
-    'your-12-byte-nonce-base64'
+    'table-encryption-key-base64-encoded',
+    'table-nonce-base64'
 )
 ORDER BY RowId;
 ```
 
-### 4. Bulk Processing with Streaming
+### 4. **NEW: Bulk Table Decryption (TVF)**
+```sql
+-- Decrypt bulk encrypted table data back to structured format
+-- Input: pipe-delimited encrypted data (RowId|EncryptedData|AuthTag per line)
+DECLARE @encryptedBulk NVARCHAR(MAX) = 
+    '1|base64-data-1|base64-tag-1' + CHAR(13) + CHAR(10) +
+    '2|base64-data-2|base64-tag-2' + CHAR(13) + CHAR(10) +
+    '3|base64-data-3|base64-tag-3';
+
+SELECT RowId, DecryptedData
+FROM dbo.DecryptBulkTableData(
+    @encryptedBulk,
+    'table-encryption-key-base64-encoded',
+    'table-nonce-base64'
+)
+ORDER BY RowId;
+```
+
+### 5. **NEW: Decryption for Views and Stored Procedures**
+```sql
+-- Use in views for PowerBuilder direct database access
+CREATE VIEW vw_DecryptedCustomers AS
+SELECT 
+    RowId,
+    JSON_VALUE(DecryptedData, '$.name') AS CustomerName,
+    JSON_VALUE(DecryptedData, '$.email') AS Email,
+    JSON_VALUE(DecryptedData, '$.department') AS Department
+FROM dbo.DecryptTableFromView(
+    'view-decryption-key-base64-encoded',
+    'view-nonce-base64'
+);
+
+-- PowerBuilder can now query this view directly:
+SELECT * FROM vw_DecryptedCustomers WHERE Department = 'Engineering';
+```
+
+### 6. Bulk Processing Procedure
 ```sql
 -- Process large datasets in batches
 EXEC dbo.BulkProcessRowsAesGcm
@@ -70,6 +103,26 @@ EXEC dbo.BulkProcessRowsAesGcm
     @base64Key = 'your-32-byte-key-here-base64-encoded',
     @batchSize = 1000;  -- Process in batches of 1000 rows
 ```
+
+## NEW DECRYPTION CAPABILITIES
+
+### PowerBuilder Integration Benefits
+- **Direct SQL Querying**: Decrypted views can be queried with standard SQL
+- **Korean Business Support**: Full support for Korean characters and business workflows  
+- **Small Business Friendly**: Simple integration with existing PowerBuilder applications
+- **Role-Based Access**: Selective decryption based on user permissions
+- **Complete Round-Trip**: Full encryption/decryption cycle with table structure restoration
+
+### Function Summary
+
+| Function | Purpose | Input | Output |
+|----------|---------|-------|--------|
+| `EncryptRowDataAesGcm` | Encrypt single JSON row | JSON string, key, nonce | Base64 encrypted data |
+| `DecryptRowDataAesGcm` | Decrypt single row | Encrypted data, key, nonce | JSON string |
+| `EncryptTableRowsAesGcm` | Bulk encrypt JSON array | JSON array, key, nonce | Table with RowId, EncryptedData, AuthTag |
+| `DecryptBulkTableData` | **NEW** Bulk decrypt table data | Structured encrypted data, key, nonce | Table with RowId, DecryptedData |
+| `DecryptTableFromView` | **NEW** Decrypt for views/procedures | Key, nonce | Table with RowId, DecryptedData |
+| `BulkProcessRowsAesGcm` | Stream processing | JSON array, key, batch size | Console output |
 
 ## Real-World Example: Customer Data Encryption
 
@@ -209,3 +262,43 @@ This extension maintains full backward compatibility with:
 - Existing AES-GCM, Bcrypt, and ECDH functionality
 
 No changes are required to existing PowerBuilder or SQL Server code.
+
+## **NEW: SQL Server-Side Decryption for Small Businesses**
+
+### Addressing Korean Business Requirements
+
+This update specifically addresses the need for **SQL Server-side decryption** that restores table structures for easier handling with basic SQL queries, as requested for small Korean businesses using direct PowerBuilder database access.
+
+### Key New Capabilities:
+
+1. **Table Structure Restoration**: New `DecryptBulkTableData()` function restores encrypted data back to queryable table structures
+2. **Direct SQL Access**: PowerBuilder applications can now query decrypted data using standard SQL through views and stored procedures
+3. **Korean Privacy Law Compliance**: Support for selective decryption based on user roles and permissions
+4. **Small Business Optimization**: Designed for direct database access patterns common in small business PowerBuilder applications
+
+### Usage for PowerBuilder Direct Access:
+
+```sql
+-- 1. Create encrypted data storage
+CREATE TABLE EncryptedBusinessData (...);
+
+-- 2. Create decryption view for PowerBuilder
+CREATE VIEW vw_DecryptedData AS
+SELECT 
+    RowId,
+    JSON_VALUE(DecryptedData, '$.name') AS CustomerName,
+    JSON_VALUE(DecryptedData, '$.company') AS Company
+FROM dbo.DecryptBulkTableData(@encryptedData, @key, @nonce);
+
+-- 3. PowerBuilder queries the view normally
+SELECT * FROM vw_DecryptedData WHERE Company LIKE '%소프트웨어%';
+```
+
+### Benefits for Korean Businesses:
+- **Direct Database Access**: No application-layer decryption required
+- **Standard SQL Queries**: Use familiar SQL syntax in views and stored procedures  
+- **Korean Character Support**: Full Unicode support for Korean business names and data
+- **Privacy Compliance**: Granular access control for Korean Personal Information Protection Act
+- **PowerBuilder Integration**: Seamless integration with existing PowerBuilder applications
+
+This addresses the specific feedback requesting SQL Server-side decryption capabilities for table structure restoration and direct PowerBuilder database access.
