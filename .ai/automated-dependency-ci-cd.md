@@ -149,6 +149,7 @@ updates:
 
 ---
 
+
 ## 🔗 워크플로우 연계 메커니즘
 
 ### Repository Dispatch를 통한 PAT 없는 자동화
