@@ -137,6 +137,19 @@ updates:
 
 ---
 
+## 🔧⚙️ 필요한 설정
+
+**Github Branch Protection Rule**
+- 브랜치 보호 규칙에 필요한 테스트 통과가 정의되어야 Automerge 기능 가능
+- 해당 github actions job이 실행된 적이 있어야 해당 설정에서 검색 가능
+- 목록이 보이는 게 아니니 검색어를 넣어봐야 함.
+
+---
+![fit](repo_branch_protection.png)
+
+---
+
+
 ## 🔗 워크플로우 연계 메커니즘
 
 ### Repository Dispatch를 통한 PAT 없는 자동화
