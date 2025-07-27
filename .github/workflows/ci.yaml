@@ -9,6 +9,8 @@ on:
       - "**/*.log"
       - "**/*.json"
       - "**/*.xml"
+      - "**/*.png"
+      - ".ai/**"
 
 jobs:
   build:
