@@ -6,6 +6,7 @@ using System.Text;
 using System.Security;
 using SecureLibrary.SQL;
 using System.Collections;
+using System.Collections.Generic;
 
 [assembly: AllowPartiallyTrustedCallers]
 [assembly: SecurityRules(SecurityRuleSet.Level2)]
@@ -784,5 +785,326 @@ namespace SecureLibrary.SQL
                 if (key != null) Array.Clear(key, 0, key.Length);
             }
         }
+
+        // Row-by-row encryption functions for structured data processing
+
+        /// <summary>
+        /// Encrypts a single row of data (in JSON format) using AES-GCM
+        /// </summary>
+        /// <param name="rowJson">JSON string representing a table row</param>
+        /// <param name="base64Key">Base64 encoded 32-byte AES key</param>
+        /// <param name="base64Nonce">Base64 encoded 12-byte nonce</param>
+        /// <returns>Base64 encoded encrypted data with authentication tag</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptRowDataAesGcm(SqlString rowJson, SqlString base64Key, SqlString base64Nonce)
+        {
+            if (rowJson.IsNull || base64Key.IsNull || base64Nonce.IsNull)
+                return SqlString.Null;
+
+            try
+            {
+                // Use existing AES-GCM implementation
+                string encrypted = BcryptInterop.EncryptAesGcm(rowJson.Value, base64Key.Value, base64Nonce.Value);
+                
+                if (string.IsNullOrEmpty(encrypted))
+                    throw new CryptographicException("Encryption returned null or empty");
+
+                return new SqlString(encrypted);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+        }
+
+        /// <summary>
+        /// Decrypts a single row of data using AES-GCM, returning the original JSON
+        /// </summary>
+        /// <param name="base64EncryptedData">Base64 encoded encrypted data with authentication tag</param>
+        /// <param name="base64Key">Base64 encoded 32-byte AES key</param>
+        /// <param name="base64Nonce">Base64 encoded 12-byte nonce</param>
+        /// <returns>Decrypted JSON string</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString DecryptRowDataAesGcm(SqlString base64EncryptedData, SqlString base64Key, SqlString base64Nonce)
+        {
+            if (base64EncryptedData.IsNull || base64Key.IsNull || base64Nonce.IsNull)
+                return SqlString.Null;
+
+            try
+            {
+                // Use existing AES-GCM implementation
+                string decrypted = BcryptInterop.DecryptAesGcm(base64EncryptedData.Value, base64Key.Value, base64Nonce.Value);
+                
+                if (decrypted == null)
+                    throw new CryptographicException("Decryption returned null");
+
+                return new SqlString(decrypted);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+        }
+
+        /// <summary>
+        /// Encrypts table rows (provided as JSON) and returns a table with encrypted data
+        /// This is a Table-Valued Function (TVF) for processing multiple rows
+        /// </summary>
+        /// <param name="tableDataJson">JSON array containing table rows</param>
+        /// <param name="base64Key">Base64 encoded 32-byte AES key</param>
+        /// <param name="base64Nonce">Base64 encoded 12-byte nonce</param>
+        /// <returns>Table with RowId, EncryptedData, and AuthTag columns</returns>
+        [SqlFunction(
+            FillRowMethodName = "FillEncryptedTableRow",
+            TableDefinition = "RowId int, EncryptedData nvarchar(max), AuthTag nvarchar(32)",
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static IEnumerable EncryptTableRowsAesGcm(SqlString tableDataJson, SqlString base64Key, SqlString base64Nonce)
+        {
+            if (tableDataJson.IsNull || base64Key.IsNull || base64Nonce.IsNull)
+                return new EncryptedRowResult[0];
+
+            List<EncryptedRowResult> results = new List<EncryptedRowResult>();
+
+            try
+            {
+                // Validate key and nonce format
+                byte[] keyBytes = Convert.FromBase64String(base64Key.Value);
+                byte[] nonceBytes = Convert.FromBase64String(base64Nonce.Value);
+                
+                if (keyBytes.Length != 32)
+                    throw new ArgumentException("Key must be 32 bytes", "base64Key");
+                if (nonceBytes.Length != 12)
+                    throw new ArgumentException("Nonce must be 12 bytes", "base64Nonce");
+
+                // Parse JSON array - simple parsing for basic JSON array format
+                string jsonData = tableDataJson.Value.Trim();
+                if (!jsonData.StartsWith("[") || !jsonData.EndsWith("]"))
+                    throw new ArgumentException("Invalid JSON array format", "tableDataJson");
+
+                // Simple JSON array parsing - split by objects
+                string[] rows = ParseJsonArray(jsonData);
+                
+                for (int i = 0; i < rows.Length; i++)
+                {
+                    string rowJson = rows[i].Trim();
+                    if (string.IsNullOrEmpty(rowJson))
+                        continue;
+
+                    try
+                    {
+                        // Encrypt each row individually
+                        string encrypted = BcryptInterop.EncryptAesGcm(rowJson, base64Key.Value, base64Nonce.Value);
+                        
+                        if (!string.IsNullOrEmpty(encrypted))
+                        {
+                            // Extract auth tag from encrypted data (last 24 base64 chars represent 16 bytes)
+                            byte[] encryptedBytes = Convert.FromBase64String(encrypted);
+                            if (encryptedBytes.Length >= 16)
+                            {
+                                byte[] tag = new byte[16];
+                                Array.Copy(encryptedBytes, encryptedBytes.Length - 16, tag, 0, 16);
+                                string authTag = Convert.ToBase64String(tag);
+                                
+                                // Return encrypted data without the tag (tag is separate)
+                                byte[] dataOnly = new byte[encryptedBytes.Length - 16];
+                                Array.Copy(encryptedBytes, 0, dataOnly, 0, dataOnly.Length);
+                                string encryptedDataOnly = Convert.ToBase64String(dataOnly);
+                                
+                                results.Add(new EncryptedRowResult 
+                                { 
+                                    RowId = i + 1, 
+                                    EncryptedData = encryptedDataOnly, 
+                                    AuthTag = authTag 
+                                });
+                                
+                                Array.Clear(tag, 0, tag.Length);
+                                Array.Clear(dataOnly, 0, dataOnly.Length);
+                            }
+                            Array.Clear(encryptedBytes, 0, encryptedBytes.Length);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Skip invalid rows, continue processing
+                        continue;
+                    }
+                }
+                
+                Array.Clear(keyBytes, 0, keyBytes.Length);
+                Array.Clear(nonceBytes, 0, nonceBytes.Length);
+            }
+            catch (Exception)
+            {
+                // Return empty result on error
+                return new EncryptedRowResult[0];
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Fill method for EncryptTableRowsAesGcm TVF
+        /// </summary>
+        public static void FillEncryptedTableRow(object obj, out SqlInt32 rowId, out SqlString encryptedData, out SqlString authTag)
+        {
+            EncryptedRowResult result = (EncryptedRowResult)obj;
+            rowId = new SqlInt32(result.RowId);
+            encryptedData = new SqlString(result.EncryptedData);
+            authTag = new SqlString(result.AuthTag);
+        }
+
+        /// <summary>
+        /// Simple JSON array parser for basic JSON processing
+        /// Parses "[{...},{...},{...}]" format
+        /// </summary>
+        private static string[] ParseJsonArray(string jsonArray)
+        {
+            if (string.IsNullOrEmpty(jsonArray))
+                return new string[0];
+
+            // Remove outer brackets
+            string content = jsonArray.Substring(1, jsonArray.Length - 2).Trim();
+            if (string.IsNullOrEmpty(content))
+                return new string[0];
+
+            // Simple parser for JSON objects within array
+            List<string> objects = new List<string>();
+            int braceCount = 0;
+            int start = 0;
+            
+            for (int i = 0; i < content.Length; i++)
+            {
+                if (content[i] == '{')
+                    braceCount++;
+                else if (content[i] == '}')
+                    braceCount--;
+                else if (content[i] == ',' && braceCount == 0)
+                {
+                    // Found separator at root level
+                    objects.Add(content.Substring(start, i - start).Trim());
+                    start = i + 1;
+                }
+            }
+            
+            // Add the last object
+            if (start < content.Length)
+                objects.Add(content.Substring(start).Trim());
+            
+            return objects.ToArray();
+        }
+
+        /// <summary>
+        /// Bulk processes multiple rows for encryption with streaming support
+        /// </summary>
+        /// <param name="tableDataJson">JSON array containing table rows</param>
+        /// <param name="base64Key">Base64 encoded 32-byte AES key</param>
+        /// <param name="batchSize">Number of rows to process in each batch (optional, default: 1000)</param>
+        [SqlProcedure]
+        [SecuritySafeCritical]
+        public static void BulkProcessRowsAesGcm(SqlString tableDataJson, SqlString base64Key, SqlInt32 batchSize)
+        {
+            if (tableDataJson.IsNull || base64Key.IsNull)
+                return;
+
+            try
+            {
+                int batch = batchSize.IsNull ? 1000 : batchSize.Value;
+                if (batch <= 0) batch = 1000;
+
+                // Validate key format
+                byte[] keyBytes = Convert.FromBase64String(base64Key.Value);
+                if (keyBytes.Length != 32)
+                    throw new ArgumentException("Key must be 32 bytes", "base64Key");
+
+                // Generate a single nonce for the entire batch operation
+                byte[] nonce = new byte[12];
+                using (var rng = new RNGCryptoServiceProvider())
+                {
+                    rng.GetBytes(nonce);
+                }
+                string base64Nonce = Convert.ToBase64String(nonce);
+
+                // Parse and process in batches
+                string[] rows = ParseJsonArray(tableDataJson.Value);
+                
+                for (int i = 0; i < rows.Length; i += batch)
+                {
+                    int endIndex = Math.Min(i + batch, rows.Length);
+                    
+                    // Process batch
+                    for (int j = i; j < endIndex; j++)
+                    {
+                        string rowJson = rows[j].Trim();
+                        if (string.IsNullOrEmpty(rowJson))
+                            continue;
+
+                        try
+                        {
+                            // Create unique nonce for each row by incrementing
+                            byte[] rowNonce = new byte[12];
+                            Array.Copy(nonce, rowNonce, 12);
+                            
+                            // Modify nonce with row index to ensure uniqueness
+                            byte[] rowIndex = BitConverter.GetBytes(j);
+                            for (int k = 0; k < Math.Min(rowIndex.Length, 4); k++)
+                            {
+                                rowNonce[k] ^= rowIndex[k];
+                            }
+                            
+                            string rowNonceBase64 = Convert.ToBase64String(rowNonce);
+                            
+                            // Encrypt row
+                            string encrypted = BcryptInterop.EncryptAesGcm(rowJson, base64Key.Value, rowNonceBase64);
+                            
+                            // Send result back to SQL Server context
+                            if (!string.IsNullOrEmpty(encrypted))
+                            {
+                                SqlContext.Pipe.Send($"Row {j + 1}: {encrypted}");
+                            }
+                            
+                            Array.Clear(rowNonce, 0, rowNonce.Length);
+                        }
+                        catch (Exception)
+                        {
+                            // Skip invalid rows, continue processing
+                            SqlContext.Pipe.Send($"Row {j + 1}: ERROR - Failed to encrypt");
+                            continue;
+                        }
+                    }
+                    
+                    // Send batch completion notification
+                    SqlContext.Pipe.Send($"Processed batch {(i / batch) + 1} - Rows {i + 1} to {endIndex}");
+                }
+                
+                Array.Clear(keyBytes, 0, keyBytes.Length);
+                Array.Clear(nonce, 0, nonce.Length);
+            }
+            catch (Exception ex)
+            {
+                SqlContext.Pipe.Send($"ERROR: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Result structure for encrypted table rows
+    /// </summary>
+    internal class EncryptedRowResult
+    {
+        public int RowId { get; set; }
+        public string EncryptedData { get; set; }
+        public string AuthTag { get; set; }
     }
 }
