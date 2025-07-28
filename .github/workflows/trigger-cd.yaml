@@ -11,7 +11,7 @@ jobs:
     if: github.event.pull_request.merged == true
     permissions:
       actions: write # Permission to trigger repository_dispatch
-      contents: read
+      contents: write # Permission to write repository dispatch event
     
     steps:
       - name: Trigger CD workflow
