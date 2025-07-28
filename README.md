@@ -29,7 +29,6 @@ This Project will create .NET dll for Powerbuilder (Bcrypt PW hash, AES-GCM and 
   - [PB with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%204.8)
   - [PB with .NET 8 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%208)
   - [MS-SQL with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/SQL-server-Net%204.8)
-    - **NEW**: `practical-examples.sql` - Developer-friendly examples with dynamic table creation, schema comparison, and SELECT INTO patterns
 
 ## Cause of Not Implemented some cryptographic options In Powerbuilder
 For Example
