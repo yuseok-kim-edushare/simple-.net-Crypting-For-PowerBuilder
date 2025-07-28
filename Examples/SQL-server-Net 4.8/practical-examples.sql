@@ -72,17 +72,28 @@ DROP TABLE #TempRestore;
 
 PRINT 'Step 3a: Data restored using stored procedure with SELECT INTO';
 
--- APPROACH 2: Using Table-Valued Function (NEW - No temp tables needed!)
-SELECT 
-    CAST(T.c.value('@ID', 'NVARCHAR(MAX)') AS INT) AS ID,
-    T.c.value('@SensitiveInfo', 'NVARCHAR(MAX)') AS SensitiveInfo,
-    CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) AS FinancialData,
-    T.c.value('@PersonalNotes', 'NVARCHAR(MAX)') AS PersonalNotes
-INTO #RestoredData_TVF
-FROM dbo.DecryptTableTVF(@encrypted, @password) d
-CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c);
+-- APPROACH 2: Using RestoreEncryptedTable procedure (recommended approach)
+CREATE TABLE #TempRestore2 (
+    ID NVARCHAR(MAX),
+    SensitiveInfo NVARCHAR(MAX), 
+    FinancialData NVARCHAR(MAX),
+    PersonalNotes NVARCHAR(MAX)
+);
 
-PRINT 'Step 3b: Data restored using Table-Valued Function (no temp tables!)';
+INSERT INTO #TempRestore2 
+EXEC dbo.RestoreEncryptedTable @encrypted, @password;
+
+SELECT 
+    CAST(ID AS INT) AS ID,
+    SensitiveInfo,
+    CAST(FinancialData AS DECIMAL(18,2)) AS FinancialData, 
+    PersonalNotes
+INTO #RestoredData_Procedure
+FROM #TempRestore2;
+
+DROP TABLE #TempRestore2;
+
+PRINT 'Step 3b: Data restored using RestoreEncryptedTable procedure';
 
 -- PROOF: Same query works on both!
 PRINT '';
@@ -93,56 +104,58 @@ SELECT ID, SensitiveInfo, FinancialData FROM MyImportantData WHERE FinancialData
 PRINT 'Decrypted data (stored procedure method):';
 SELECT ID, SensitiveInfo, FinancialData FROM #RestoredData_Auto WHERE FinancialData > 100000;
 
-PRINT 'Decrypted data (Table-Valued Function method):';
-SELECT ID, SensitiveInfo, FinancialData FROM #RestoredData_TVF WHERE FinancialData > 100000;
+PRINT 'Decrypted data (RestoreEncryptedTable procedure method):';
+SELECT ID, SensitiveInfo, FinancialData FROM #RestoredData_Procedure WHERE FinancialData > 100000;
 
 -- =============================================
 -- NEW: TABLE-VALUED FUNCTION ADVANTAGES
 -- =============================================
 
 PRINT '';
-PRINT '=== NEW: Table-Valued Function Advantages ===';
-PRINT 'The new DecryptTableTVF function addresses the concern: "why create temp table?"';
+PRINT '=== NEW: RestoreEncryptedTable Procedure Advantages ===';
+PRINT 'The RestoreEncryptedTable procedure provides universal compatibility with stored procedure result sets';
 PRINT '';
 
--- Example: Direct use in WHERE clauses without intermediate temp tables
-PRINT 'Example 1: Direct filtering without temp tables';
-DECLARE @filteredEncrypted NVARCHAR(MAX) = dbo.EncryptXmlWithPassword(
-    (SELECT * FROM MyImportantData WHERE FinancialData > 150000 FOR XML PATH('Row'), ROOT('Root')), 
+-- Example: Handling stored procedure result sets
+PRINT 'Example 1: Encrypting stored procedure result sets';
+-- Create a sample procedure result
+CREATE TABLE #SPResults (
+    ID NVARCHAR(MAX),
+    SensitiveInfo NVARCHAR(MAX),
+    FinancialData NVARCHAR(MAX),
+    PersonalNotes NVARCHAR(MAX)
+);
+
+-- Simulate capturing results from a stored procedure
+INSERT INTO #SPResults 
+SELECT CAST(ID AS NVARCHAR(MAX)), SensitiveInfo, CAST(FinancialData AS NVARCHAR(MAX)), PersonalNotes 
+FROM MyImportantData 
+WHERE FinancialData > 150000;
+
+-- Encrypt the stored procedure results
+DECLARE @spEncrypted NVARCHAR(MAX) = dbo.EncryptXmlWithMetadata(
+    (SELECT * FROM #SPResults FOR XML PATH('Row'), ROOT('Root')), 
     @password
 );
 
--- Traditional approach would require: EXEC SP -> INSERT into temp -> SELECT from temp
--- NEW approach: Direct SELECT with filtering
-SELECT 
-    CAST(T.c.value('@ID', 'NVARCHAR(MAX)') AS INT) AS ID,
-    T.c.value('@SensitiveInfo', 'NVARCHAR(MAX)') AS SensitiveInfo,
-    CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) AS FinancialData
-FROM dbo.DecryptTableTVF(@filteredEncrypted, @password) d
-CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
-WHERE CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) > 180000;
+PRINT 'Stored procedure results encrypted successfully!';
 
-PRINT 'Direct filtering and decryption in single query - no temp tables needed!';
-
--- Example: Use in CTEs and subqueries
+-- Example: Decrypting stored procedure results
 PRINT '';
-PRINT 'Example 2: Use in Common Table Expressions (CTEs)';
-WITH DecryptedCTE AS (
-    SELECT 
-        CAST(T.c.value('@ID', 'NVARCHAR(MAX)') AS INT) AS ID,
-        T.c.value('@SensitiveInfo', 'NVARCHAR(MAX)') AS SensitiveInfo,
-        CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) AS FinancialData,
-        T.c.value('@PersonalNotes', 'NVARCHAR(MAX)') AS PersonalNotes
-    FROM dbo.DecryptTableTVF(@encrypted, @password) d
-    CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
-)
-SELECT 
-    COUNT(*) AS TotalRecords,
-    AVG(FinancialData) AS AverageAmount,
-    MAX(FinancialData) AS MaxAmount
-FROM DecryptedCTE;
+PRINT 'Example 2: Decrypting stored procedure results';
+CREATE TABLE #DecryptedSPResults (
+    ID NVARCHAR(MAX),
+    SensitiveInfo NVARCHAR(MAX),
+    FinancialData NVARCHAR(MAX),
+    PersonalNotes NVARCHAR(MAX)
+);
 
-PRINT 'CTE with aggregations on decrypted data - no intermediate storage!';
+INSERT INTO #DecryptedSPResults
+EXEC dbo.RestoreEncryptedTable @spEncrypted, @password;
+
+SELECT * FROM #DecryptedSPResults WHERE FinancialData > 180000;
+
+PRINT 'Stored procedure results decrypted and processed successfully!';
 
 -- Example: JOINs with other tables
 PRINT '';
@@ -158,26 +171,30 @@ INSERT INTO #AuditLog VALUES
 (2, GETDATE()-2, 'UPDATED'),
 (3, GETDATE()-3, 'CREATED');
 
--- JOIN decrypted data directly with audit log
+-- JOIN decrypted data directly with audit log (using automatic casting)
+CREATE TABLE #DecryptedForJoin (
+    ID NVARCHAR(MAX),
+    SensitiveInfo NVARCHAR(MAX),
+    FinancialData NVARCHAR(MAX),
+    PersonalNotes NVARCHAR(MAX)
+);
+
+INSERT INTO #DecryptedForJoin
+EXEC dbo.RestoreEncryptedTable @encrypted, @password;
+
 SELECT 
     d.ID,
     d.SensitiveInfo,
     d.FinancialData,
     a.AuditDate,
     a.AuditAction
-FROM (
-    SELECT 
-        CAST(T.c.value('@ID', 'NVARCHAR(MAX)') AS INT) AS ID,
-        T.c.value('@SensitiveInfo', 'NVARCHAR(MAX)') AS SensitiveInfo,
-        CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) AS FinancialData
-    FROM dbo.DecryptTableTVF(@encrypted, @password) d
-    CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
-) d
+FROM #DecryptedForJoin d
 INNER JOIN #AuditLog a ON d.ID = a.RecordID;
 
-PRINT 'Direct JOIN with decrypted data - no temp table creation needed!';
+PRINT 'Direct JOIN with decrypted data using automatic type casting!';
 
 DROP TABLE #AuditLog;
+DROP TABLE #DecryptedForJoin;
 
 -- =============================================
 -- ROW-LEVEL ENCRYPTION: INDIVIDUAL RECORD SECURITY
@@ -355,7 +372,7 @@ PRINT 'Simple to use, powerful in capability, perfect for any developer.';
 
 DROP TABLE MyImportantData;
 DROP TABLE #RestoredData_Auto;
-DROP TABLE #RestoredData_TVF;
+DROP TABLE #RestoredData_Procedure;
 IF OBJECT_ID('tempdb..#TempRestore') IS NOT NULL DROP TABLE #TempRestore;
 DROP TABLE CustomerRecords;
 DROP TABLE LargeDataset;

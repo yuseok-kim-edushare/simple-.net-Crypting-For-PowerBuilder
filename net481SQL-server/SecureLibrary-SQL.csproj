@@ -35,5 +35,8 @@
     <Compile Include="draft.cs" />
     <Compile Include="invokeCGN.cs" />
     <Compile Include="SqlTypeMapping.cs" />
+    <Compile Include="SharedTypes.cs" />
+    <Compile Include="XmlMetadataHandler.cs" />
+    <Compile Include="DynamicTempTableWrapper.cs" />
   </ItemGroup>
 </Project>

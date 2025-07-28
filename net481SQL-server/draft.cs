@@ -862,7 +862,7 @@ namespace SecureLibrary.SQL
                 int iterationCount = iterations.IsNull ? DefaultIterations : iterations.Value;
 
                 // Build the metadata-enhanced XML package
-                string enhancedXml = BuildMetadataEnhancedXml(tableName.Value);
+                string enhancedXml = XmlMetadataHandler.BuildMetadataEnhancedXml(tableName.Value);
                 if (string.IsNullOrEmpty(enhancedXml))
                     return SqlString.Null;
 
@@ -907,7 +907,7 @@ namespace SecureLibrary.SQL
                 int iterationCount = iterations.IsNull ? DefaultIterations : iterations.Value;
 
                 // Build metadata-enhanced XML from existing XML data
-                string enhancedXml = BuildMetadataEnhancedXmlFromData(xmlData.Value);
+                string enhancedXml = XmlMetadataHandler.BuildMetadataEnhancedXmlFromData(xmlData.Value);
                 if (string.IsNullOrEmpty(enhancedXml))
                     return SqlString.Null;
 
@@ -925,234 +925,11 @@ namespace SecureLibrary.SQL
             }
         }
 
-        /// <summary>
-        /// Helper method to build metadata-enhanced XML by querying table schema information
-        /// </summary>
-        private static string BuildMetadataEnhancedXml(string tableName)
-        {
-            try
-            {
-                // Parse schema and table name
-                string schemaName = "dbo";
-                string tableNameOnly = tableName;
-                
-                if (tableName.Contains("."))
-                {
-                    var parts = tableName.Split('.');
-                    if (parts.Length == 2)
-                    {
-                        schemaName = parts[0];
-                        tableNameOnly = parts[1];
-                    }
-                }
-
-                // Query to get both schema information and data
-                string query = $@"
-                    -- Get schema information
-                    SELECT 
-                        COLUMN_NAME,
-                        DATA_TYPE,
-                        IS_NULLABLE,
-                        CHARACTER_MAXIMUM_LENGTH,
-                        NUMERIC_PRECISION,
-                        NUMERIC_SCALE,
-                        ORDINAL_POSITION
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE TABLE_SCHEMA = '{schemaName}' AND TABLE_NAME = '{tableNameOnly}'
-                    ORDER BY ORDINAL_POSITION
-                    FOR XML PATH('Column'), ROOT('Schema');
-
-                    -- Get data
-                    SELECT * FROM [{schemaName}].[{tableNameOnly}] FOR XML PATH('Row'), ROOT('Data');";
-
-                var result = new System.Text.StringBuilder();
-                result.AppendLine("<Root>");
-                
-                // Add metadata section
-                result.AppendLine("  <Metadata>");
-                result.AppendLine($"    <Schema>{schemaName}</Schema>");
-                result.AppendLine($"    <Table>{tableNameOnly}</Table>");
-                result.AppendLine("    <Columns>");
-
-                using (var connection = new System.Data.SqlClient.SqlConnection("context connection=true"))
-                {
-                    connection.Open();
-                    
-                    // Get schema information
-                    string schemaQuery = $@"
-                        SELECT 
-                            COLUMN_NAME,
-                            DATA_TYPE,
-                            IS_NULLABLE,
-                            CHARACTER_MAXIMUM_LENGTH,
-                            NUMERIC_PRECISION,
-                            NUMERIC_SCALE,
-                            ORDINAL_POSITION
-                        FROM INFORMATION_SCHEMA.COLUMNS 
-                        WHERE TABLE_SCHEMA = '{schemaName}' AND TABLE_NAME = '{tableNameOnly}'
-                        ORDER BY ORDINAL_POSITION";
-
-                    using (var schemaCmd = new System.Data.SqlClient.SqlCommand(schemaQuery, connection))
-                    using (var reader = schemaCmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            result.AppendLine($"      <Column name=\"{reader["COLUMN_NAME"]}\" type=\"{reader["DATA_TYPE"]}\" nullable=\"{reader["IS_NULLABLE"]}\"");
-                            
-                            if (!reader.IsDBNull(reader.GetOrdinal("CHARACTER_MAXIMUM_LENGTH")))
-                                result.Append($" maxLength=\"{reader["CHARACTER_MAXIMUM_LENGTH"]}\"");
-                            
-                            if (!reader.IsDBNull(reader.GetOrdinal("NUMERIC_PRECISION")))
-                                result.Append($" precision=\"{reader["NUMERIC_PRECISION"]}\"");
-                            
-                            if (!reader.IsDBNull(reader.GetOrdinal("NUMERIC_SCALE")))
-                                result.Append($" scale=\"{reader["NUMERIC_SCALE"]}\"");
-                            
-                            result.AppendLine(" />");
-                        }
-                    }
-
-                    result.AppendLine("    </Columns>");
-                    result.AppendLine("  </Metadata>");
-
-                    // Get data
-                    string dataQuery = $"SELECT * FROM [{schemaName}].[{tableNameOnly}] FOR XML PATH('Row'), ROOT('Data')";
-                    using (var dataCmd = new System.Data.SqlClient.SqlCommand(dataQuery, connection))
-                    {
-                        var dataXml = dataCmd.ExecuteScalar() as string;
-                        if (!string.IsNullOrEmpty(dataXml))
-                        {
-                            // Extract just the Row elements from the Data root
-                            var doc = XDocument.Parse(dataXml);
-                            foreach (var row in doc.Root.Elements("Row"))
-                            {
-                                result.AppendLine("  " + row.ToString());
-                            }
-                        }
-                    }
-                }
-
-                result.AppendLine("</Root>");
-                return result.ToString();
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
+        // XML and metadata handling methods moved to XmlMetadataHandler.cs
 
         /// <summary>
-        /// Helper method to build metadata-enhanced XML from existing XML data by inferring types
-        /// </summary>
-        private static string BuildMetadataEnhancedXmlFromData(string xmlData)
-        {
-            try
-            {
-                var doc = XDocument.Parse(xmlData);
-                var result = new System.Text.StringBuilder();
-                
-                result.AppendLine("<Root>");
-                result.AppendLine("  <Metadata>");
-                result.AppendLine("    <Schema>dbo</Schema>");
-                result.AppendLine("    <Table>InferredFromData</Table>");
-                result.AppendLine("    <Columns>");
-
-                // Get first row to infer schema
-                var firstRow = doc.Root.Elements("Row").FirstOrDefault();
-                if (firstRow != null)
-                {
-                    foreach (var attr in firstRow.Attributes())
-                    {
-                        string inferredType = InferDataType(attr.Value);
-                        result.AppendLine($"      <Column name=\"{attr.Name}\" type=\"{inferredType}\" nullable=\"true\" />");
-                    }
-                }
-
-                result.AppendLine("    </Columns>");
-                result.AppendLine("  </Metadata>");
-
-                // Add all data rows
-                foreach (var row in doc.Root.Elements("Row"))
-                {
-                    result.AppendLine("  " + row.ToString());
-                }
-
-                result.AppendLine("</Root>");
-                return result.ToString();
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Simple type inference from string values
-        /// </summary>
-        private static string InferDataType(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-                return "nvarchar";
-
-            // Try integer
-            if (int.TryParse(value, out _))
-                return "int";
-
-            // Try decimal
-            if (decimal.TryParse(value, out _))
-                return "decimal";
-
-            // Try boolean
-            if (value == "0" || value == "1" || 
-                value.Equals("true", StringComparison.OrdinalIgnoreCase) || 
-                value.Equals("false", StringComparison.OrdinalIgnoreCase))
-                return "bit";
-
-            // Try datetime
-            if (DateTime.TryParse(value, out _))
-                return "datetime";
-
-            // Try GUID
-            if (Guid.TryParse(value, out _))
-                return "uniqueidentifier";
-
-            // Default to nvarchar
-            return "nvarchar";
-        }
-
-        /// <summary>
-        /// Helper method to safely parse int attributes from XML
-        /// </summary>
-        private static int? GetIntAttribute(XElement element, string attributeName)
-        {
-            var attr = element.Attribute(attributeName);
-            if (attr == null || string.IsNullOrEmpty(attr.Value))
-                return null;
-            
-            if (int.TryParse(attr.Value, out int result))
-                return result;
-            
-            return null;
-        }
-
-        /// <summary>
-        /// Helper method to safely parse byte attributes from XML
-        /// </summary>
-        private static byte? GetByteAttribute(XElement element, string attributeName)
-        {
-            var attr = element.Attribute(attributeName);
-            if (attr == null || string.IsNullOrEmpty(attr.Value))
-                return null;
-            
-            if (byte.TryParse(attr.Value, out byte result))
-                return result;
-            
-            return null;
-        }
-
-        /// <summary>
-        /// Decrypts data encrypted with a password and restores it to a fully structured result set.
-        /// This is the recommended universal decryption method.
+        /// Decrypts data encrypted with a password and restores it to a fully structured result set with automatic type casting.
+        /// This enhanced version reads embedded metadata to automatically cast columns to their proper types.
         /// </summary>
         [SqlProcedure]
         [SecuritySafeCritical]
@@ -1168,33 +945,68 @@ namespace SecureLibrary.SQL
                 if (decryptedXml == null)
                     throw new CryptographicException("Decryption returned null. Check password or data integrity.");
 
-                // 2. Discover the schema from the XML attributes of the first 'Row' node
-                List<string> columnNames = new List<string>();
-                using (var stringReader = new System.IO.StringReader(decryptedXml))
-                using (var xmlReader = System.Xml.XmlReader.Create(stringReader))
-                {
-                    if (xmlReader.MoveToContent() != System.Xml.XmlNodeType.Element) return; // Move to root
-                    if (!xmlReader.ReadToDescendant("Row")) return; // Move to the first Row
+                // 2. Parse the XML document to extract metadata and column information
+                var doc = XDocument.Parse(decryptedXml);
+                var columns = new List<ColumnInfo>();
 
-                    if (xmlReader.MoveToFirstAttribute())
+                // Try to read embedded metadata first
+                var metadataElement = doc.Root?.Element("Metadata");
+                if (metadataElement != null)
+                {
+                    // Parse embedded schema metadata
+                    var columnsElement = metadataElement.Element("Columns");
+                    if (columnsElement != null)
                     {
-                        do
-                        {
-                            columnNames.Add(xmlReader.Name);
-                        } while (xmlReader.MoveToNextAttribute());
+                        columns = columnsElement.Elements("Column")
+                            .Select(x => new ColumnInfo {
+                                Name = (string)x.Attribute("name") ?? "Column",
+                                TypeName = (string)x.Attribute("type") ?? "nvarchar",
+                                MaxLength = XmlUtilities.GetIntAttribute(x, "maxLength"),
+                                Precision = XmlUtilities.GetByteAttribute(x, "precision"),
+                                Scale = XmlUtilities.GetByteAttribute(x, "scale"),
+                                IsNullable = (bool?)x.Attribute("nullable") ?? true
+                            })
+                            .ToList();
                     }
                 }
-                
-                if (columnNames.Count == 0) return; // No columns found
 
-                // 3. Build the Dynamic SQL to shred the XML and return the result set
+                // Fallback: Infer schema from first data row if no metadata
+                if (columns.Count == 0)
+                {
+                    var firstRow = doc.Root?.Elements("Row").FirstOrDefault();
+                    if (firstRow != null)
+                    {
+                        columns = firstRow.Attributes()
+                            .Select(attr => new ColumnInfo {
+                                Name = attr.Name.LocalName,
+                                TypeName = XmlUtilities.InferDataType(attr.Value),
+                                MaxLength = null,
+                                Precision = null,
+                                Scale = null,
+                                IsNullable = true
+                            })
+                            .ToList();
+                    }
+                }
+
+                if (columns.Count == 0) return; // No columns found
+
+                // 3. Build the Dynamic SQL with automatic type casting
                 var sql = new StringBuilder();
-                var columns = string.Join(", ", columnNames.Select(c => $"T.c.value('@{c}', 'NVARCHAR(MAX)') AS [{c}]"));
+                var columnExpressions = new List<string>();
+
+                foreach (var column in columns)
+                {
+                    string columnExpression = BuildColumnExpression(column);
+                    columnExpressions.Add(columnExpression);
+                }
+
+                var columnsClause = string.Join(", ", columnExpressions);
                 
                 sql.AppendLine("DECLARE @xml XML;");
                 sql.AppendLine("SET @xml = @p_xml;");
                 sql.AppendLine("SELECT");
-                sql.AppendLine(columns);
+                sql.AppendLine(columnsClause);
                 sql.AppendLine("FROM @xml.nodes('/Root/Row') AS T(c);");
 
                 // 4. Execute the command and send the results to the client
@@ -1214,216 +1026,26 @@ namespace SecureLibrary.SQL
             }
         }
 
-        /// <summary>
-        /// Table-Valued Function that decrypts data and returns XML for further processing.
-        /// Use with CROSS APPLY to shred XML: 
-        /// SELECT T.c.value('@ColName', 'NVARCHAR(MAX)') AS ColName 
-        /// FROM DecryptTableTVF(@encrypted, @password) d
-        /// CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
-        /// Legacy version - still requires manual casting.
-        /// </summary>
-        [SqlFunction(
-            IsDeterministic = true,
-            IsPrecise = true,
-            DataAccess = DataAccessKind.None,
-            FillRowMethodName = "FillDecryptedXmlRow",
-            TableDefinition = "DecryptedXml XML"
-        )]
-        [SecuritySafeCritical]
-        public static IEnumerable DecryptTableTVF(SqlString encryptedData, SqlString password)
-        {
-            if (encryptedData.IsNull || password.IsNull)
-                yield break;
-
-            string decryptedXml = null;
-            try
-            {
-                // Decrypt the XML string
-                decryptedXml = BcryptInterop.DecryptAesGcmWithPassword(encryptedData.Value, password.Value, DefaultIterations);
-                if (string.IsNullOrEmpty(decryptedXml))
-                    yield break;
-            }
-            catch (Exception)
-            {
-                yield break;
-            }
-
-            // Return the decrypted XML as a single row (outside try-catch to allow yield)
-            yield return new SqlXml(System.Xml.XmlReader.Create(new System.IO.StringReader(decryptedXml)));
-        }
+        // Dynamic temp-table wrapper methods moved to DynamicTempTableWrapper.cs
 
         /// <summary>
-        /// Fill row method for DecryptTableTVF - returns decrypted XML
+        /// Builds a column expression with automatic type casting based on column metadata
+        /// Uses the existing SqlTypeMapping utility to avoid code duplication
         /// </summary>
-        public static void FillDecryptedXmlRow(object obj, out SqlXml decryptedXml)
+        private static string BuildColumnExpression(ColumnInfo column)
         {
-            SqlXml xml = (SqlXml)obj;
-            decryptedXml = xml;
-        }
-
-        /// <summary>
-        /// SOPHISTICATED TABLE-VALUED FUNCTION WITH EMBEDDED SCHEMA METADATA & ROBUST TYPED OUTPUT
-        /// 
-        /// This is the enhanced CLR TVF that eliminates all manual SQL-side casting by:
-        /// 1. Reading embedded schema metadata from the encrypted package
-        /// 2. Building proper SqlMetaData[] array for all column types  
-        /// 3. Returning SqlDataRecord objects with correct typing
-        /// 4. Providing robust error handling and partial recovery
-        /// 
-        /// Usage: SELECT * FROM dbo.DecryptTableTypedTVF(@encrypted, @password)
-        /// Result: Properly typed columns ready to use - NO CASTING REQUIRED!
-        /// </summary>
-        [SqlFunction(
-            IsDeterministic = true,
-            IsPrecise = true,
-            DataAccess = DataAccessKind.None
-        )]
-        [SecuritySafeCritical]
-        public static IEnumerable DecryptTableTypedTVF(SqlString encryptedPackage, SqlString password)
-        {
-            if (encryptedPackage.IsNull || password.IsNull)
-                yield break;
-
-            string xmlText = null;
-            XDocument doc = null;
+            string columnName = column.Name ?? "Column";
+            string rawValue = $"T.c.value('@{columnName}', 'NVARCHAR(MAX)')";
             
-            try
-            {
-                // Step 1: Decrypt the XML package
-                xmlText = BcryptInterop.DecryptAesGcmWithPassword(encryptedPackage.Value, password.Value, DefaultIterations);
-                if (string.IsNullOrEmpty(xmlText))
-                    yield break;
-
-                // Step 2: Parse the XML document
-                doc = XDocument.Parse(xmlText);
-            }
-            catch (Exception)
-            {
-                yield break;
-            }
-
-        // Step 3: Extract metadata or fallback to inference
-            var columns = new List<ColumnInfo>();
-            SqlMetaData[] metaData = null;
-
-            try
-            {
-                // Try to read embedded metadata first
-                var metadataElement = doc.Root?.Element("Metadata");
-                if (metadataElement != null)
-                {
-                    // Parse embedded schema metadata
-                    var columnsElement = metadataElement.Element("Columns");
-                    if (columnsElement != null)
-                    {
-                        columns = columnsElement.Elements("Column")
-                            .Select(x => new ColumnInfo {
-                                Name = (string)x.Attribute("name") ?? "Column",
-                                TypeName = (string)x.Attribute("type") ?? "nvarchar",
-                                MaxLength = GetIntAttribute(x, "maxLength"),
-                                Precision = GetByteAttribute(x, "precision"),
-                                Scale = GetByteAttribute(x, "scale"),
-                                IsNullable = (bool?)x.Attribute("nullable") ?? true
-                            })
-                            .ToList().Cast<ColumnInfo>().ToList();
-                    }
-                }
-
-                // Fallback: Infer schema from first data row if no metadata
-                if (columns.Count == 0)
-                {
-                    var firstRow = doc.Root?.Elements("Row").FirstOrDefault();
-                    if (firstRow != null)
-                    {
-                        columns = firstRow.Attributes()
-                            .Select(attr => new ColumnInfo {
-                                Name = attr.Name.LocalName,
-                                TypeName = InferDataType(attr.Value),
-                                MaxLength = null,
-                                Precision = null,
-                                Scale = null,
-                                IsNullable = true
-                            })
-                            .ToList();
-                    }
-                }
-
-                if (columns.Count == 0)
-                    yield break;
-
-                // Step 4: Build SqlMetaData array with robust error handling
-                metaData = new SqlMetaData[columns.Count];
-                for (int i = 0; i < columns.Count; i++)
-                {
-                    try
-                    {
-                        metaData[i] = SqlTypeMapping.ToMetaData(columns[i]);
-                    }
-                    catch (Exception)
-                    {
-                        // Fallback to NVARCHAR(MAX) if metadata creation fails
-                        metaData[i] = new SqlMetaData(columns[i].Name ?? $"Column{i}", SqlDbType.NVarChar, SqlMetaData.Max);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Complete fallback - create a single NVARCHAR column
-                metaData = new SqlMetaData[] { new SqlMetaData("ErrorColumn", SqlDbType.NVarChar, SqlMetaData.Max) };
-                columns = new List<ColumnInfo> { new ColumnInfo { Name = "ErrorColumn", TypeName = "nvarchar", MaxLength = null, Precision = null, Scale = null, IsNullable = true } };
-            }
-
-            // Step 5: Process data rows and yield SqlDataRecord objects
-            var dataRows = doc.Root?.Elements("Row") ?? new XElement[0];
+            // Use the existing SqlTypeMapping utility to determine the SQL type
+            var metaData = SqlTypeMapping.ToMetaData(column);
+            string sqlType = SqlTypeMapping.GetSqlTypeString(metaData.SqlDbType, metaData.Precision, metaData.Scale, metaData.MaxLength);
             
-            foreach (var row in dataRows)
-            {
-                SqlDataRecord record = null;
-                try
-                {
-                    record = new SqlDataRecord(metaData);
-                    
-                    // Set values for each column with individual error handling
-                    for (int i = 0; i < columns.Count; i++)
-                    {
-                        try
-                        {
-                            string columnName = columns[i].Name;
-                            string rawValue = (string)row.Attribute(columnName);
-                            
-                            // Use the type mapping utility to set the value
-                            SqlTypeMapping.SetValue(record, i, rawValue, columns[i]);
-                        }
-                        catch (Exception)
-                        {
-                            // Set DBNull for individual column failures to ensure partial recovery
-                            record.SetDBNull(i);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    // If we can't create the record at all, create an error record
-                    try
-                    {
-                        if (record == null)
-                        {
-                            var errorMetaData = new SqlMetaData[] { new SqlMetaData("Error", SqlDbType.NVarChar, SqlMetaData.Max) };
-                            record = new SqlDataRecord(errorMetaData);
-                            record.SetString(0, "Row processing error");
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        // Ultimate fallback - skip this row entirely
-                        continue;
-                    }
-                }
-
-                // Yield the record outside of try-catch to avoid yield in try-catch error
-                if (record != null)
-                    yield return record;
-            }
+            return $"CAST({rawValue} AS {sqlType}) AS [{columnName}]";
         }
+
+
+
+
     }
 }

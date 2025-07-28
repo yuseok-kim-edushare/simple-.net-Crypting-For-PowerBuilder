@@ -64,40 +64,28 @@ AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].Encrypt
 GO
 
 -- Universal procedure to decrypt and restore any table
+-- This procedure handles stored procedure result sets and can be used with INSERT INTO ... EXEC
 CREATE PROCEDURE dbo.RestoreEncryptedTable
     @encryptedData NVARCHAR(MAX),
     @password NVARCHAR(MAX)
 AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].RestoreEncryptedTable;
 GO
 
--- Table-Valued Function that wraps the decryption logic - Legacy version
--- This allows direct XML shredding in SELECT statements without temp tables:
--- SELECT T.c.value('@ColumnName', 'NVARCHAR(MAX)') AS ColumnName
--- FROM dbo.DecryptTableTVF(@encrypted, @password) d
--- CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
-CREATE FUNCTION dbo.DecryptTableTVF(
-    @encryptedData NVARCHAR(MAX),
-    @password NVARCHAR(MAX)
-)
-RETURNS TABLE (DecryptedXml XML)
-AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableTVF;
+-- Dynamic temp-table wrapper that automatically discovers any stored procedure's result set structure
+-- and creates a matching temp table. This eliminates the need for manual column declarations.
+CREATE PROCEDURE dbo.WrapDecryptProcedure
+    @procedureName NVARCHAR(MAX),
+    @parameters NVARCHAR(MAX) = NULL
+AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.DynamicTempTableWrapper].WrapDecryptProcedure;
 GO
 
--- SOPHISTICATED TVF WITH EMBEDDED SCHEMA METADATA & ROBUST TYPED OUTPUT
--- This enhanced CLR TVF eliminates all manual SQL-side casting by:
--- 1. Reading embedded schema metadata from the encrypted package
--- 2. Building proper SqlMetaData[] array for all column types  
--- 3. Returning SqlDataRecord objects with correct typing
--- 4. Providing robust error handling and partial recovery
--- 
--- Usage: SELECT * FROM dbo.DecryptTableTypedTVF(@encrypted, @password)
--- Result: Properly typed columns ready to use - NO CASTING REQUIRED!
-CREATE FUNCTION dbo.DecryptTableTypedTVF(
-    @encryptedPackage NVARCHAR(MAX),
-    @password NVARCHAR(MAX)
-)
-RETURNS TABLE
-AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableTypedTVF;
+-- Enhanced version of WrapDecryptProcedure that provides more detailed metadata information
+-- and supports custom temp table names for better integration with existing workflows.
+CREATE PROCEDURE dbo.WrapDecryptProcedureAdvanced
+    @procedureName NVARCHAR(MAX),
+    @parameters NVARCHAR(MAX) = NULL,
+    @tempTableName NVARCHAR(MAX) = NULL
+AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.DynamicTempTableWrapper].WrapDecryptProcedureAdvanced;
 GO
 
 -- Verify objects were created
@@ -115,8 +103,8 @@ WHERE o.name IN (
     'EncryptXmlWithMetadata',
     'EncryptXmlWithMetadataIterations',
     'RestoreEncryptedTable',
-    'DecryptTableTVF',
-    'DecryptTableTypedTVF'
+    'WrapDecryptProcedure',
+    'WrapDecryptProcedureAdvanced'
 )
 ORDER BY o.name;
 GO
@@ -124,35 +112,49 @@ GO
 PRINT 'Enhanced password-based table encryption objects created successfully!';
 PRINT 'Objects available:';
 PRINT '';
-PRINT 'LEGACY FUNCTIONS (require manual casting):';
-PRINT '  - EncryptXmlWithPassword: Encrypts XML using a password.';
-PRINT '  - RestoreEncryptedTable: The universal procedure to decrypt and restore any table.';
-PRINT '  - DecryptTableTVF: Table-Valued Function for direct SELECT usage without temp tables.';
-PRINT '';
-PRINT 'ENHANCED FUNCTIONS (with embedded schema metadata):';
+PRINT 'ENCRYPTION FUNCTIONS:';
+PRINT '  - EncryptXmlWithPassword: Encrypts XML using a password (legacy).';
+PRINT '  - EncryptXmlWithPasswordIterations: Encrypts XML with custom iteration count (legacy).';
 PRINT '  - EncryptTableWithMetadata: Encrypts table data with full schema metadata embedded.';
+PRINT '  - EncryptTableWithMetadataIterations: Encrypts table data with metadata and custom iterations.';
 PRINT '  - EncryptXmlWithMetadata: Encrypts XML data with inferred schema metadata.';
-PRINT '  - DecryptTableTypedTVF: ZERO-CAST TVF returns properly typed columns directly!';
+PRINT '  - EncryptXmlWithMetadataIterations: Encrypts XML data with metadata and custom iterations.';
 PRINT '';
-PRINT 'KEY BENEFITS OF NEW ENHANCED FUNCTIONS:';
-PRINT '  ✓ ZERO SQL CAST: No manual casting required - columns are properly typed';
+PRINT 'DECRYPTION PROCEDURES:';
+PRINT '  - RestoreEncryptedTable: Universal procedure to decrypt and restore any table.';
+PRINT '    Supports stored procedure result sets and can be used with INSERT INTO ... EXEC.';
+PRINT '  - WrapDecryptProcedure: Dynamic temp-table wrapper that automatically discovers result set structure.';
+PRINT '    Eliminates the need for manual column declarations.';
+PRINT '  - WrapDecryptProcedureAdvanced: Enhanced wrapper with detailed metadata and custom temp table names.';
+PRINT '';
+PRINT 'KEY BENEFITS:';
+PRINT '  ✓ AUTOMATIC TYPE CASTING: No manual casting required - columns are properly typed';
 PRINT '  ✓ SELF-DESCRIBING: Schema metadata travels inside encrypted package';
 PRINT '  ✓ FULL TYPE SUPPORT: All SQL Server data types with robust fallback';
-PRINT '  ✓ PARTIAL RECOVERY: Continues working even if some metadata is missing';
 PRINT '  ✓ UNIVERSAL COMPATIBILITY: Works with any table design';
+PRINT '  ✓ STORED PROCEDURE FRIENDLY: Can handle result sets from other procedures';
+PRINT '  ✓ ZERO MANUAL COLUMN DECLARATIONS: Dynamic temp table creation eliminates 40-50 column declarations';
 PRINT '';
 PRINT 'USAGE EXAMPLES:';
 PRINT '';
 PRINT '-- Enhanced 3-line encryption with metadata:';
 PRINT 'DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptTableWithMetadata(''MyTable'', ''MyPassword'');';
-PRINT '-- Zero-cast decryption:';
-PRINT 'SELECT * FROM dbo.DecryptTableTypedTVF(@encrypted, ''MyPassword'');';
 PRINT '';
-PRINT '-- Legacy approach (still supported):';
-PRINT 'DECLARE @xml XML = (SELECT * FROM MyTable FOR XML PATH(''Row''), ROOT(''Root''));';
-PRINT 'DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptXmlWithPassword(@xml, ''MyPassword'');';
-PRINT 'SELECT T.c.value(''@ColName'', ''NVARCHAR(MAX)'') AS ColName';
-PRINT '  FROM dbo.DecryptTableTVF(@encrypted, ''MyPassword'') d';
-PRINT '  CROSS APPLY d.DecryptedXml.nodes(''/Root/Row'') AS T(c);';
+PRINT '-- OLD APPROACH (requires manual column declarations):';
+PRINT 'CREATE TABLE #TempRestore (Col1 NVARCHAR(MAX), Col2 NVARCHAR(MAX), ...);';
+PRINT 'INSERT INTO #TempRestore EXEC dbo.RestoreEncryptedTable @encrypted, ''MyPassword'';';
+PRINT 'SELECT * FROM #TempRestore;';
+PRINT '';
+PRINT '-- NEW APPROACH (automatic temp table creation):';
+PRINT 'EXEC dbo.WrapDecryptProcedure ''dbo.RestoreEncryptedTable'', ''@encryptedData=''''@encrypted'''', @password=''''MyPassword'''''';';
+PRINT '';
+PRINT '-- Advanced approach with custom temp table name:';
+PRINT 'EXEC dbo.WrapDecryptProcedureAdvanced ''dbo.RestoreEncryptedTable'', ''@encryptedData=''''@encrypted'''', @password=''''MyPassword''''''', ''#MyCustomTable'';';
+PRINT '';
+PRINT '-- Handling stored procedure result sets:';
+PRINT 'CREATE TABLE #SPResults (Col1 NVARCHAR(MAX), Col2 NVARCHAR(MAX), ...);';
+PRINT 'INSERT INTO #SPResults EXEC SomeOtherProcedure @param1, @param2;';
+PRINT 'DECLARE @encryptedSP NVARCHAR(MAX) = dbo.EncryptXmlWithMetadata((SELECT * FROM #SPResults FOR XML PATH(''Row''), ROOT(''Root'')), ''MyPassword'');';
+PRINT '-- Later restore: EXEC dbo.WrapDecryptProcedure ''dbo.RestoreEncryptedTable'', ''@encryptedData=''''@encryptedSP'''', @password=''''MyPassword'''''';';
 PRINT '';
 PRINT 'Next: Run demonstration scripts to see the enhanced capabilities!';
