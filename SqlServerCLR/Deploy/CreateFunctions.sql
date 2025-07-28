@@ -32,6 +32,19 @@ CREATE PROCEDURE dbo.RestoreEncryptedTable
 AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].RestoreEncryptedTable;
 GO
 
+-- Table-Valued Function that wraps the decryption logic
+-- This allows direct XML shredding in SELECT statements without temp tables:
+-- SELECT T.c.value('@ColumnName', 'NVARCHAR(MAX)') AS ColumnName
+-- FROM dbo.DecryptTableTVF(@encrypted, @password) d
+-- CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
+CREATE FUNCTION dbo.DecryptTableTVF(
+    @encryptedData NVARCHAR(MAX),
+    @password NVARCHAR(MAX)
+)
+RETURNS TABLE (DecryptedXml XML)
+AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableTVF;
+GO
+
 -- Verify objects were created
 SELECT 
     SCHEMA_NAME(o.schema_id) AS SchemaName,
@@ -42,7 +55,8 @@ FROM sys.objects o
 WHERE o.name IN (
     'EncryptXmlWithPassword', 
     'EncryptXmlWithPasswordIterations',
-    'RestoreEncryptedTable'
+    'RestoreEncryptedTable',
+    'DecryptTableTVF'
 )
 ORDER BY o.name;
 GO
@@ -51,6 +65,13 @@ PRINT 'Password-based table encryption objects created successfully!';
 PRINT 'Objects available:';
 PRINT '  - EncryptXmlWithPassword: Encrypts XML using a password.';
 PRINT '  - RestoreEncryptedTable: The universal procedure to decrypt and restore any table.';
+PRINT '  - DecryptTableTVF: Table-Valued Function for direct SELECT usage without temp tables.';
+PRINT '';
+PRINT 'Usage examples:';
+PRINT '  Stored Procedure: EXEC dbo.RestoreEncryptedTable @encrypted, @password';
+PRINT '  Table Function:   SELECT T.c.value(''@ColName'', ''NVARCHAR(MAX)'') AS ColName';
+PRINT '                    FROM dbo.DecryptTableTVF(@encrypted, @password) d';
+PRINT '                    CROSS APPLY d.DecryptedXml.nodes(''/Root/Row'') AS T(c)';
 PRINT '';
 PRINT 'Next: Run TestScripts.sql for basic tests, or ImprovedTestScripts.sql';
 PRINT '      for practical examples with dynamic table creation and schema comparison.';

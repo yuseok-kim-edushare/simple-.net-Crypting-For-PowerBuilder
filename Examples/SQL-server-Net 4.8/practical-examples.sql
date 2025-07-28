@@ -46,6 +46,7 @@ DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptXmlWithPassword(
 PRINT 'Step 2: Entire table encrypted with single function call';
 
 -- Step 3: Restore to any temp table structure (no pre-definition needed!)
+-- APPROACH 1: Using stored procedure (original method)
 -- First, create temporary table to capture restored data
 CREATE TABLE #TempRestore (
     ID NVARCHAR(MAX),
@@ -69,46 +70,114 @@ FROM #TempRestore;
 
 DROP TABLE #TempRestore;
 
-PRINT 'Step 3: Data restored to properly typed temp table using SELECT INTO';
+PRINT 'Step 3a: Data restored using stored procedure with SELECT INTO';
+
+-- APPROACH 2: Using Table-Valued Function (NEW - No temp tables needed!)
+SELECT 
+    CAST(T.c.value('@ID', 'NVARCHAR(MAX)') AS INT) AS ID,
+    T.c.value('@SensitiveInfo', 'NVARCHAR(MAX)') AS SensitiveInfo,
+    CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) AS FinancialData,
+    T.c.value('@PersonalNotes', 'NVARCHAR(MAX)') AS PersonalNotes
+INTO #RestoredData_TVF
+FROM dbo.DecryptTableTVF(@encrypted, @password) d
+CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c);
+
+PRINT 'Step 3b: Data restored using Table-Valued Function (no temp tables!)';
 
 -- PROOF: Same query works on both!
 PRINT '';
-PRINT 'PROOF - Identical query on original vs decrypted:';
+PRINT 'PROOF - Identical query on original vs both decrypted methods:';
 PRINT 'Original data:';
 SELECT ID, SensitiveInfo, FinancialData FROM MyImportantData WHERE FinancialData > 100000;
 
-PRINT 'Decrypted data:';
+PRINT 'Decrypted data (stored procedure method):';
 SELECT ID, SensitiveInfo, FinancialData FROM #RestoredData_Auto WHERE FinancialData > 100000;
 
+PRINT 'Decrypted data (Table-Valued Function method):';
+SELECT ID, SensitiveInfo, FinancialData FROM #RestoredData_TVF WHERE FinancialData > 100000;
+
 -- =============================================
--- ADVANCED: DYNAMIC TABLE RESTORATION PATTERN
+-- NEW: TABLE-VALUED FUNCTION ADVANTAGES
 -- =============================================
 
 PRINT '';
-PRINT '=== ADVANCED: Dynamic Table Restoration Pattern ===';
+PRINT '=== NEW: Table-Valued Function Advantages ===';
+PRINT 'The new DecryptTableTVF function addresses the concern: "why create temp table?"';
+PRINT '';
 
--- This pattern works for ANY table without knowing its structure beforehand
-CREATE PROCEDURE RestoreTableDynamically
-    @encryptedData NVARCHAR(MAX),
-    @password NVARCHAR(MAX),
-    @tempTableName NVARCHAR(128)
-AS
-BEGIN
-    -- Step 1: Create generic temp table for initial restore
-    CREATE TABLE #GenericRestore (
-        [column_xml] XML
-    );
-    
-    -- Step 2: Use the universal restore procedure
-    DECLARE @sql NVARCHAR(MAX);
-    
-    -- First restore to see the structure
-    EXEC dbo.RestoreEncryptedTable @encryptedData, @password;
-    
-    PRINT 'Table restored dynamically - structure determined at runtime';
-    PRINT 'This approach works with ANY table structure without pre-definition!';
-END
-GO
+-- Example: Direct use in WHERE clauses without intermediate temp tables
+PRINT 'Example 1: Direct filtering without temp tables';
+DECLARE @filteredEncrypted NVARCHAR(MAX) = dbo.EncryptXmlWithPassword(
+    (SELECT * FROM MyImportantData WHERE FinancialData > 150000 FOR XML PATH('Row'), ROOT('Root')), 
+    @password
+);
+
+-- Traditional approach would require: EXEC SP -> INSERT into temp -> SELECT from temp
+-- NEW approach: Direct SELECT with filtering
+SELECT 
+    CAST(T.c.value('@ID', 'NVARCHAR(MAX)') AS INT) AS ID,
+    T.c.value('@SensitiveInfo', 'NVARCHAR(MAX)') AS SensitiveInfo,
+    CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) AS FinancialData
+FROM dbo.DecryptTableTVF(@filteredEncrypted, @password) d
+CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
+WHERE CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) > 180000;
+
+PRINT 'Direct filtering and decryption in single query - no temp tables needed!';
+
+-- Example: Use in CTEs and subqueries
+PRINT '';
+PRINT 'Example 2: Use in Common Table Expressions (CTEs)';
+WITH DecryptedCTE AS (
+    SELECT 
+        CAST(T.c.value('@ID', 'NVARCHAR(MAX)') AS INT) AS ID,
+        T.c.value('@SensitiveInfo', 'NVARCHAR(MAX)') AS SensitiveInfo,
+        CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) AS FinancialData,
+        T.c.value('@PersonalNotes', 'NVARCHAR(MAX)') AS PersonalNotes
+    FROM dbo.DecryptTableTVF(@encrypted, @password) d
+    CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
+)
+SELECT 
+    COUNT(*) AS TotalRecords,
+    AVG(FinancialData) AS AverageAmount,
+    MAX(FinancialData) AS MaxAmount
+FROM DecryptedCTE;
+
+PRINT 'CTE with aggregations on decrypted data - no intermediate storage!';
+
+-- Example: JOINs with other tables
+PRINT '';
+PRINT 'Example 3: Direct JOINs with decrypted data';
+CREATE TABLE #AuditLog (
+    RecordID INT,
+    AuditDate DATETIME,
+    AuditAction NVARCHAR(50)
+);
+
+INSERT INTO #AuditLog VALUES
+(1, GETDATE()-1, 'CREATED'),
+(2, GETDATE()-2, 'UPDATED'),
+(3, GETDATE()-3, 'CREATED');
+
+-- JOIN decrypted data directly with audit log
+SELECT 
+    d.ID,
+    d.SensitiveInfo,
+    d.FinancialData,
+    a.AuditDate,
+    a.AuditAction
+FROM (
+    SELECT 
+        CAST(T.c.value('@ID', 'NVARCHAR(MAX)') AS INT) AS ID,
+        T.c.value('@SensitiveInfo', 'NVARCHAR(MAX)') AS SensitiveInfo,
+        CAST(T.c.value('@FinancialData', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) AS FinancialData
+    FROM dbo.DecryptTableTVF(@encrypted, @password) d
+    CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
+) d
+INNER JOIN #AuditLog a ON d.ID = a.RecordID;
+
+PRINT 'Direct JOIN with decrypted data - no temp table creation needed!';
+
+DROP TABLE #AuditLog;
 
 -- =============================================
 -- ROW-LEVEL ENCRYPTION: INDIVIDUAL RECORD SECURITY
@@ -287,6 +356,7 @@ PRINT 'Simple to use, powerful in capability, perfect for any developer.';
 
 DROP TABLE MyImportantData;
 DROP TABLE #RestoredData_Auto;
+DROP TABLE #RestoredData_TVF;
 IF OBJECT_ID('tempdb..#TempRestore') IS NOT NULL DROP TABLE #TempRestore;
 DROP TABLE CustomerRecords;
 DROP TABLE LargeDataset;

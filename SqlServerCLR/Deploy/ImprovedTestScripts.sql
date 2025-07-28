@@ -105,6 +105,32 @@ FROM #DynamicRestored;
 PRINT 'Created properly typed temp table from restored data';
 
 -- =============================================
+-- NEW: TABLE-VALUED FUNCTION APPROACH (NO TEMP TABLES!)
+-- =============================================
+
+PRINT '';
+PRINT '--- NEW: Table-Valued Function Approach (No Temp Tables!) ---';
+PRINT 'Using the new DecryptTableTVF function to decrypt directly in SELECT:';
+
+-- Direct decryption and casting in a single SELECT statement
+SELECT 
+    CAST(T.c.value('@EmployeeID', 'NVARCHAR(MAX)') AS INT) AS EmployeeID,
+    T.c.value('@FirstName', 'NVARCHAR(MAX)') AS FirstName,
+    T.c.value('@LastName', 'NVARCHAR(MAX)') AS LastName,
+    T.c.value('@Email', 'NVARCHAR(MAX)') AS Email,
+    CAST(T.c.value('@Salary', 'NVARCHAR(MAX)') AS DECIMAL(18,2)) AS Salary,
+    CAST(T.c.value('@HireDate', 'NVARCHAR(MAX)') AS DATE) AS HireDate,
+    CAST(T.c.value('@IsActive', 'NVARCHAR(MAX)') AS BIT) AS IsActive,
+    T.c.value('@Department', 'NVARCHAR(MAX)') AS Department,
+    T.c.value('@Notes', 'NVARCHAR(MAX)') AS Notes
+INTO #DirectDecrypted
+FROM dbo.DecryptTableTVF(@encryptedTable, @password) d
+CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c);
+
+PRINT 'Direct decryption completed using Table-Valued Function!';
+PRINT 'Row count from TVF approach: ' + CAST((SELECT COUNT(*) FROM #DirectDecrypted) AS VARCHAR(10));
+
+-- =============================================
 -- PROVE EXCELLENCE: SAME QUERY WORKS ON BOTH TABLES!
 -- =============================================
 
@@ -122,9 +148,16 @@ WHERE IsActive = 1
 ORDER BY Salary DESC;
 
 PRINT '';
-PRINT 'Results from DECRYPTED table:';
+PRINT 'Results from DECRYPTED table (stored procedure):';
 SELECT EmployeeID, FirstName, LastName, Email, Salary, HireDate, IsActive, Department 
 FROM #TypedRestoredEmployees 
+WHERE IsActive = 1 
+ORDER BY Salary DESC;
+
+PRINT '';
+PRINT 'Results from DECRYPTED table (Table-Valued Function):';
+SELECT EmployeeID, FirstName, LastName, Email, Salary, HireDate, IsActive, Department 
+FROM #DirectDecrypted 
 WHERE IsActive = 1 
 ORDER BY Salary DESC;
 
@@ -258,8 +291,16 @@ PRINT '';
 PRINT 'TABLE-LEVEL ENCRYPTION:';
 PRINT '  • No manual column configuration needed';
 PRINT '  • Use SELECT INTO for dynamic temp table creation';
+PRINT '  • NEW: Table-Valued Function eliminates temp tables entirely!';
 PRINT '  • Same SELECT queries work on original and decrypted data';
 PRINT '  • Schema preservation and comparison available';
+PRINT '';
+PRINT 'DECRYPTION APPROACHES:';
+PRINT '  1. Stored Procedure: EXEC dbo.RestoreEncryptedTable @encrypted, @password';
+PRINT '  2. NEW Table-Valued Function: Direct SELECT without temp tables';
+PRINT '     SELECT CAST(T.c.value(''@Col'', ''NVARCHAR(MAX)'') AS proper_type) AS Col';
+PRINT '     FROM dbo.DecryptTableTVF(@encrypted, @password) d';
+PRINT '     CROSS APPLY d.DecryptedXml.nodes(''/Root/Row'') AS T(c)';
 PRINT '';
 PRINT 'ROW-BY-ROW ENCRYPTION:';
 PRINT '  • Perfect for individual record security';
@@ -270,15 +311,17 @@ PRINT '';
 PRINT 'DEVELOPER BENEFITS:';
 PRINT '  • No complex table structure management';
 PRINT '  • Dynamic restoration without pre-definition';
+PRINT '  • NEW: Direct table function usage without temp tables';
 PRINT '  • Schema comparison using standard SQL views';
 PRINT '  • Identical queries work on encrypted/decrypted data';
 PRINT '  • Both table and row-level encryption available';
 PRINT '';
 PRINT 'USAGE PATTERNS:';
 PRINT '  1. Encrypt: dbo.EncryptXmlWithPassword((SELECT * FROM YourTable FOR XML PATH(''Row''), ROOT(''Root'')), ''password'')';
-PRINT '  2. Decrypt: EXEC dbo.RestoreEncryptedTable @encryptedData, @password';
-PRINT '  3. Cast: SELECT CAST(col AS proper_type) FROM temp_table INTO final_table';
-PRINT '  4. Verify: Use same SELECT queries on both original and final tables';
+PRINT '  2a. Decrypt (SP): EXEC dbo.RestoreEncryptedTable @encryptedData, @password';
+PRINT '  2b. Decrypt (TVF): SELECT ... FROM dbo.DecryptTableTVF(@encryptedData, @password) d CROSS APPLY d.DecryptedXml.nodes(''/Root/Row'') AS T(c)';
+PRINT '  3. Cast: CAST(T.c.value(''@column'', ''NVARCHAR(MAX)'') AS proper_type)';
+PRINT '  4. Verify: Use same SELECT queries on both original and decrypted results';
 
 -- =============================================
 -- CLEANUP
@@ -287,6 +330,7 @@ PRINT '  4. Verify: Use same SELECT queries on both original and final tables';
 DROP TABLE SampleEmployees;
 DROP TABLE #DynamicRestored;
 DROP TABLE #TypedRestoredEmployees;  
+DROP TABLE #DirectDecrypted;
 DROP TABLE #RowByRowDemo;
 
 PRINT '';

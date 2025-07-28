@@ -894,5 +894,51 @@ namespace SecureLibrary.SQL
                 SqlContext.Pipe.Send(ex.Message);
             }
         }
+
+        /// <summary>
+        /// Table-Valued Function that decrypts data and returns XML for further processing.
+        /// Use with CROSS APPLY to shred XML: 
+        /// SELECT T.c.value('@ColName', 'NVARCHAR(MAX)') AS ColName 
+        /// FROM DecryptTableTVF(@encrypted, @password) d
+        /// CROSS APPLY d.DecryptedXml.nodes('/Root/Row') AS T(c)
+        /// </summary>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None,
+            FillRowMethodName = "FillDecryptedXmlRow",
+            TableDefinition = "DecryptedXml XML"
+        )]
+        [SecuritySafeCritical]
+        public static IEnumerable DecryptTableTVF(SqlString encryptedData, SqlString password)
+        {
+            if (encryptedData.IsNull || password.IsNull)
+                yield break;
+
+            string decryptedXml = null;
+            try
+            {
+                // Decrypt the XML string
+                decryptedXml = BcryptInterop.DecryptAesGcmWithPassword(encryptedData.Value, password.Value, DefaultIterations);
+                if (string.IsNullOrEmpty(decryptedXml))
+                    yield break;
+            }
+            catch (Exception)
+            {
+                yield break;
+            }
+
+            // Return the decrypted XML as a single row (outside try-catch to allow yield)
+            yield return new SqlXml(System.Xml.XmlReader.Create(new System.IO.StringReader(decryptedXml)));
+        }
+
+        /// <summary>
+        /// Fill row method for DecryptTableTVF - returns decrypted XML
+        /// </summary>
+        public static void FillDecryptedXmlRow(object obj, out SqlXml decryptedXml)
+        {
+            SqlXml xml = (SqlXml)obj;
+            decryptedXml = xml;
+        }
     }
 }
