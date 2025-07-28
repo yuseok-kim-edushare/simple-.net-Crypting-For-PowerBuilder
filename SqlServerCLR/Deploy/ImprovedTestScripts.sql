@@ -211,9 +211,8 @@ PRINT 'Restored table row count: ' + CAST((SELECT COUNT(*) FROM #TypedRestoredEm
 PRINT '';
 PRINT '--- DEMO 2: Row-by-Row Encryption Excellence ---';
 
--- Generate encryption key for row-level encryption
+-- Generate encryption key for individual data encryption
 DECLARE @aesKey NVARCHAR(MAX) = dbo.GenerateAESKey();
-DECLARE @nonce NVARCHAR(MAX) = SUBSTRING(@aesKey, 1, 16);
 
 -- Create a table to demonstrate row-by-row encryption
 CREATE TABLE #RowByRowDemo (
@@ -231,20 +230,20 @@ DECLARE @jsonRow3 NVARCHAR(MAX) = '{"EmployeeID":3,"Name":"김민준","Salary":6
 INSERT INTO #RowByRowDemo (OriginalData, EncryptedData, DecryptedData)
 SELECT 
     @jsonRow1,
-    dbo.EncryptRowDataAesGcm(@jsonRow1, @aesKey, @nonce),
-    dbo.DecryptRowDataAesGcm(dbo.EncryptRowDataAesGcm(@jsonRow1, @aesKey, @nonce), @aesKey);
+    dbo.EncryptAesGcm(@jsonRow1, @aesKey),
+    dbo.DecryptAesGcm(dbo.EncryptAesGcm(@jsonRow1, @aesKey), @aesKey);
 
 INSERT INTO #RowByRowDemo (OriginalData, EncryptedData, DecryptedData)
 SELECT 
     @jsonRow2,
-    dbo.EncryptRowDataAesGcm(@jsonRow2, @aesKey, @nonce),
-    dbo.DecryptRowDataAesGcm(dbo.EncryptRowDataAesGcm(@jsonRow2, @aesKey, @nonce), @aesKey);
+    dbo.EncryptAesGcm(@jsonRow2, @aesKey),
+    dbo.DecryptAesGcm(dbo.EncryptAesGcm(@jsonRow2, @aesKey), @aesKey);
 
 INSERT INTO #RowByRowDemo (OriginalData, EncryptedData, DecryptedData)
 SELECT 
     @jsonRow3,
-    dbo.EncryptRowDataAesGcm(@jsonRow3, @aesKey, @nonce),
-    dbo.DecryptRowDataAesGcm(dbo.EncryptRowDataAesGcm(@jsonRow3, @aesKey, @nonce), @aesKey);
+    dbo.EncryptAesGcm(@jsonRow3, @aesKey),
+    dbo.DecryptAesGcm(dbo.EncryptAesGcm(@jsonRow3, @aesKey), @aesKey);
 
 PRINT 'Row-by-row encryption/decryption demonstration:';
 SELECT 
@@ -259,26 +258,22 @@ SELECT
 FROM #RowByRowDemo;
 
 -- =============================================
--- BULK ROW ENCRYPTION USING TABLE-VALUED FUNCTION
+-- BULK DATA ENCRYPTION USING TABLE-LEVEL ENCRYPTION
 -- =============================================
 
 PRINT '';
-PRINT 'Bulk row encryption using table-valued function:';
+PRINT 'Bulk data encryption using table-level encryption:';
 
--- Convert sample data to JSON array for bulk processing
-DECLARE @jsonArray NVARCHAR(MAX) = (
-    SELECT * FROM SampleEmployees 
-    WHERE IsActive = 1 
-    FOR JSON PATH
+-- Encrypt entire table using password-based encryption
+DECLARE @bulkEncrypted NVARCHAR(MAX) = dbo.EncryptXmlWithPassword(
+    (SELECT * FROM SampleEmployees WHERE IsActive = 1 FOR XML PATH('Row'), ROOT('Root')), 
+    'BulkEncryptionPassword123!'
 );
 
--- Show bulk encryption results
-SELECT 
-    RowId,
-    LEFT(EncryptedData, 50) + '...' AS EncryptedData_Preview,
-    LEFT(AuthTag, 20) + '...' AS AuthTag_Preview
-FROM dbo.EncryptTableRowsAesGcm(@jsonArray, @aesKey, @nonce)
-ORDER BY RowId;
+PRINT 'Bulk encrypted data length: ' + CAST(LEN(@bulkEncrypted) AS VARCHAR(10)) + ' characters';
+
+-- Decrypt and show sample data
+EXEC dbo.RestoreEncryptedTable @bulkEncrypted, 'BulkEncryptionPassword123!';
 
 -- =============================================
 -- PRACTICAL DEVELOPER SUMMARY

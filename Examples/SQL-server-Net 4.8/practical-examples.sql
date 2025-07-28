@@ -194,13 +194,12 @@ CREATE TABLE CustomerRecords (
     LastUpdated DATETIME
 );
 
--- Generate key for row-level encryption
+-- Generate key for individual data encryption
 DECLARE @rowKey NVARCHAR(MAX) = dbo.GenerateAESKey();
-DECLARE @nonce NVARCHAR(MAX) = SUBSTRING(@rowKey, 1, 16);
 
--- Encrypt individual customer data
+-- Encrypt individual customer data using basic AES-GCM
 DECLARE @customerData NVARCHAR(MAX) = '{"SSN":"123-45-6789","CreditCard":"4532-1234-5678-9012","BankAccount":"98765432","Phone":"555-0123"}';
-DECLARE @encryptedCustomer NVARCHAR(MAX) = dbo.EncryptRowDataAesGcm(@customerData, @rowKey, @nonce);
+DECLARE @encryptedCustomer NVARCHAR(MAX) = dbo.EncryptAesGcm(@customerData, @rowKey);
 
 INSERT INTO CustomerRecords VALUES
 (1, 'John Smith', @encryptedCustomer, GETDATE());
@@ -208,7 +207,7 @@ INSERT INTO CustomerRecords VALUES
 PRINT 'Customer sensitive data encrypted at row level';
 
 -- Decrypt when needed
-DECLARE @decryptedCustomer NVARCHAR(MAX) = dbo.DecryptRowDataAesGcm(@encryptedCustomer, @rowKey);
+DECLARE @decryptedCustomer NVARCHAR(MAX) = dbo.DecryptAesGcm(@encryptedCustomer, @rowKey);
 PRINT 'Decrypted customer data: ' + @decryptedCustomer;
 
 -- =============================================

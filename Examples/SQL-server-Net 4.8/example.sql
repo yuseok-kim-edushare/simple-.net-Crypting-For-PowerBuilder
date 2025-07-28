@@ -52,32 +52,32 @@ PRINT 'Restored data:';
 SELECT * FROM #RestoredData;
 
 -- =============================================
--- NEW FEATURES: Row-by-Row Encryption
+-- INDIVIDUAL DATA ENCRYPTION EXAMPLES
 -- =============================================
 
 PRINT '';
-PRINT '=== NEW: Row-by-Row Encryption Examples ===';
+PRINT '=== Individual Data Encryption Examples ===';
 
--- Generate key and nonce for row-by-row encryption
+-- Generate key for encryption
 DECLARE @aesKey NVARCHAR(MAX) = dbo.GenerateAESKey();
-DECLARE @nonce NVARCHAR(MAX) = SUBSTRING(@aesKey, 1, 16); -- Use first 16 chars as nonce for demo
 
--- Example 1: Single row encryption
+-- Example 1: Single JSON row encryption using basic AES-GCM
 DECLARE @jsonRow NVARCHAR(MAX) = '{"ID":1,"Name":"John Doe","Department":"Engineering","Salary":95000.00}';
-DECLARE @encryptedRow NVARCHAR(MAX) = dbo.EncryptRowDataAesGcm(@jsonRow, @aesKey, @nonce);
+DECLARE @encryptedRow NVARCHAR(MAX) = dbo.EncryptAesGcm(@jsonRow, @aesKey);
 PRINT 'Encrypted single row: ' + LEFT(@encryptedRow, 100) + '...';
 
 -- Decrypt the row
-DECLARE @decryptedRow NVARCHAR(MAX) = dbo.DecryptRowDataAesGcm(@encryptedRow, @aesKey);
+DECLARE @decryptedRow NVARCHAR(MAX) = dbo.DecryptAesGcm(@encryptedRow, @aesKey);
 PRINT 'Decrypted row: ' + @decryptedRow;
 
--- Example 2: Table-Valued Function for multiple rows
-DECLARE @jsonArray NVARCHAR(MAX) = (SELECT * FROM #SampleData FOR JSON PATH);
-PRINT 'Encrypting multiple rows using table-valued function...';
+-- Example 2: Password-based encryption for individual data
+DECLARE @userPassword NVARCHAR(MAX) = N'MySecretPassword123!';
+DECLARE @encryptedWithPassword NVARCHAR(MAX) = dbo.EncryptAesGcmWithPassword(@jsonRow, @userPassword);
+PRINT 'Encrypted with password: ' + LEFT(@encryptedWithPassword, 100) + '...';
 
-SELECT RowId, LEFT(EncryptedData, 50) + '...' AS EncryptedData, LEFT(AuthTag, 20) + '...' AS AuthTag
-FROM dbo.EncryptTableRowsAesGcm(@jsonArray, @aesKey, @nonce)
-ORDER BY RowId;
+-- Decrypt with password
+DECLARE @decryptedWithPassword NVARCHAR(MAX) = dbo.DecryptAesGcmWithPassword(@encryptedWithPassword, @userPassword);
+PRINT 'Decrypted with password: ' + @decryptedWithPassword;
 
 -- =============================================
 -- Core AES-GCM Encryption Examples
@@ -94,15 +94,6 @@ PRINT 'Encrypted (AES-GCM): ' + LEFT(@encryptedGcm, 100) + '...';
 -- Decrypt
 DECLARE @decryptedGcm NVARCHAR(MAX) = dbo.DecryptAesGcm(@encryptedGcm, @aesKey);
 PRINT 'Decrypted (AES-GCM): ' + @decryptedGcm;
-
--- Password-based encryption (simplest approach)
-DECLARE @userPassword NVARCHAR(MAX) = N'MySecretPassword123!';
-DECLARE @encryptedWithPassword NVARCHAR(MAX) = dbo.EncryptAesGcmWithPassword(@plainText, @userPassword);
-PRINT 'Encrypted with password: ' + LEFT(@encryptedWithPassword, 100) + '...';
-
--- Decrypt with password
-DECLARE @decryptedWithPassword NVARCHAR(MAX) = dbo.DecryptAesGcmWithPassword(@encryptedWithPassword, @userPassword);
-PRINT 'Decrypted with password: ' + @decryptedWithPassword;
 
 -- =============================================
 -- Password Hashing Examples

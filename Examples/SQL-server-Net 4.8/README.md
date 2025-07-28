@@ -31,11 +31,6 @@ This folder contains the unified, comprehensive SQL CLR installation and usage e
 - `EncryptXmlWithPassword` - Encrypt entire tables with a password
 - `RestoreEncryptedTable` - Universal stored procedure to restore any encrypted table
 
-✅ **Row-by-Row Encryption** 
-- `EncryptRowDataAesGcm` - Encrypt individual JSON rows
-- `DecryptRowDataAesGcm` - Decrypt individual rows
-- `EncryptTableRowsAesGcm` - Table-Valued Function for bulk processing
-
 ✅ **Enhanced PowerBuilder Integration**
 - Simplified password-based workflows
 - Korean character support
@@ -77,7 +72,7 @@ The new `practical-examples.sql` addresses developer feedback by providing:
 
 The `example.sql` file demonstrates:
 - Complete table encryption/decryption workflows
-- Row-by-row processing examples
+- Individual data encryption examples
 - Password hashing for authentication
 - Diffie-Hellman key exchange
 - PowerBuilder integration patterns

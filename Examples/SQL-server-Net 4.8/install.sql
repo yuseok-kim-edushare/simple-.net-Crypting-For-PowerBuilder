@@ -49,10 +49,6 @@ PRINT 'Deploying to database: ' + @target_db;
 
 -- Drop existing functions and procedures
 IF OBJECT_ID('dbo.RestoreEncryptedTable', 'P') IS NOT NULL DROP PROCEDURE dbo.RestoreEncryptedTable;
-IF OBJECT_ID('dbo.EncryptRowDataAesGcm') IS NOT NULL DROP FUNCTION dbo.EncryptRowDataAesGcm;
-IF OBJECT_ID('dbo.DecryptRowDataAesGcm') IS NOT NULL DROP FUNCTION dbo.DecryptRowDataAesGcm;
-IF OBJECT_ID('dbo.EncryptTableRowsAesGcm') IS NOT NULL DROP FUNCTION dbo.EncryptTableRowsAesGcm;
-IF OBJECT_ID('dbo.BulkProcessRowsAesGcm', 'P') IS NOT NULL DROP PROCEDURE dbo.BulkProcessRowsAesGcm;
 IF OBJECT_ID('dbo.EncryptXmlWithPassword') IS NOT NULL DROP FUNCTION dbo.EncryptXmlWithPassword;
 IF OBJECT_ID('dbo.EncryptXmlWithPasswordIterations') IS NOT NULL DROP FUNCTION dbo.EncryptXmlWithPasswordIterations;
 IF OBJECT_ID('dbo.GenerateAESKey') IS NOT NULL DROP FUNCTION dbo.GenerateAESKey;
@@ -131,44 +127,6 @@ CREATE PROCEDURE dbo.RestoreEncryptedTable
 AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].RestoreEncryptedTable;
 GO
 
--- Row-by-Row Encryption Functions (NEW in PR #61)
-CREATE FUNCTION dbo.EncryptRowDataAesGcm(
-    @jsonRowData NVARCHAR(MAX),
-    @base64Key NVARCHAR(MAX),
-    @base64Nonce NVARCHAR(MAX)
-)
-RETURNS NVARCHAR(MAX)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptRowDataAesGcm;
-GO
-
-CREATE FUNCTION dbo.DecryptRowDataAesGcm(
-    @encryptedData NVARCHAR(MAX),
-    @base64Key NVARCHAR(MAX)
-)
-RETURNS NVARCHAR(MAX)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DecryptRowDataAesGcm;
-GO
-
-CREATE FUNCTION dbo.EncryptTableRowsAesGcm(
-    @jsonArrayData NVARCHAR(MAX),
-    @base64Key NVARCHAR(MAX),
-    @base64Nonce NVARCHAR(MAX)
-)
-RETURNS TABLE (
-    RowId INT,
-    EncryptedData NVARCHAR(MAX),
-    AuthTag NVARCHAR(MAX)
-)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptTableRowsAesGcm;
-GO
-
-CREATE PROCEDURE dbo.BulkProcessRowsAesGcm
-    @jsonArrayData NVARCHAR(MAX),
-    @base64Key NVARCHAR(MAX),
-    @base64Nonce NVARCHAR(MAX),
-    @batchSize INT = 1000
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].BulkProcessRowsAesGcm;
-GO
 
 -- Core Cryptographic Functions
 CREATE FUNCTION dbo.GenerateAESKey()
@@ -233,6 +191,122 @@ RETURNS nvarchar(max)
 AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DeriveSharedKey;
 GO
 
+-- Salt Generation Functions
+CREATE FUNCTION dbo.GenerateSalt()
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].GenerateSalt;
+GO
+
+CREATE FUNCTION dbo.GenerateSaltWithLength(@saltLength int)
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].GenerateSaltWithLength;
+GO
+
+-- Advanced Password-Based Encryption Functions
+CREATE FUNCTION dbo.EncryptAesGcmWithPasswordAndSalt(
+    @plainText nvarchar(max), 
+    @password nvarchar(max),
+    @base64Salt nvarchar(max))
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptAesGcmWithPasswordAndSalt;
+GO
+
+CREATE FUNCTION dbo.EncryptAesGcmWithPasswordAndSaltIterations(
+    @plainText nvarchar(max), 
+    @password nvarchar(max),
+    @base64Salt nvarchar(max),
+    @iterations int)
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptAesGcmWithPasswordAndSaltIterations;
+GO
+
+-- Key Derivation Functions
+CREATE FUNCTION dbo.DeriveKeyFromPassword(
+    @password nvarchar(max), 
+    @base64Salt nvarchar(max))
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DeriveKeyFromPassword;
+GO
+
+CREATE FUNCTION dbo.DeriveKeyFromPasswordIterations(
+    @password nvarchar(max), 
+    @base64Salt nvarchar(max),
+    @iterations int)
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DeriveKeyFromPasswordIterations;
+GO
+
+-- Derived Key Encryption Functions
+CREATE FUNCTION dbo.EncryptAesGcmWithDerivedKey(
+    @plainText nvarchar(max), 
+    @base64DerivedKey nvarchar(max),
+    @base64Salt nvarchar(max))
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptAesGcmWithDerivedKey;
+GO
+
+CREATE FUNCTION dbo.DecryptAesGcmWithDerivedKey(
+    @base64EncryptedData nvarchar(max), 
+    @base64DerivedKey nvarchar(max))
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DecryptAesGcmWithDerivedKey;
+GO
+
+-- Advanced Password Hashing Function
+CREATE FUNCTION dbo.HashPasswordWithWorkFactor(@password nvarchar(max), @workFactor int)
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].HashPasswordWithWorkFactor;
+GO
+
+-- Metadata-Enhanced Encryption Functions
+CREATE FUNCTION dbo.EncryptTableWithMetadata(
+    @tableName nvarchar(max), 
+    @password nvarchar(max))
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptTableWithMetadata;
+GO
+
+CREATE FUNCTION dbo.EncryptTableWithMetadataIterations(
+    @tableName nvarchar(max), 
+    @password nvarchar(max),
+    @iterations int)
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptTableWithMetadataIterations;
+GO
+
+CREATE FUNCTION dbo.EncryptXmlWithMetadata(
+    @xmlData xml, 
+    @password nvarchar(max))
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptXmlWithMetadata;
+GO
+
+CREATE FUNCTION dbo.EncryptXmlWithMetadataIterations(
+    @xmlData xml, 
+    @password nvarchar(max),
+    @iterations int)
+RETURNS nvarchar(max)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptXmlWithMetadataIterations;
+GO
+
+-- Table-Valued Functions for Advanced Decryption
+CREATE FUNCTION dbo.DecryptTableTVF(
+    @encryptedData nvarchar(max), 
+    @password nvarchar(max))
+RETURNS TABLE (DecryptedXml xml)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableTVF;
+GO
+
+CREATE FUNCTION dbo.DecryptTableTypedTVF(
+    @encryptedPackage nvarchar(max), 
+    @password nvarchar(max))
+RETURNS TABLE (
+    -- Dynamic columns based on embedded metadata
+    -- This function returns properly typed data without manual casting
+)
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableTypedTVF;
+GO
+
 PRINT 'All functions and procedures created successfully!';
 
 -- =============================================
@@ -247,20 +321,31 @@ FROM sys.objects o
 WHERE o.name IN (
     'EncryptXmlWithPassword', 
     'EncryptXmlWithPasswordIterations',
+    'EncryptXmlWithMetadata',
+    'EncryptXmlWithMetadataIterations',
+    'EncryptTableWithMetadata',
+    'EncryptTableWithMetadataIterations',
     'RestoreEncryptedTable',
-    'EncryptRowDataAesGcm',
-    'DecryptRowDataAesGcm',
-    'EncryptTableRowsAesGcm',
-    'BulkProcessRowsAesGcm',
     'GenerateAESKey',
     'EncryptAesGcm',
     'DecryptAesGcm',
     'EncryptAesGcmWithPassword',
     'DecryptAesGcmWithPassword',
+    'EncryptAesGcmWithPasswordAndSalt',
+    'EncryptAesGcmWithPasswordAndSaltIterations',
+    'DeriveKeyFromPassword',
+    'DeriveKeyFromPasswordIterations',
+    'EncryptAesGcmWithDerivedKey',
+    'DecryptAesGcmWithDerivedKey',
     'HashPasswordDefault',
+    'HashPasswordWithWorkFactor',
     'VerifyPassword',
+    'GenerateSalt',
+    'GenerateSaltWithLength',
     'GenerateDiffieHellmanKeys',
-    'DeriveSharedKey'
+    'DeriveSharedKey',
+    'DecryptTableTVF',
+    'DecryptTableTypedTVF'
 )
 ORDER BY o.name;
 
@@ -269,11 +354,15 @@ PRINT '=== INSTALLATION COMPLETED SUCCESSFULLY ===';
 PRINT 'Database: ' + DB_NAME();
 PRINT '';
 PRINT 'Available Functions:';
-PRINT '✓ Password-Based Table Encryption (NEW): EncryptXmlWithPassword, RestoreEncryptedTable';
-PRINT '✓ Row-by-Row Encryption (NEW): EncryptRowDataAesGcm, DecryptRowDataAesGcm, EncryptTableRowsAesGcm';
+PRINT '✓ Password-Based Table Encryption: EncryptXmlWithPassword, RestoreEncryptedTable';
+PRINT '✓ Metadata-Enhanced Encryption: EncryptTableWithMetadata, EncryptXmlWithMetadata';
 PRINT '✓ Core AES-GCM Encryption: EncryptAesGcm, DecryptAesGcm, EncryptAesGcmWithPassword';
-PRINT '✓ Password Hashing: HashPasswordDefault, VerifyPassword';
+PRINT '✓ Advanced Password Encryption: EncryptAesGcmWithPasswordAndSalt, DeriveKeyFromPassword';
+PRINT '✓ Derived Key Encryption: EncryptAesGcmWithDerivedKey, DecryptAesGcmWithDerivedKey';
+PRINT '✓ Password Hashing: HashPasswordDefault, HashPasswordWithWorkFactor, VerifyPassword';
+PRINT '✓ Salt Generation: GenerateSalt, GenerateSaltWithLength';
 PRINT '✓ Key Exchange: GenerateDiffieHellmanKeys, DeriveSharedKey';
+PRINT '✓ Advanced Decryption: DecryptTableTVF, DecryptTableTypedTVF (Zero-Cast)';
 PRINT '';
 PRINT 'Next: Run example.sql to see usage examples of all features.'
 PRINT '      For practical, developer-focused examples addressing dynamic table'
