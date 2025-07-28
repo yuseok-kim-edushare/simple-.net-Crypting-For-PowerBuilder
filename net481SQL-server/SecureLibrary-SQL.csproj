@@ -34,5 +34,6 @@
   <ItemGroup>
     <Compile Include="draft.cs" />
     <Compile Include="invokeCGN.cs" />
+    <Compile Include="SqlTypeMapping.cs" />
   </ItemGroup>
 </Project>
