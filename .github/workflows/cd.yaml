@@ -123,7 +123,7 @@ jobs:
       run: |
         $latestCommitMessage = (git log -1 --pretty=%B)
         foreach ($line in $latestCommitMessage) {
-          if ($line -match "Update Version to (\d+\.\d+\.\d+)") {
+          if ($line -match "Update Version To (\d+\.\d+\.\d+)") {
             $messageParts = $line -split ' '
             $lastPart = $messageParts[-1]
             echo "new_release=$lastPart" >> $env:GITHUB_ENV
