@@ -275,4 +275,6 @@ PRINT '✓ Core AES-GCM Encryption: EncryptAesGcm, DecryptAesGcm, EncryptAesGcmW
 PRINT '✓ Password Hashing: HashPasswordDefault, VerifyPassword';
 PRINT '✓ Key Exchange: GenerateDiffieHellmanKeys, DeriveSharedKey';
 PRINT '';
-PRINT 'Next: Run example.sql to see usage examples of all features.';
+PRINT 'Next: Run example.sql to see usage examples of all features.'
+PRINT '      For practical, developer-focused examples addressing dynamic table'
+PRINT '      creation and schema comparison, see practical-examples.sql';

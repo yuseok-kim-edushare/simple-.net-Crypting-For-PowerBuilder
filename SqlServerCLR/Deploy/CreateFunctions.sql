@@ -52,4 +52,5 @@ PRINT 'Objects available:';
 PRINT '  - EncryptXmlWithPassword: Encrypts XML using a password.';
 PRINT '  - RestoreEncryptedTable: The universal procedure to decrypt and restore any table.';
 PRINT '';
-PRINT 'Next: Run TestScripts.sql to test the new functionality.';
+PRINT 'Next: Run TestScripts.sql for basic tests, or ImprovedTestScripts.sql';
+PRINT '      for practical examples with dynamic table creation and schema comparison.';

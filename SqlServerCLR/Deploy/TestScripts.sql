@@ -1,5 +1,9 @@
 -- Test Scripts for Password-Based Table Encryption and Decryption
 -- This script demonstrates the final, recommended universal restore procedure.
+-- 
+-- NOTE: For a more practical, developer-friendly demonstration that addresses
+-- dynamic table creation, schema comparison, and SELECT INTO usage,
+-- see ImprovedTestScripts.sql which provides enhanced examples.
 
 USE [YourDatabase]
 GO

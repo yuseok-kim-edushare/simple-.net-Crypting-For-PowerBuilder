@@ -1,5 +1,9 @@
 -- Complete Usage Examples for SecureLibrary-SQL CLR Functions
 -- This script demonstrates all functionality including new features from PR #61
+--
+-- NOTE: For more practical, developer-focused examples that address
+-- dynamic table creation, schema comparison, and SELECT INTO patterns,
+-- see practical-examples.sql which provides enhanced real-world examples.
 
 -- =============================================
 -- NEW FEATURES: Password-Based Table Encryption
