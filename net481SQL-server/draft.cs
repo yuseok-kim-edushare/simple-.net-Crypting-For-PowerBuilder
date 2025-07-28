@@ -6,6 +6,8 @@ using System.Text;
 using System.Security;
 using SecureLibrary.SQL;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 
 [assembly: AllowPartiallyTrustedCallers]
 [assembly: SecurityRules(SecurityRuleSet.Level2)]
@@ -782,6 +784,114 @@ namespace SecureLibrary.SQL
             finally
             {
                 if (key != null) Array.Clear(key, 0, key.Length);
+            }
+        }
+
+        // ======================================================================================
+        // PASSWORD-BASED TABLE ENCRYPTION/DECRYPTION FUNCTIONS
+        // ======================================================================================
+
+        private const int DefaultIterations = 2000; // optimal for password-based encryption for blob or else large data
+
+        /// <summary>
+        /// Encrypts an XML document using a password. The salt and nonce are generated automatically
+        /// and stored in the output.
+        /// </summary>
+        [SqlFunction(IsDeterministic = false, IsPrecise = true, DataAccess = DataAccessKind.None)]
+        [SecuritySafeCritical]
+        public static SqlString EncryptXmlWithPassword(SqlXml xmlData, SqlString password)
+        {
+            return EncryptXmlWithPasswordIterations(xmlData, password, DefaultIterations);
+        }
+
+        /// <summary>
+        /// Encrypts an XML document using a password and a specific iteration count for key derivation.
+        /// </summary>
+        [SqlFunction(IsDeterministic = false, IsPrecise = true, DataAccess = DataAccessKind.None)]
+        [SecuritySafeCritical]
+        public static SqlString EncryptXmlWithPasswordIterations(SqlXml xmlData, SqlString password, SqlInt32 iterations)
+        {
+            if (xmlData.IsNull || password.IsNull)
+                return SqlString.Null;
+
+            try
+            {
+                int iterationCount = iterations.IsNull ? DefaultIterations : iterations.Value;
+                // Use the BcryptInterop class to handle the encryption details.
+                string encrypted = BcryptInterop.EncryptAesGcmWithPassword(xmlData.Value, password.Value, null, iterationCount);
+
+                if (string.IsNullOrEmpty(encrypted))
+                    throw new CryptographicException("Encryption returned null or empty.");
+
+                return new SqlString(encrypted);
+            }
+            catch (Exception)
+            {
+                return SqlString.Null;
+            }
+        }
+
+        /// <summary>
+        /// Decrypts data encrypted with a password and restores it to a fully structured result set.
+        /// This is the recommended universal decryption method.
+        /// </summary>
+        [SqlProcedure]
+        [SecuritySafeCritical]
+        public static void RestoreEncryptedTable(SqlString encryptedData, SqlString password)
+        {
+            if (encryptedData.IsNull || password.IsNull)
+                return;
+
+            try
+            {
+                // 1. Decrypt the XML string
+                string decryptedXml = BcryptInterop.DecryptAesGcmWithPassword(encryptedData.Value, password.Value, DefaultIterations);
+                if (decryptedXml == null)
+                    throw new CryptographicException("Decryption returned null. Check password or data integrity.");
+
+                // 2. Discover the schema from the XML attributes of the first 'Row' node
+                List<string> columnNames = new List<string>();
+                using (var stringReader = new System.IO.StringReader(decryptedXml))
+                using (var xmlReader = System.Xml.XmlReader.Create(stringReader))
+                {
+                    if (xmlReader.MoveToContent() != System.Xml.XmlNodeType.Element) return; // Move to root
+                    if (!xmlReader.ReadToDescendant("Row")) return; // Move to the first Row
+
+                    if (xmlReader.MoveToFirstAttribute())
+                    {
+                        do
+                        {
+                            columnNames.Add(xmlReader.Name);
+                        } while (xmlReader.MoveToNextAttribute());
+                    }
+                }
+                
+                if (columnNames.Count == 0) return; // No columns found
+
+                // 3. Build the Dynamic SQL to shred the XML and return the result set
+                var sql = new StringBuilder();
+                var columns = string.Join(", ", columnNames.Select(c => $"T.c.value('@{c}', 'NVARCHAR(MAX)') AS [{c}]"));
+                
+                sql.AppendLine("DECLARE @xml XML;");
+                sql.AppendLine("SET @xml = @p_xml;");
+                sql.AppendLine("SELECT");
+                sql.AppendLine(columns);
+                sql.AppendLine("FROM @xml.nodes('/Root/Row') AS T(c);");
+
+                // 4. Execute the command and send the results to the client
+                using (var connection = new System.Data.SqlClient.SqlConnection("context connection=true"))
+                {
+                    connection.Open();
+                    using (var command = new System.Data.SqlClient.SqlCommand(sql.ToString(), connection))
+                    {
+                        command.Parameters.Add(new System.Data.SqlClient.SqlParameter("@p_xml", System.Data.SqlDbType.Xml) { Value = decryptedXml });
+                        SqlContext.Pipe.ExecuteAndSend(command);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SqlContext.Pipe.Send(ex.Message);
             }
         }
     }
