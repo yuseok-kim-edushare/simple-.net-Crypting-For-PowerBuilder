@@ -1,69 +1,38 @@
--- Create SQL Server CLR Functions for Row-by-Row Encryption
+-- Create SQL Server CLR Functions and Procedures for Password-Based Table Encryption
 -- Run this script after CreateAssembly.sql
 
 USE [YourDatabase]
 GO
 
--- Create Row-by-Row Encryption Functions
+-- Create Password-Based Table Encryption Functions
 
--- Single row encryption function
-CREATE FUNCTION dbo.EncryptRowDataAesGcm(
-    @rowJson NVARCHAR(MAX), 
-    @base64Key NVARCHAR(MAX), 
-    @base64Nonce NVARCHAR(32)
+-- Encrypts table data (as XML) using a password
+CREATE FUNCTION dbo.EncryptXmlWithPassword(
+    @xmlData XML, 
+    @password NVARCHAR(MAX)
 )
 RETURNS NVARCHAR(MAX)
-AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].EncryptRowDataAesGcm;
+AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].EncryptXmlWithPassword;
 GO
 
--- Single row decryption function
-CREATE FUNCTION dbo.DecryptRowDataAesGcm(
-    @base64EncryptedData NVARCHAR(MAX), 
-    @base64Key NVARCHAR(MAX), 
-    @base64Nonce NVARCHAR(32)
+-- Encrypts table data with a specific iteration count
+CREATE FUNCTION dbo.EncryptXmlWithPasswordIterations(
+    @xmlData XML, 
+    @password NVARCHAR(MAX),
+    @iterations INT
 )
 RETURNS NVARCHAR(MAX)
-AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].DecryptRowDataAesGcm;
+AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].EncryptXmlWithPasswordIterations;
 GO
 
--- Table-valued function for bulk row encryption
-CREATE FUNCTION dbo.EncryptTableRowsAesGcm(
-    @tableDataJson NVARCHAR(MAX), 
-    @base64Key NVARCHAR(MAX), 
-    @base64Nonce NVARCHAR(32)
-)
-RETURNS TABLE (RowId INT, EncryptedData NVARCHAR(MAX), AuthTag NVARCHAR(32))
-AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].EncryptTableRowsAesGcm;
+-- Universal procedure to decrypt and restore any table
+CREATE PROCEDURE dbo.RestoreEncryptedTable
+    @encryptedData NVARCHAR(MAX),
+    @password NVARCHAR(MAX)
+AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].RestoreEncryptedTable;
 GO
 
--- Table-valued function for bulk row decryption from structured encrypted data
-CREATE FUNCTION dbo.DecryptBulkTableData(
-    @encryptedTableData NVARCHAR(MAX),
-    @base64Key NVARCHAR(MAX), 
-    @base64Nonce NVARCHAR(32)
-)
-RETURNS TABLE (RowId INT, DecryptedData NVARCHAR(MAX))
-AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].DecryptBulkTableData;
-GO
-
--- Table-valued function for decrypting table data in views and stored procedures
-CREATE FUNCTION dbo.DecryptTableFromView(
-    @base64Key NVARCHAR(MAX), 
-    @base64Nonce NVARCHAR(32)
-)
-RETURNS TABLE (RowId INT, DecryptedData NVARCHAR(MAX))
-AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableFromView;
-GO
-
--- Bulk processing procedure with streaming
-CREATE PROCEDURE dbo.BulkProcessRowsAesGcm
-    @tableDataJson NVARCHAR(MAX),
-    @base64Key NVARCHAR(MAX),
-    @batchSize INT = 1000
-AS EXTERNAL NAME SimpleDotNetCrypting.[SecureLibrary.SQL.SqlCLRCrypting].BulkProcessRowsAesGcm;
-GO
-
--- Verify functions were created
+-- Verify objects were created
 SELECT 
     SCHEMA_NAME(o.schema_id) AS SchemaName,
     o.name AS ObjectName,
@@ -71,23 +40,16 @@ SELECT
     o.create_date AS CreateDate
 FROM sys.objects o
 WHERE o.name IN (
-    'EncryptRowDataAesGcm', 
-    'DecryptRowDataAesGcm', 
-    'EncryptTableRowsAesGcm', 
-    'DecryptBulkTableData',
-    'DecryptTableFromView',
-    'BulkProcessRowsAesGcm'
+    'EncryptXmlWithPassword', 
+    'EncryptXmlWithPasswordIterations',
+    'RestoreEncryptedTable'
 )
 ORDER BY o.name;
 GO
 
-PRINT 'Row-by-row encryption and decryption functions created successfully!';
-PRINT 'Functions available:';
-PRINT '  - EncryptRowDataAesGcm: Encrypt single JSON row';
-PRINT '  - DecryptRowDataAesGcm: Decrypt single row back to JSON';
-PRINT '  - EncryptTableRowsAesGcm: Bulk encrypt JSON array to structured table';
-PRINT '  - DecryptBulkTableData: Bulk decrypt structured table back to JSON';
-PRINT '  - DecryptTableFromView: Decrypt table data for use in views/procedures';
-PRINT '  - BulkProcessRowsAesGcm: Streaming bulk processing procedure';
+PRINT 'Password-based table encryption objects created successfully!';
+PRINT 'Objects available:';
+PRINT '  - EncryptXmlWithPassword: Encrypts XML using a password.';
+PRINT '  - RestoreEncryptedTable: The universal procedure to decrypt and restore any table.';
 PRINT '';
-PRINT 'Next: Run TestScripts.sql to test the functionality.';
+PRINT 'Next: Run TestScripts.sql to test the new functionality.';
