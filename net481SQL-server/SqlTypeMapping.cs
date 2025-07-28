@@ -7,19 +7,6 @@ using System.Globalization;
 namespace SecureLibrary.SQL
 {
     /// <summary>
-    /// Column metadata information for SQL type mapping
-    /// </summary>
-    public class ColumnInfo
-    {
-        public string Name { get; set; }
-        public string TypeName { get; set; }
-        public int? MaxLength { get; set; }
-        public byte? Precision { get; set; }
-        public byte? Scale { get; set; }
-        public bool IsNullable { get; set; }
-    }
-
-    /// <summary>
     /// Utility class for mapping SQL types to SqlMetaData and converting string values to proper SQL CLR types
     /// Handles all common SQL Server data types with robust error handling and fallback support
     /// </summary>
@@ -298,6 +285,68 @@ namespace SecureLibrary.SQL
             {
                 // If conversion fails, set as NULL to ensure partial recovery
                 record.SetDBNull(ordinal);
+            }
+        }
+
+        /// <summary>
+        /// Converts SqlDbType to SQL Server type string for CAST expressions
+        /// </summary>
+        public static string GetSqlTypeString(SqlDbType sqlDbType, byte precision, byte scale, long maxLength)
+        {
+            switch (sqlDbType)
+            {
+                case SqlDbType.Int:
+                    return "INT";
+                case SqlDbType.BigInt:
+                    return "BIGINT";
+                case SqlDbType.SmallInt:
+                    return "SMALLINT";
+                case SqlDbType.TinyInt:
+                    return "TINYINT";
+                case SqlDbType.Bit:
+                    return "BIT";
+                case SqlDbType.Decimal:
+                case SqlDbType.Money:
+                case SqlDbType.SmallMoney:
+                    if (precision > 0 && scale > 0)
+                        return $"DECIMAL({precision},{scale})";
+                    else if (sqlDbType == SqlDbType.Money)
+                        return "MONEY";
+                    else if (sqlDbType == SqlDbType.SmallMoney)
+                        return "SMALLMONEY";
+                    else
+                        return "DECIMAL(18,2)";
+                case SqlDbType.Float:
+                    return "FLOAT";
+                case SqlDbType.Real:
+                    return "REAL";
+                case SqlDbType.Date:
+                    return "DATE";
+                case SqlDbType.DateTime:
+                    return "DATETIME";
+                case SqlDbType.DateTime2:
+                    return $"DATETIME2({precision})";
+                case SqlDbType.Time:
+                    return $"TIME({precision})";
+                case SqlDbType.DateTimeOffset:
+                    return $"DATETIMEOFFSET({precision})";
+                case SqlDbType.UniqueIdentifier:
+                    return "UNIQUEIDENTIFIER";
+                case SqlDbType.VarBinary:
+                case SqlDbType.Binary:
+                case SqlDbType.Image:
+                    return "VARBINARY(MAX)";
+                case SqlDbType.Xml:
+                    return "XML";
+                case SqlDbType.Char:
+                    return maxLength > 0 ? $"CHAR({maxLength})" : "CHAR(1)";
+                case SqlDbType.NChar:
+                    return maxLength > 0 ? $"NCHAR({maxLength})" : "NCHAR(1)";
+                case SqlDbType.VarChar:
+                    return maxLength > 0 && maxLength <= 8000 ? $"VARCHAR({maxLength})" : "VARCHAR(MAX)";
+                case SqlDbType.NVarChar:
+                default:
+                    return maxLength > 0 && maxLength <= 4000 ? $"NVARCHAR({maxLength})" : "NVARCHAR(MAX)";
             }
         }
     }
