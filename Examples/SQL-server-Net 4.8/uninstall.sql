@@ -5,7 +5,7 @@
 -- CONFIGURATION - CHANGE THESE VALUES
 -- =============================================
 DECLARE @target_db NVARCHAR(128) = N'master';  -- <<<< CHANGE THIS FOR EACH DATABASE
-DECLARE @dll_path NVARCHAR(260) = N'G:\DBMS\SecureLibrary-SQL.dll';  -- <<<< SET YOUR PATH HERE
+DECLARE @dll_path NVARCHAR(260) = N'C:\CLR\SecureLibrary-SQL.dll';  -- <<<< SET YOUR PATH HERE
 
 -- =============================================
 -- Switch to target database
@@ -141,7 +141,7 @@ END
 
 DECLARE @hash VARBINARY(64);
 SELECT @hash = HASHBYTES('SHA2_512', BulkColumn)
-FROM OPENROWSET(BULK 'G:\DBMS\SecureLibrary-SQL.dll', SINGLE_BLOB) AS x;
+FROM OPENROWSET(BULK 'C:\CLR\SecureLibrary-SQL.dll', SINGLE_BLOB) AS x;
 
 IF EXISTS (SELECT * FROM sys.trusted_assemblies WHERE [hash] = @hash)
 BEGIN

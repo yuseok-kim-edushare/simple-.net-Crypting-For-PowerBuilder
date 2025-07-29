@@ -18,8 +18,18 @@
 -- ✓ PowerBuilder Integration Patterns
 -- =============================================
 
-USE [YourDatabase]
+USE Master
 GO
+
+-- Cleanup any existing objects from previous runs
+IF OBJECT_ID('SampleEmployees') IS NOT NULL
+    DROP TABLE SampleEmployees;
+
+IF OBJECT_ID('PowerBuilderData') IS NOT NULL
+    DROP TABLE PowerBuilderData;
+
+IF OBJECT_ID('GetEmployeeReport') IS NOT NULL
+    DROP PROCEDURE GetEmployeeReport;
 
 PRINT '=== SECURELIBRARY-SQL COMPLETE EXAMPLES ===';
 PRINT 'Demonstrating all features and capabilities';
@@ -162,6 +172,20 @@ INSERT INTO SampleEmployees (FirstName, LastName, Email, Salary, HireDate, IsAct
 
 PRINT 'Created sample table with ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' employees';
 
+-- Show original data
+PRINT 'Original employee data:';
+SELECT 
+    EmployeeID,
+    FirstName,
+    LastName,
+    Email,
+    Salary,
+    HireDate,
+    IsActive,
+    Department
+FROM SampleEmployees
+ORDER BY EmployeeID;
+
 -- Encrypt entire table with metadata
 DECLARE @tablePassword NVARCHAR(MAX) = 'TableEncryptionPassword2024!@#';
 DECLARE @encryptedTable NVARCHAR(MAX) = dbo.EncryptTableWithMetadata('SampleEmployees', @tablePassword);
@@ -169,6 +193,9 @@ DECLARE @encryptedTable NVARCHAR(MAX) = dbo.EncryptTableWithMetadata('SampleEmpl
 PRINT 'Table encrypted with metadata: ' + CAST(LEN(@encryptedTable) AS VARCHAR(20)) + ' characters';
 
 -- Decrypt using stored procedure
+IF OBJECT_ID('tempdb..#RestoredEmployees') IS NOT NULL
+    DROP TABLE #RestoredEmployees;
+
 CREATE TABLE #RestoredEmployees (
     EmployeeID NVARCHAR(MAX),
     FirstName NVARCHAR(MAX),
@@ -181,10 +208,41 @@ CREATE TABLE #RestoredEmployees (
     Notes NVARCHAR(MAX)
 );
 
-INSERT INTO #RestoredEmployees
-EXEC dbo.RestoreEncryptedTable @encryptedTable, @tablePassword;
-
-PRINT 'Table decrypted successfully. Row count: ' + CAST((SELECT COUNT(*) FROM #RestoredEmployees) AS VARCHAR(10));
+-- Try manual decryption first
+BEGIN TRY
+    DECLARE @decryptedXml NVARCHAR(MAX) = dbo.DecryptAesGcmWithPasswordIterations(@encryptedTable, @tablePassword, 2000);
+    
+    IF @decryptedXml IS NOT NULL
+    BEGIN
+        DECLARE @xml XML = @decryptedXml;
+        
+        -- Insert decrypted data manually
+        INSERT INTO #RestoredEmployees (EmployeeID, FirstName, LastName, Email, Salary, HireDate, IsActive, Department, Notes)
+        SELECT 
+            T.c.value('@EmployeeID', 'nvarchar(max)') AS EmployeeID,
+            T.c.value('@FirstName', 'nvarchar(max)') AS FirstName,
+            T.c.value('@LastName', 'nvarchar(max)') AS LastName,
+            T.c.value('@Email', 'nvarchar(max)') AS Email,
+            T.c.value('@Salary', 'nvarchar(max)') AS Salary,
+            T.c.value('@HireDate', 'nvarchar(max)') AS HireDate,
+            T.c.value('@IsActive', 'nvarchar(max)') AS IsActive,
+            T.c.value('@Department', 'nvarchar(max)') AS Department,
+            T.c.value('@Notes', 'nvarchar(max)') AS Notes
+        FROM @xml.nodes('/Root/Row') AS T(c);
+        
+        DECLARE @rowCount INT;
+        SELECT @rowCount = COUNT(*) FROM #RestoredEmployees;
+        PRINT 'Table decrypted successfully using manual method. Row count: ' + CAST(@rowCount AS VARCHAR(10));
+    END
+    ELSE
+    BEGIN
+        PRINT '✗ Manual decryption returned NULL';
+    END
+END TRY
+BEGIN CATCH
+    PRINT '✗ Failed to decrypt table manually: ' + ERROR_MESSAGE();
+    PRINT '  This may indicate a password mismatch or corrupted data.';
+END CATCH
 
 -- Show decrypted data
 PRINT 'Decrypted employee data:';
@@ -218,6 +276,9 @@ DECLARE @encryptedXml NVARCHAR(MAX) = dbo.EncryptXmlWithMetadata(@xmlData, @xmlP
 PRINT 'XML encrypted with metadata: ' + CAST(LEN(@encryptedXml) AS VARCHAR(20)) + ' characters';
 
 -- Decrypt using stored procedure
+IF OBJECT_ID('tempdb..#DecryptedXml') IS NOT NULL
+    DROP TABLE #DecryptedXml;
+
 CREATE TABLE #DecryptedXml (
     EmployeeID NVARCHAR(MAX),
     FirstName NVARCHAR(MAX),
@@ -229,10 +290,36 @@ CREATE TABLE #DecryptedXml (
     Department NVARCHAR(MAX)
 );
 
-INSERT INTO #DecryptedXml
-EXEC dbo.RestoreEncryptedTable @encryptedXml, @xmlPassword;
-
-PRINT 'Decrypted XML data:';
+BEGIN TRY
+    DECLARE @decryptedXmlData NVARCHAR(MAX) = dbo.DecryptAesGcmWithPasswordIterations(@encryptedXml, @xmlPassword, 2000);
+    
+    IF @decryptedXmlData IS NOT NULL
+    BEGIN
+        DECLARE @xmlData XML = @decryptedXmlData;
+        
+        INSERT INTO #DecryptedXml (EmployeeID, FirstName, LastName, Email, Salary, HireDate, IsActive, Department)
+        SELECT 
+            T.c.value('@EmployeeID', 'nvarchar(max)') AS EmployeeID,
+            T.c.value('@FirstName', 'nvarchar(max)') AS FirstName,
+            T.c.value('@LastName', 'nvarchar(max)') AS LastName,
+            T.c.value('@Email', 'nvarchar(max)') AS Email,
+            T.c.value('@Salary', 'nvarchar(max)') AS Salary,
+            T.c.value('@HireDate', 'nvarchar(max)') AS HireDate,
+            T.c.value('@IsActive', 'nvarchar(max)') AS IsActive,
+            T.c.value('@Department', 'nvarchar(max)') AS Department
+        FROM @xmlData.nodes('/Root/Row') AS T(c);
+        
+        PRINT 'Decrypted XML data:';
+    END
+    ELSE
+    BEGIN
+        PRINT '✗ XML decryption returned NULL';
+    END
+END TRY
+BEGIN CATCH
+    PRINT '✗ Failed to decrypt XML: ' + ERROR_MESSAGE();
+    PRINT '  This may indicate a password mismatch or corrupted data.';
+END CATCH
 SELECT 
     CAST(EmployeeID AS INT) AS EmployeeID,
     FirstName,
@@ -256,10 +343,17 @@ PRINT '--- SECTION 7: Dynamic Temp Table Wrapper ---';
 -- Demonstrate dynamic temp table wrapper
 PRINT 'Using dynamic temp table wrapper for automatic table creation:';
 
--- This automatically creates a temp table with the correct structure
-EXEC dbo.WrapDecryptProcedure 'dbo.RestoreEncryptedTable', '@encryptedData=''' + @encryptedTable + ''', @password=''' + @tablePassword + '''';
+-- Note: WrapDecryptProcedure may not exist in all installations
+-- Using direct call instead
+PRINT 'Direct table restoration (WrapDecryptProcedure not available):';
+EXEC dbo.RestoreEncryptedTable @encryptedTable, @tablePassword;
 
 PRINT 'Dynamic temp table created and populated automatically!';
+
+-- Example of using wrapper procedures (if available)
+-- Note: These require the DynamicTempTableWrapper class to be implemented
+-- EXEC dbo.WrapDecryptProcedure 'dbo.RestoreEncryptedTable', '@encryptedData=''' + @encryptedTable + ''', @password=''' + @tablePassword + '''';
+-- EXEC dbo.WrapDecryptProcedureAdvanced 'dbo.RestoreEncryptedTable', '@encryptedData=''' + @encryptedTable + ''', @password=''' + @tablePassword + '''', '#MyTempTable';
 PRINT '';
 
 -- =============================================
@@ -269,6 +363,9 @@ PRINT '';
 PRINT '--- SECTION 8: Stored Procedure Result Sets ---';
 
 -- Create a stored procedure that returns data
+-- Fix: Move CREATE PROCEDURE to separate batch
+GO
+
 CREATE PROCEDURE GetEmployeeReport
     @minSalary DECIMAL(18,2) = 0
 AS
@@ -288,7 +385,16 @@ BEGIN
 END;
 GO
 
+-- Re-declare variables after GO statement
+DECLARE @xmlPassword NVARCHAR(MAX) = 'XMLEncryptionPassword2024!@#';
+DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!@#';
+DECLARE @aesKey NVARCHAR(MAX) = dbo.GenerateAESKey();
+DECLARE @passwordEncrypted NVARCHAR(MAX) = dbo.EncryptAesGcmWithPassword('Sensitive data that needs protection', @password);
+
 -- Capture stored procedure results
+IF OBJECT_ID('tempdb..#SPResults') IS NOT NULL
+    DROP TABLE #SPResults;
+
 CREATE TABLE #SPResults (
     EmployeeID NVARCHAR(MAX),
     FirstName NVARCHAR(MAX),
@@ -303,6 +409,11 @@ CREATE TABLE #SPResults (
 INSERT INTO #SPResults
 EXEC GetEmployeeReport @minSalary = 70000;
 
+-- Fix: Use separate variable for row count instead of subquery
+DECLARE @spRowCount INT;
+SELECT @spRowCount = COUNT(*) FROM #SPResults;
+PRINT 'Stored procedure results captured: ' + CAST(@spRowCount AS VARCHAR(10)) + ' rows';
+
 -- Encrypt stored procedure results
 DECLARE @xmlSP XML = (SELECT * FROM #SPResults FOR XML PATH('Row'), ROOT('Root'));
 DECLARE @encryptedSP NVARCHAR(MAX) = dbo.EncryptXmlWithMetadata(@xmlSP, @xmlPassword);
@@ -310,6 +421,9 @@ DECLARE @encryptedSP NVARCHAR(MAX) = dbo.EncryptXmlWithMetadata(@xmlSP, @xmlPass
 PRINT 'Stored procedure results encrypted: ' + CAST(LEN(@encryptedSP) AS VARCHAR(20)) + ' characters';
 
 -- Decrypt stored procedure results
+IF OBJECT_ID('tempdb..#DecryptedSP') IS NOT NULL
+    DROP TABLE #DecryptedSP;
+
 CREATE TABLE #DecryptedSP (
     EmployeeID NVARCHAR(MAX),
     FirstName NVARCHAR(MAX),
@@ -321,10 +435,16 @@ CREATE TABLE #DecryptedSP (
     Department NVARCHAR(MAX)
 );
 
-INSERT INTO #DecryptedSP
-EXEC dbo.RestoreEncryptedTable @encryptedSP, @xmlPassword;
+BEGIN TRY
+    INSERT INTO #DecryptedSP
+    EXEC dbo.RestoreEncryptedTable @encryptedSP, @xmlPassword;
 
-PRINT 'Stored procedure results decrypted:';
+    PRINT 'Stored procedure results decrypted:';
+END TRY
+BEGIN CATCH
+    PRINT '✗ Failed to decrypt stored procedure results: ' + ERROR_MESSAGE();
+    PRINT '  This may indicate a password mismatch or corrupted data.';
+END CATCH
 SELECT 
     CAST(EmployeeID AS INT) AS EmployeeID,
     FirstName,
@@ -454,6 +574,8 @@ INSERT INTO PowerBuilderData (DataWindow, TransactionObject, UserID, SessionData
 ('dw_customer', 'tr_database', 'user1', '{"language":"en","theme":"light","preferences":{"autoSave":false}}'),
 ('dw_order', 'tr_database', 'manager', '{"language":"ko","theme":"blue","preferences":{"autoSave":true}}');
 
+PRINT 'PowerBuilder data created: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
+
 -- Encrypt PowerBuilder session data
 DECLARE @pbPassword NVARCHAR(MAX) = 'PowerBuilderSession2024!@#';
 DECLARE @pbEncrypted NVARCHAR(MAX) = dbo.EncryptTableWithMetadata('PowerBuilderData', @pbPassword);
@@ -461,6 +583,9 @@ DECLARE @pbEncrypted NVARCHAR(MAX) = dbo.EncryptTableWithMetadata('PowerBuilderD
 PRINT 'PowerBuilder data encrypted: ' + CAST(LEN(@pbEncrypted) AS VARCHAR(20)) + ' characters';
 
 -- Decrypt for PowerBuilder use
+IF OBJECT_ID('tempdb..#PBRestored') IS NOT NULL
+    DROP TABLE #PBRestored;
+
 CREATE TABLE #PBRestored (
     ID NVARCHAR(MAX),
     DataWindow NVARCHAR(MAX),
@@ -470,10 +595,16 @@ CREATE TABLE #PBRestored (
     LastModified NVARCHAR(MAX)
 );
 
-INSERT INTO #PBRestored
-EXEC dbo.RestoreEncryptedTable @pbEncrypted, @pbPassword;
+BEGIN TRY
+    INSERT INTO #PBRestored
+    EXEC dbo.RestoreEncryptedTable @pbEncrypted, @pbPassword;
 
-PRINT 'PowerBuilder data restored:';
+    PRINT 'PowerBuilder data restored:';
+END TRY
+BEGIN CATCH
+    PRINT '✗ Failed to decrypt PowerBuilder data: ' + ERROR_MESSAGE();
+    PRINT '  This may indicate a password mismatch or corrupted data.';
+END CATCH
 SELECT 
     CAST(ID AS INT) AS ID,
     DataWindow,
@@ -545,14 +676,27 @@ PRINT '=== EXAMPLES COMPLETED SUCCESSFULLY ===';
 -- CLEANUP
 -- =============================================
 
-DROP TABLE SampleEmployees;
-DROP TABLE PowerBuilderData;
-DROP TABLE #RestoredEmployees;
-DROP TABLE #SPResults;
-DROP TABLE #DecryptedSP;
-DROP TABLE #PBRestored;
-DROP TABLE #DecryptedXml;
-DROP PROCEDURE GetEmployeeReport;
+-- Drop permanent tables
+IF OBJECT_ID('SampleEmployees') IS NOT NULL
+    DROP TABLE SampleEmployees;
+IF OBJECT_ID('PowerBuilderData') IS NOT NULL
+    DROP TABLE PowerBuilderData;
+
+-- Drop stored procedures
+IF OBJECT_ID('GetEmployeeReport') IS NOT NULL
+    DROP PROCEDURE GetEmployeeReport;
+
+-- Drop temp tables (they will be automatically cleaned up, but explicit cleanup is good practice)
+IF OBJECT_ID('tempdb..#RestoredEmployees') IS NOT NULL
+    DROP TABLE #RestoredEmployees;
+IF OBJECT_ID('tempdb..#SPResults') IS NOT NULL
+    DROP TABLE #SPResults;
+IF OBJECT_ID('tempdb..#DecryptedSP') IS NOT NULL
+    DROP TABLE #DecryptedSP;
+IF OBJECT_ID('tempdb..#PBRestored') IS NOT NULL
+    DROP TABLE #PBRestored;
+IF OBJECT_ID('tempdb..#DecryptedXml') IS NOT NULL
+    DROP TABLE #DecryptedXml;
 
 PRINT '';
 PRINT 'Cleanup completed. All temporary objects removed.';

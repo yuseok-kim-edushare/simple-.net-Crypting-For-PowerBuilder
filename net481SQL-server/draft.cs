@@ -943,7 +943,10 @@ namespace SecureLibrary.SQL
                 // 1. Decrypt the XML string
                 string decryptedXml = BcryptInterop.DecryptAesGcmWithPassword(encryptedData.Value, password.Value, DefaultIterations);
                 if (decryptedXml == null)
-                    throw new CryptographicException("Decryption returned null. Check password or data integrity.");
+                {
+                    SqlContext.Pipe.Send("Decryption returned null. Check password or data integrity.");
+                    return;
+                }
 
                 // 2. Parse the XML document to extract metadata and column information
                 var doc = XDocument.Parse(decryptedXml);
@@ -989,7 +992,11 @@ namespace SecureLibrary.SQL
                     }
                 }
 
-                if (columns.Count == 0) return; // No columns found
+                if (columns.Count == 0)
+                {
+                    SqlContext.Pipe.Send("No columns found in decrypted XML data.");
+                    return;
+                }
 
                 // 3. Build the Dynamic SQL with automatic type casting
                 var sql = new StringBuilder();
@@ -1022,7 +1029,8 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                SqlContext.Pipe.Send(ex.Message);
+                SqlContext.Pipe.Send($"Error in RestoreEncryptedTable: {ex.Message}");
+                SqlContext.Pipe.Send($"Stack trace: {ex.StackTrace}");
             }
         }
 

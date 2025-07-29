@@ -1,165 +1,151 @@
-# SQL Server CLR Examples - Complete Installation Guide
+# SQL Server CLR Encryption Library
 
-This folder contains the unified, comprehensive SQL CLR installation and usage examples for SecureLibrary-SQL, updated to include all functionality with merged deployment scripts.
+This directory contains SQL Server CLR integration examples for the .NET encryption library, specifically designed for PowerBuilder integration.
 
 ## Quick Start
 
-1. **Install**: Run `install-complete.sql` 
-   - Update the DLL path in the script
-   - Update the target database name
-   - Execute the script to install all functions, procedures, and table-valued functions
-
-2. **Test**: Run `examples-complete.sql` for comprehensive demonstrations of all features
-
-3. **Uninstall**: Run `uninstall-complete.sql` if needed
-
-## Files Overview
-
-### Installation and Setup
-- **`install-complete.sql`** - **NEW!** Complete merged installation script for all CLR objects
-- **`uninstall-complete.sql`** - **NEW!** Complete uninstall script that removes all objects
-- **`install.sql`** - Legacy installation script (use install-complete.sql instead)
-- **`uninstall.sql`** - Legacy uninstall script (use uninstall-complete.sql instead)
-
-### Examples and Testing  
-- **`examples-complete.sql`** - **NEW!** Comprehensive examples demonstrating all features
-- **`example.sql`** - Basic usage examples (legacy)
-- **`practical-examples.sql`** - Enhanced developer-friendly examples (legacy)
-
-## What's New (Merged Deployment)
-
-✅ **Complete Merged Installation**
-- Single script installs all functions, procedures, and table-valued functions
-- Proper dependency ordering and error handling
-- Comprehensive verification and reporting
-
-✅ **Enhanced Features**
-- AES-GCM Encryption/Decryption (Recommended)
-- Password-based Key Derivation (PBKDF2)
-- Diffie-Hellman Key Exchange
-- BCrypt Password Hashing
-- Table-Level Encryption with Embedded Metadata
-- XML Encryption with Schema Inference
-- Dynamic Temp Table Wrapper
-- Automatic Type Casting
-- Stored Procedure Result Set Handling
-- Korean Character Support
-- PowerBuilder Integration Patterns
-
-## Installation Notes
-
-- **UNSAFE Permission Set**: Required for dynamic SQL execution in RestoreEncryptedTable
-- **CLR Enabled**: Script automatically enables CLR integration
-- **Trusted Assemblies**: Script handles assembly trust configuration
-- **Comprehensive**: Single script installs all 30+ functions and procedures
-
-## Usage Examples
-
-The `examples-complete.sql` file demonstrates:
-
-### Basic Encryption
+### 1. Installation
 ```sql
--- Generate AES key
-DECLARE @key NVARCHAR(MAX) = dbo.GenerateAESKey();
-
--- Encrypt/Decrypt
-DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptAesGcm('Hello World', @key);
-DECLARE @decrypted NVARCHAR(MAX) = dbo.DecryptAesGcm(@encrypted, @key);
+-- Run the complete installation script
+EXEC install-complete.sql
 ```
 
-### Password-Based Encryption
+### 2. Test Installation
 ```sql
--- Encrypt with password
-DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptAesGcmWithPassword('Sensitive data', 'MyPassword123!');
-
--- Decrypt with password
-DECLARE @decrypted NVARCHAR(MAX) = dbo.DecryptAesGcmWithPassword(@encrypted, 'MyPassword123!');
+-- Run the simple test script
+EXEC simple-restore.sql
 ```
 
-### Table-Level Encryption
+### 3. Debug Issues
 ```sql
--- Encrypt entire table
-DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptTableWithMetadata('MyTable', 'password');
-
--- Decrypt table
-EXEC dbo.RestoreEncryptedTable @encrypted, 'password';
+-- If you encounter problems, run the debug script
+EXEC debug-restore.sql
 ```
 
-### Password Hashing
-```sql
--- Hash password
-DECLARE @hash NVARCHAR(MAX) = dbo.HashPasswordDefault('userpassword');
+## Features
 
--- Verify password
-DECLARE @isValid BIT = dbo.VerifyPassword('userpassword', @hash);
-```
+### Password-Based Table Encryption
+- **EncryptTableWithMetadata**: Encrypt entire tables with embedded schema metadata
+- **RestoreEncryptedTable**: Decrypt and restore tables with automatic type casting
+- **WrapDecryptProcedure**: Dynamic temp table wrapper for automatic column discovery
 
-### Diffie-Hellman Key Exchange
-```sql
--- Generate key pairs
-SELECT * FROM dbo.GenerateDiffieHellmanKeys();
+### XML Encryption
+- **EncryptXmlWithMetadata**: Encrypt XML data with inferred schema information
+- **EncryptXmlWithPassword**: Legacy XML encryption (backward compatibility)
 
--- Derive shared key
-DECLARE @sharedKey NVARCHAR(MAX) = dbo.DeriveSharedKey(@otherPublicKey, @myPrivateKey);
-```
+### Row-by-Row Encryption
+- **EncryptRowDataAesGcm**: Encrypt individual JSON rows
+- **DecryptRowDataAesGcm**: Decrypt individual JSON rows
+- **EncryptTableRowsAesGcm**: Bulk row encryption TVF
 
-## Korean PowerBuilder Integration
-
-Perfect for Korean small business applications using PowerBuilder:
-
-- **Full Unicode Support**: Korean characters (한글) fully supported
-- **Session Data Encryption**: Secure PowerBuilder session management
-- **Dynamic Temp Tables**: Automatic table structure discovery
-- **Type Safety**: Automatic type casting for seamless integration
-- **Performance Optimized**: Derived key caching for multiple operations
-
-## Performance Characteristics
-
-- **Password-based encryption**: ~50-100ms for 1KB data
-- **Derived key encryption**: ~10-20ms for 1KB data (5x faster)
-- **Table-level encryption**: Handles tables with 1000+ rows efficiently
-- **Memory efficient**: Streaming encryption for large datasets
-
-## Security Features
-
-- **AES-GCM**: Authenticated encryption with integrity protection
-- **PBKDF2**: Password-based key derivation with configurable iterations
-- **BCrypt**: Secure password hashing with work factor control
-- **ECDH**: Elliptic Curve Diffie-Hellman for secure key exchange
+### Core Encryption Functions
+- **AES-GCM**: Authenticated encryption with Galois/Counter Mode
+- **Password-based key derivation**: PBKDF2 with configurable iterations
 - **Salt generation**: Cryptographically secure random salts
-- **Key derivation**: Separate keys for different purposes
+- **Key derivation**: Diffie-Hellman key exchange support
 
-## Migration from Legacy Scripts
+## PowerBuilder Integration Examples
 
-If you're using the legacy `install.sql` and `example.sql`:
+### Session Data Encryption
+```sql
+-- Encrypt PowerBuilder session data
+CREATE TABLE PowerBuilderSession (
+    SessionID NVARCHAR(50),
+    UserData NVARCHAR(MAX),
+    LastAccess DATETIME2
+);
 
-1. **Backup**: Export any encrypted data
-2. **Uninstall**: Run `uninstall-complete.sql`
-3. **Install**: Run `install-complete.sql`
-4. **Test**: Run `examples-complete.sql`
-5. **Verify**: Test your existing encrypted data
+-- Encrypt session data
+DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptTableWithMetadata('PowerBuilderSession', 'sessionPassword');
+
+-- Decrypt for PowerBuilder use
+EXEC dbo.RestoreEncryptedTable @encrypted, 'sessionPassword';
+```
+
+### Unicode Support
+```sql
+-- Korean characters fully supported
+DECLARE @koreanText NVARCHAR(MAX) = '안녕하세요 세계';
+DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptAesGcmWithPassword(@koreanText, 'password');
+DECLARE @decrypted NVARCHAR(MAX) = dbo.DecryptAesGcmWithPassword(@encrypted, 'password');
+-- Result: 안녕하세요 세계
+```
 
 ## Troubleshooting
 
-### Common Issues
+### RestoreEncryptedTable Issues
 
-1. **CLR not enabled**: Script automatically enables CLR
-2. **Assembly not trusted**: Script handles assembly trust
-3. **Permission denied**: Ensure UNSAFE permission set
-4. **DLL not found**: Update DLL path in script
+If you encounter issues with `RestoreEncryptedTable` returning NULL values:
 
-### Error Messages
+1. **Check Encryption Method**: Ensure you're using `EncryptTableWithMetadata` or `EncryptXmlWithMetadata` for encryption
+2. **Verify Password**: Make sure the same password is used for encryption and decryption
+3. **Check Iterations**: The default iteration count is 2000; ensure both encryption and decryption use the same count
+4. **Run Debug Script**: Use `debug-restore.sql` to get detailed error information
 
-- `"Assembly not found"`: Check DLL path in script
-- `"CLR not enabled"`: Script should handle this automatically
-- `"Permission denied"`: Ensure UNSAFE permission set
-- `"Function not found"`: Run complete installation script
+### Common Error Messages
+
+- **"Decryption returned null"**: Password mismatch or corrupted data
+- **"No columns found"**: XML structure issue or metadata parsing problem
+- **"Error in RestoreEncryptedTable"**: Check the detailed error message and stack trace
+
+### Debugging Steps
+
+1. Run `debug-restore.sql` to get comprehensive diagnostic information
+2. Check if all required functions are installed correctly
+3. Verify the assembly permissions (UNSAFE required)
+4. Test with simple data first before using complex tables
+
+## Installation Notes
+
+### Requirements
+- SQL Server 2016 or later
+- CLR Integration enabled
+- UNSAFE permission set for the assembly
+- .NET Framework 4.8 runtime
+
+### Security Considerations
+- The assembly requires UNSAFE permission due to native cryptography calls
+- Store passwords securely and never hardcode them
+- Use strong passwords for encryption operations
+- Consider using derived keys for performance-critical operations
+
+### Performance Tips
+- Use derived keys for multiple operations on the same data
+- Consider iteration count based on security requirements vs performance
+- Use the dynamic temp table wrapper for automatic column discovery
+
+## File Structure
+
+- `install-complete.sql`: Complete installation script
+- `install.sql`: Basic installation script
+- `uninstall.sql`: Cleanup script
+- `simple-restore.sql`: Basic functionality test
+- `debug-restore.sql`: Comprehensive debugging script
+- `examples-complete.sql`: Full feature demonstration
+- `practical-examples.sql`: Real-world usage examples
+- `QUICK_REFERENCE.md`: Quick reference guide
+
+## Recent Fixes
+
+### RestoreEncryptedTable NULL Issue (Latest)
+- **Problem**: `RestoreEncryptedTable` was returning NULL values for decrypted data
+- **Root Cause**: Error handling was throwing exceptions instead of providing user-friendly messages
+- **Solution**: Enhanced error handling with detailed error messages and better debugging information
+- **Files Updated**: 
+  - `net481SQL-server/draft.cs` (RestoreEncryptedTable method)
+  - `Examples/SQL-server-Net 4.8/simple-restore.sql` (enhanced debugging)
+  - `Examples/SQL-server-Net 4.8/debug-restore.sql` (comprehensive diagnostics)
+
+The fix ensures that:
+1. Decryption errors are caught and reported clearly
+2. XML parsing issues are identified and reported
+3. Column discovery problems are diagnosed
+4. Users get actionable error messages instead of silent failures
 
 ## Support
 
-For issues and questions:
-- Check the comprehensive examples in `examples-complete.sql`
-- Review error handling in the installation scripts
-- Ensure all prerequisites are met (SQL Server 2016+, .NET Framework 4.8)
-
-Perfect for Korean small business applications using PowerBuilder!
+For issues or questions:
+1. Run the debug scripts first
+2. Check the error messages for specific guidance
+3. Verify your SQL Server version and CLR configuration
+4. Test with the provided example scripts

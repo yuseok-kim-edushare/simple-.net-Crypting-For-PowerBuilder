@@ -11,7 +11,7 @@
 -- =============================================
 -- CONFIGURATION - CHANGE THESE VALUES
 -- =============================================
-DECLARE @target_db NVARCHAR(128) = N'YourDatabase';  -- <<<< CHANGE THIS FOR EACH DATABASE
+DECLARE @target_db NVARCHAR(128) = N'Master';  -- <<<< CHANGE THIS FOR EACH DATABASE
 
 PRINT '=== SECURELIBRARY-SQL COMPLETE UNINSTALL ===';
 PRINT 'Target Database: ' + @target_db;
