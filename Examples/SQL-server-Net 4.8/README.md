@@ -22,11 +22,25 @@ EXEC simple-restore.sql
 EXEC debug-restore.sql
 ```
 
+### 4. Verify Installation
+```sql
+-- Run the verification script to check all installed objects
+EXEC verify-installation.sql
+```
+
+**Expected Results:**
+- **Scalar Functions**: 28
+- **Stored Procedures**: 3  
+- **Table-Valued Functions**: 2
+- **Total Objects**: 33
+
+If any count is 0, there may be an installation issue.
+
 ## Features
 
 ### Password-Based Table Encryption
 - **EncryptTableWithMetadata**: Encrypt entire tables with embedded schema metadata
-- **RestoreEncryptedTable**: Decrypt and restore tables with automatic type casting
+- **DecryptTableWithMetadata**: Decrypt and restore tables with automatic type casting
 - **WrapDecryptProcedure**: Dynamic temp table wrapper for automatic column discovery
 
 ### XML Encryption
@@ -59,7 +73,7 @@ CREATE TABLE PowerBuilderSession (
 DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptTableWithMetadata('PowerBuilderSession', 'sessionPassword');
 
 -- Decrypt for PowerBuilder use
-EXEC dbo.RestoreEncryptedTable @encrypted, 'sessionPassword';
+EXEC dbo.DecryptTableWithMetadata @encrypted, 'sessionPassword';
 ```
 
 ### Unicode Support
@@ -73,9 +87,9 @@ DECLARE @decrypted NVARCHAR(MAX) = dbo.DecryptAesGcmWithPassword(@encrypted, 'pa
 
 ## Troubleshooting
 
-### RestoreEncryptedTable Issues
+### DecryptTableWithMetadata Issues
 
-If you encounter issues with `RestoreEncryptedTable` returning NULL values:
+If you encounter issues with `DecryptTableWithMetadata` returning NULL values:
 
 1. **Check Encryption Method**: Ensure you're using `EncryptTableWithMetadata` or `EncryptXmlWithMetadata` for encryption
 2. **Verify Password**: Make sure the same password is used for encryption and decryption
@@ -86,7 +100,7 @@ If you encounter issues with `RestoreEncryptedTable` returning NULL values:
 
 - **"Decryption returned null"**: Password mismatch or corrupted data
 - **"No columns found"**: XML structure issue or metadata parsing problem
-- **"Error in RestoreEncryptedTable"**: Check the detailed error message and stack trace
+- **"Error in DecryptTableWithMetadata"**: Check the detailed error message and stack trace
 
 ### Debugging Steps
 
@@ -119,6 +133,7 @@ If you encounter issues with `RestoreEncryptedTable` returning NULL values:
 - `install-complete.sql`: Complete installation script
 - `install.sql`: Basic installation script
 - `uninstall.sql`: Cleanup script
+- `verify-installation.sql`: **NEW!** Comprehensive verification script
 - `simple-restore.sql`: Basic functionality test
 - `debug-restore.sql`: Comprehensive debugging script
 - `examples-complete.sql`: Full feature demonstration
@@ -127,12 +142,12 @@ If you encounter issues with `RestoreEncryptedTable` returning NULL values:
 
 ## Recent Fixes
 
-### RestoreEncryptedTable NULL Issue (Latest)
-- **Problem**: `RestoreEncryptedTable` was returning NULL values for decrypted data
+### DecryptTableWithMetadata NULL Issue (Latest)
+- **Problem**: `DecryptTableWithMetadata` was returning NULL values for decrypted data
 - **Root Cause**: Error handling was throwing exceptions instead of providing user-friendly messages
 - **Solution**: Enhanced error handling with detailed error messages and better debugging information
 - **Files Updated**: 
-  - `net481SQL-server/draft.cs` (RestoreEncryptedTable method)
+  - `net481SQL-server/draft.cs` (DecryptTableWithMetadata method)
   - `Examples/SQL-server-Net 4.8/simple-restore.sql` (enhanced debugging)
   - `Examples/SQL-server-Net 4.8/debug-restore.sql` (comprehensive diagnostics)
 
@@ -141,6 +156,26 @@ The fix ensures that:
 2. XML parsing issues are identified and reported
 3. Column discovery problems are diagnosed
 4. Users get actionable error messages instead of silent failures
+
+### Procedure Name Change (Latest)
+- **Problem**: The procedure name "RestoreEncryptedTable" could cause system confusion
+- **Solution**: Renamed to "DecryptTableWithMetadata" for better clarity and to avoid naming conflicts
+- **Files Updated**: All SQL scripts and documentation updated to use the new name
+
+### Verification Script Fix (Latest)
+- **Problem**: Installation verification queries were returning 0 counts due to incorrect procedure names
+- **Root Cause**: Verification queries were still looking for the old procedure name "RestoreEncryptedTable"
+- **Solution**: Created comprehensive verification script with correct object names and expected counts
+- **Files Updated**: 
+  - `Examples/SQL-server-Net 4.8/verify-installation.sql` (new comprehensive verification script)
+  - `Examples/SQL-server-Net 4.8/install-complete.sql` (updated verification queries)
+  - `Examples/SQL-server-Net 4.8/README.md` (added verification instructions)
+
+The verification script ensures:
+1. All 33 expected objects are correctly counted
+2. Assembly installation is verified
+3. Basic functionality is tested
+4. Clear error reporting for any missing objects
 
 ## Support
 

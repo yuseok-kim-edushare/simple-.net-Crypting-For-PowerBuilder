@@ -65,6 +65,22 @@ BEGIN CATCH
     PRINT '  Could not drop WrapDecryptProcedureAdvanced: ' + ERROR_MESSAGE();
 END CATCH
 
+-- Force drop DecryptTableWithMetadata
+BEGIN TRY
+    IF OBJECT_ID('dbo.DecryptTableWithMetadata', 'P') IS NOT NULL
+    BEGIN
+        DROP PROCEDURE dbo.DecryptTableWithMetadata;
+        PRINT '✓ Force dropped DecryptTableWithMetadata';
+    END
+    ELSE
+    BEGIN
+        PRINT '  DecryptTableWithMetadata not found or already dropped';
+    END
+END TRY
+BEGIN CATCH
+    PRINT '  Could not drop DecryptTableWithMetadata: ' + ERROR_MESSAGE();
+END CATCH
+
 PRINT '';
 
 -- =============================================
@@ -148,12 +164,12 @@ PRINT '';
 -- =============================================
 PRINT '--- STEP 4: Verification ---';
 
--- Check for remaining objects
+-- Check for remaining objects (Updated for CLR objects)
 SELECT 
-    'Remaining Functions' AS ObjectType,
+    'Remaining CLR Functions' AS ObjectType,
     COUNT(*) AS Count
 FROM sys.objects o
-WHERE o.type = 'FN' AND o.name IN (
+WHERE o.type = 'FS' AND o.name IN (
     'GenerateAESKey', 'EncryptAES', 'DecryptAES', 'GenerateDiffieHellmanKeys', 'DeriveSharedKey',
     'HashPasswordDefault', 'HashPasswordWithWorkFactor', 'VerifyPassword', 'EncryptAesGcm', 'DecryptAesGcm',
     'EncryptAesGcmWithPassword', 'EncryptAesGcmWithPasswordIterations', 'DecryptAesGcmWithPassword', 'DecryptAesGcmWithPasswordIterations',
@@ -164,11 +180,19 @@ WHERE o.type = 'FN' AND o.name IN (
 )
 UNION ALL
 SELECT 
-    'Remaining Procedures' AS ObjectType,
+    'Remaining CLR Procedures' AS ObjectType,
     COUNT(*) AS Count
 FROM sys.objects o
-WHERE o.type = 'P' AND o.name IN (
+WHERE o.type = 'PC' AND o.name IN (
     'RestoreEncryptedTable', 'WrapDecryptProcedure', 'WrapDecryptProcedureAdvanced'
+)
+UNION ALL
+SELECT 
+    'Remaining CLR Table-Valued Functions' AS ObjectType,
+    COUNT(*) AS Count
+FROM sys.objects o
+WHERE o.type = 'FT' AND o.name IN (
+    'EncryptAES', 'GenerateDiffieHellmanKeys'
 )
 UNION ALL
 SELECT 

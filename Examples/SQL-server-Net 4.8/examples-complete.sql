@@ -345,15 +345,15 @@ PRINT 'Using dynamic temp table wrapper for automatic table creation:';
 
 -- Note: WrapDecryptProcedure may not exist in all installations
 -- Using direct call instead
-PRINT 'Direct table restoration (WrapDecryptProcedure not available):';
-EXEC dbo.RestoreEncryptedTable @encryptedTable, @tablePassword;
+PRINT 'Direct table restoration using DecryptTableWithMetadata:';
+EXEC dbo.DecryptTableWithMetadata @encryptedTable, @tablePassword;
 
 PRINT 'Dynamic temp table created and populated automatically!';
 
 -- Example of using wrapper procedures (if available)
 -- Note: These require the DynamicTempTableWrapper class to be implemented
--- EXEC dbo.WrapDecryptProcedure 'dbo.RestoreEncryptedTable', '@encryptedData=''' + @encryptedTable + ''', @password=''' + @tablePassword + '''';
--- EXEC dbo.WrapDecryptProcedureAdvanced 'dbo.RestoreEncryptedTable', '@encryptedData=''' + @encryptedTable + ''', @password=''' + @tablePassword + '''', '#MyTempTable';
+-- EXEC dbo.WrapDecryptProcedure 'dbo.DecryptTableWithMetadata', '@encryptedData=''' + @encryptedTable + ''', @password=''' + @tablePassword + '''';
+-- EXEC dbo.WrapDecryptProcedureAdvanced 'dbo.DecryptTableWithMetadata', '@encryptedData=''' + @encryptedTable + ''', @password=''' + @tablePassword + '''', '#MyTempTable';
 PRINT '';
 
 -- =============================================
@@ -437,7 +437,7 @@ CREATE TABLE #DecryptedSP (
 
 BEGIN TRY
     INSERT INTO #DecryptedSP
-    EXEC dbo.RestoreEncryptedTable @encryptedSP, @xmlPassword;
+    EXEC dbo.DecryptTableWithMetadata @encryptedSP, @xmlPassword;
 
     PRINT 'Stored procedure results decrypted:';
 END TRY
@@ -597,7 +597,7 @@ CREATE TABLE #PBRestored (
 
 BEGIN TRY
     INSERT INTO #PBRestored
-    EXEC dbo.RestoreEncryptedTable @pbEncrypted, @pbPassword;
+    EXEC dbo.DecryptTableWithMetadata @pbEncrypted, @pbPassword;
 
     PRINT 'PowerBuilder data restored:';
 END TRY
@@ -641,7 +641,7 @@ PRINT '';
 PRINT 'USAGE PATTERNS:';
 PRINT '• Basic encryption: dbo.EncryptAesGcm(text, key) / dbo.DecryptAesGcm(encrypted, key)';
 PRINT '• Password encryption: dbo.EncryptAesGcmWithPassword(text, password) / dbo.DecryptAesGcmWithPassword(encrypted, password)';
-PRINT '• Table encryption: dbo.EncryptTableWithMetadata(tableName, password) / EXEC dbo.RestoreEncryptedTable(encrypted, password)';
+PRINT '• Table encryption: dbo.EncryptTableWithMetadata(tableName, password) / EXEC dbo.DecryptTableWithMetadata(encrypted, password)';
 PRINT '• Password hashing: dbo.HashPasswordDefault(password) / dbo.VerifyPassword(password, hash)';
 PRINT '• Key exchange: SELECT * FROM dbo.GenerateDiffieHellmanKeys() / dbo.DeriveSharedKey(publicKey, privateKey)';
 PRINT '• Key derivation: dbo.DeriveKeyFromPassword(password, salt) / dbo.EncryptAesGcmWithDerivedKey(text, derivedKey, salt)';

@@ -104,7 +104,7 @@ PRINT '--- STEP 4: Cleaning Up Existing Objects ---';
 PRINT 'Phase 1: Dropping stored procedures...';
 
 BEGIN TRY
-    IF OBJECT_ID('dbo.RestoreEncryptedTable', 'P') IS NOT NULL 
+    IF OBJECT_ID('dbo.RestoreEncryptedTable', 'PC') IS NOT NULL 
     BEGIN
         DROP PROCEDURE dbo.RestoreEncryptedTable;
         PRINT '✓ Dropped RestoreEncryptedTable';
@@ -128,7 +128,7 @@ BEGIN CATCH
 END CATCH
 
 BEGIN TRY
-    IF OBJECT_ID('dbo.WrapDecryptProcedure', 'P') IS NOT NULL 
+    IF OBJECT_ID('dbo.WrapDecryptProcedure', 'PC') IS NOT NULL 
     BEGIN
         DROP PROCEDURE dbo.WrapDecryptProcedure;
         PRINT '✓ Dropped WrapDecryptProcedure';
@@ -143,7 +143,7 @@ BEGIN CATCH
 END CATCH
 
 BEGIN TRY
-    IF OBJECT_ID('dbo.WrapDecryptProcedureAdvanced', 'P') IS NOT NULL 
+    IF OBJECT_ID('dbo.WrapDecryptProcedureAdvanced', 'PC') IS NOT NULL 
     BEGIN
         DROP PROCEDURE dbo.WrapDecryptProcedureAdvanced;
         PRINT '✓ Dropped WrapDecryptProcedureAdvanced';
@@ -476,16 +476,16 @@ GO
 -- Universal Table Restoration Procedure
 BEGIN TRY
     DECLARE @sql NVARCHAR(MAX) = '
-    CREATE PROCEDURE dbo.RestoreEncryptedTable
+    CREATE PROCEDURE dbo.DecryptTableWithMetadata
         @encryptedData NVARCHAR(MAX),
         @password NVARCHAR(MAX)
-    AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRCrypting].RestoreEncryptedTable;';
+    AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableWithMetadata;';
     
     EXEC(@sql);
-    PRINT '✓ RestoreEncryptedTable';
+    PRINT '✓ DecryptTableWithMetadata';
 END TRY
 BEGIN CATCH
-    PRINT '✗ Could not create RestoreEncryptedTable: ' + ERROR_MESSAGE();
+    PRINT '✗ Could not create DecryptTableWithMetadata: ' + ERROR_MESSAGE();
     PRINT '  If you see "object already exists" error, run cleanup-existing.sql first.';
 END CATCH
 GO
@@ -556,14 +556,14 @@ FROM sys.assemblies a
 WHERE a.name = 'SecureLibrary.SQL';
 GO
 
--- List all created functions
+-- List all created functions (Updated for CLR objects)
 PRINT 'Checking created functions...';
 SELECT 
     o.name AS FunctionName,
     o.type_desc AS ObjectType,
     o.create_date AS CreateDate
 FROM sys.objects o
-WHERE o.type = 'FN' AND o.name IN (
+WHERE o.type = 'FS' AND o.name IN (
     'GenerateAESKey', 'EncryptAES', 'DecryptAES', 'GenerateDiffieHellmanKeys', 'DeriveSharedKey',
     'HashPasswordDefault', 'HashPasswordWithWorkFactor', 'VerifyPassword', 'EncryptAesGcm', 'DecryptAesGcm',
     'EncryptAesGcmWithPassword', 'EncryptAesGcmWithPasswordIterations', 'DecryptAesGcmWithPassword', 'DecryptAesGcmWithPasswordIterations',
@@ -575,39 +575,39 @@ WHERE o.type = 'FN' AND o.name IN (
 ORDER BY o.name;
 GO
 
--- List all created procedures
-PRINT 'Checking created procedures...';
+-- List all stored procedures (Updated for CLR objects)
+PRINT 'Checking stored procedures...';
 SELECT 
     o.name AS ProcedureName,
     o.type_desc AS ObjectType,
     o.create_date AS CreateDate
 FROM sys.objects o
-WHERE o.type = 'P' AND o.name IN (
-    'RestoreEncryptedTable', 'WrapDecryptProcedure', 'WrapDecryptProcedureAdvanced'
+WHERE o.type = 'PC' AND o.name IN (
+    'DecryptTableWithMetadata', 'WrapDecryptProcedure', 'WrapDecryptProcedureAdvanced'
 )
 ORDER BY o.name;
 GO
 
--- List all table-valued functions
+-- List all table-valued functions (Updated for CLR objects)
 PRINT 'Checking table-valued functions...';
 SELECT 
     o.name AS FunctionName,
     o.type_desc AS ObjectType,
     o.create_date AS CreateDate
 FROM sys.objects o
-WHERE o.type = 'TF' AND o.name IN (
+WHERE o.type = 'FT' AND o.name IN (
     'EncryptAES', 'GenerateDiffieHellmanKeys'
 )
 ORDER BY o.name;
 GO
 
--- Summary count
+-- Summary count (Updated for CLR objects)
 PRINT 'Summary of created objects:';
 SELECT 
-    'Functions' AS ObjectType,
+    'CLR Scalar Functions' AS ObjectType,
     COUNT(*) AS Count
 FROM sys.objects o
-WHERE o.type = 'FN' AND o.name IN (
+WHERE o.type = 'FS' AND o.name IN (
     'GenerateAESKey', 'EncryptAES', 'DecryptAES', 'GenerateDiffieHellmanKeys', 'DeriveSharedKey',
     'HashPasswordDefault', 'HashPasswordWithWorkFactor', 'VerifyPassword', 'EncryptAesGcm', 'DecryptAesGcm',
     'EncryptAesGcmWithPassword', 'EncryptAesGcmWithPasswordIterations', 'DecryptAesGcmWithPassword', 'DecryptAesGcmWithPasswordIterations',
@@ -618,18 +618,18 @@ WHERE o.type = 'FN' AND o.name IN (
 )
 UNION ALL
 SELECT 
-    'Procedures' AS ObjectType,
+    'CLR Stored Procedures' AS ObjectType,
     COUNT(*) AS Count
 FROM sys.objects o
-WHERE o.type = 'P' AND o.name IN (
-    'RestoreEncryptedTable', 'WrapDecryptProcedure', 'WrapDecryptProcedureAdvanced'
+WHERE o.type = 'PC' AND o.name IN (
+    'DecryptTableWithMetadata', 'WrapDecryptProcedure', 'WrapDecryptProcedureAdvanced'
 )
 UNION ALL
 SELECT 
-    'Table-Valued Functions' AS ObjectType,
+    'CLR Table-Valued Functions' AS ObjectType,
     COUNT(*) AS Count
 FROM sys.objects o
-WHERE o.type = 'TF' AND o.name IN (
+WHERE o.type = 'FT' AND o.name IN (
     'EncryptAES', 'GenerateDiffieHellmanKeys'
 );
 
@@ -671,6 +671,18 @@ BEGIN CATCH
 END CATCH
 GO
 
+-- Expected object counts based on your installation
+PRINT '';
+PRINT '=== EXPECTED OBJECT COUNTS ===';
+PRINT 'Based on your successful installation, you should see:';
+PRINT '• 29 CLR Scalar Functions (type = FS)';
+PRINT '• 3 CLR Stored Procedures (type = PC)';
+PRINT '• 2 CLR Table-Valued Functions (type = FT)';
+PRINT '• 1 Assembly (SecureLibrary.SQL)';
+PRINT '';
+PRINT 'Total: 35 CLR objects';
+PRINT '';
+
 PRINT '';
 PRINT '=== DEPLOYMENT COMPLETED SUCCESSFULLY ===';
 PRINT '';
@@ -694,7 +706,7 @@ PRINT '';
 PRINT 'USAGE EXAMPLES:';
 PRINT '-- Generate AES key: SELECT dbo.GenerateAESKey()';
 PRINT '-- Encrypt table: SELECT dbo.EncryptTableWithMetadata(''MyTable'', ''password'')';
-PRINT '-- Decrypt table: EXEC dbo.RestoreEncryptedTable @encrypted, ''password''';
+PRINT '-- Decrypt table: EXEC dbo.DecryptTableWithMetadata @encrypted, ''password''';
 PRINT '-- Hash password: SELECT dbo.HashPasswordDefault(''mypassword'')';
 PRINT '';
 PRINT 'For Korean PowerBuilder integration, see practical-examples.sql';

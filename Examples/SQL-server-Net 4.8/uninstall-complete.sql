@@ -71,19 +71,20 @@ PRINT '';
 -- =============================================
 PRINT '--- STEP 3: Dropping Stored Procedures ---';
 
+-- Drop RestoreEncryptedTable procedure
 BEGIN TRY
-    IF OBJECT_ID('dbo.RestoreEncryptedTable', 'P') IS NOT NULL 
+    IF OBJECT_ID('dbo.DecryptTableWithMetadata', 'P') IS NOT NULL
     BEGIN
-        DROP PROCEDURE dbo.RestoreEncryptedTable;
-        PRINT '✓ Dropped RestoreEncryptedTable';
+        DROP PROCEDURE dbo.DecryptTableWithMetadata;
+        PRINT '✓ Dropped DecryptTableWithMetadata';
     END
     ELSE
     BEGIN
-        PRINT 'RestoreEncryptedTable not found';
+        PRINT '  DecryptTableWithMetadata not found';
     END
 END TRY
 BEGIN CATCH
-    PRINT 'Could not drop RestoreEncryptedTable: ' + ERROR_MESSAGE();
+    PRINT '✗ Could not drop DecryptTableWithMetadata: ' + ERROR_MESSAGE();
 END CATCH
 
 BEGIN TRY
@@ -228,12 +229,12 @@ PRINT '';
 -- =============================================
 PRINT '--- STEP 6: Verification ---';
 
--- Check for remaining objects
+-- Check for remaining objects (Updated for CLR objects)
 SELECT 
-    'Remaining Functions' AS ObjectType,
+    'Remaining CLR Functions' AS ObjectType,
     COUNT(*) AS Count
 FROM sys.objects o
-WHERE o.type = 'FN' AND o.name IN (
+WHERE o.type = 'FS' AND o.name IN (
     'GenerateAESKey', 'EncryptAES', 'DecryptAES', 'GenerateDiffieHellmanKeys', 'DeriveSharedKey',
     'HashPasswordDefault', 'HashPasswordWithWorkFactor', 'VerifyPassword', 'EncryptAesGcm', 'DecryptAesGcm',
     'EncryptAesGcmWithPassword', 'EncryptAesGcmWithPasswordIterations', 'DecryptAesGcmWithPassword', 'DecryptAesGcmWithPasswordIterations',
@@ -244,26 +245,26 @@ WHERE o.type = 'FN' AND o.name IN (
 )
 UNION ALL
 SELECT 
-    'Remaining Procedures' AS ObjectType,
+    'Remaining CLR Procedures' AS ObjectType,
     COUNT(*) AS Count
 FROM sys.objects o
-WHERE o.type = 'P' AND o.name IN (
-    'RestoreEncryptedTable', 'WrapDecryptProcedure', 'WrapDecryptProcedureAdvanced'
+WHERE o.type = 'PC' AND o.name IN (
+    'DecryptTableWithMetadata', 'WrapDecryptProcedure', 'WrapDecryptProcedureAdvanced'
 )
 UNION ALL
 SELECT 
-    'Remaining Table-Valued Functions' AS ObjectType,
+    'Remaining CLR Table-Valued Functions' AS ObjectType,
     COUNT(*) AS Count
 FROM sys.objects o
-WHERE o.type = 'TF' AND o.name IN (
-    'DecryptTableTVF', 'DecryptTableTypedTVF'
+WHERE o.type = 'FT' AND o.name IN (
+    'EncryptAES', 'GenerateDiffieHellmanKeys'
 )
 UNION ALL
 SELECT 
     'Remaining Assemblies' AS ObjectType,
     COUNT(*) AS Count
 FROM sys.assemblies a
-WHERE a.name = 'SimpleDotNetCrypting';
+WHERE a.name = 'SecureLibrary.SQL';
 
 PRINT '';
 PRINT '=== UNINSTALL COMPLETED ===';

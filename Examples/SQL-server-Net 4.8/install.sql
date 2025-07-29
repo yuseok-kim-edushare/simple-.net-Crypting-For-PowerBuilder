@@ -500,10 +500,10 @@ GO
 
 -- Universal procedure to decrypt and restore any table
 -- This procedure handles stored procedure result sets and can be used with INSERT INTO ... EXEC
-CREATE PROCEDURE dbo.RestoreEncryptedTable(
+CREATE PROCEDURE dbo.DecryptTableWithMetadata(
     @encryptedData nvarchar(max), 
     @password nvarchar(max))
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].RestoreEncryptedTable;
+AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableWithMetadata;
 GO
 
 PRINT 'All functions and procedures created successfully!';

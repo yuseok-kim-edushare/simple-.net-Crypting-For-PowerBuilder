@@ -1,13 +1,13 @@
 -- =============================================
--- DEBUG RESTOREENCRYPTEDTABLE PROCEDURE
+-- DEBUG DECRYPTTABLEWITHMETADATA PROCEDURE
 -- =============================================
--- This script helps debug the RestoreEncryptedTable procedure
+-- This script helps debug the DecryptTableWithMetadata procedure
 -- =============================================
 
 USE Master
 GO
 
-PRINT '=== DEBUGGING RESTOREENCRYPTEDTABLE PROCEDURE ===';
+PRINT '=== DEBUGGING DECRYPTTABLEWITHMETADATA PROCEDURE ===';
 PRINT '';
 
 -- Test 1: Simple table creation and encryption
@@ -33,9 +33,9 @@ DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptTableWithMetadata('TestTable', @pa
 PRINT 'Table encrypted successfully. Length: ' + CAST(LEN(@encrypted) AS VARCHAR(20)) + ' characters';
 PRINT 'Encrypted data starts with: ' + LEFT(@encrypted, 50) + '...';
 
--- Try to decrypt using RestoreEncryptedTable
+-- Try to decrypt using DecryptTableWithMetadata
 PRINT '';
-PRINT 'Attempting to decrypt using RestoreEncryptedTable...';
+PRINT 'Attempting to decrypt using DecryptTableWithMetadata...';
 
 -- Create temp table to capture results
 IF OBJECT_ID('tempdb..#DebugRestore') IS NOT NULL
@@ -47,14 +47,14 @@ CREATE TABLE #DebugRestore (
     Value NVARCHAR(MAX)
 );
 
--- Try to insert results from RestoreEncryptedTable
+-- Try to insert results from DecryptTableWithMetadata
 BEGIN TRY
     INSERT INTO #DebugRestore
-    EXEC dbo.RestoreEncryptedTable @encrypted, @password;
+    EXEC dbo.DecryptTableWithMetadata @encrypted, @password;
     
     DECLARE @rowCount INT;
     SELECT @rowCount = COUNT(*) FROM #DebugRestore;
-    PRINT '✓ RestoreEncryptedTable executed successfully. Rows returned: ' + CAST(@rowCount AS VARCHAR(10));
+    PRINT '✓ DecryptTableWithMetadata executed successfully. Rows returned: ' + CAST(@rowCount AS VARCHAR(10));
     
     IF @rowCount > 0
     BEGIN
@@ -68,11 +68,11 @@ BEGIN TRY
     END
     ELSE
     BEGIN
-        PRINT '✗ No rows returned from RestoreEncryptedTable';
+        PRINT '✗ No rows returned from DecryptTableWithMetadata';
     END
 END TRY
 BEGIN CATCH
-    PRINT '✗ Error executing RestoreEncryptedTable: ' + ERROR_MESSAGE();
+    PRINT '✗ Error executing DecryptTableWithMetadata: ' + ERROR_MESSAGE();
     PRINT 'Error Number: ' + CAST(ERROR_NUMBER() AS VARCHAR(10));
     PRINT 'Error State: ' + CAST(ERROR_STATE() AS VARCHAR(10));
     PRINT 'Error Severity: ' + CAST(ERROR_SEVERITY() AS VARCHAR(10));
@@ -117,7 +117,7 @@ BEGIN CATCH
     PRINT '✗ Error in direct XML decryption: ' + ERROR_MESSAGE();
 END CATCH
 
--- Test 3: Check if RestoreEncryptedTable exists and is accessible
+-- Test 3: Check if DecryptTableWithMetadata exists and is accessible
 PRINT '';
 PRINT '--- Test 3: Procedure Verification ---';
 
@@ -127,7 +127,7 @@ SELECT
     o.create_date AS CreateDate,
     CASE WHEN o.is_ms_shipped = 1 THEN 'System' ELSE 'User' END AS ObjectType
 FROM sys.objects o
-WHERE o.name = 'RestoreEncryptedTable' AND o.type = 'P';
+WHERE o.name = 'DecryptTableWithMetadata' AND o.type = 'P';
 
 -- Test 4: Check assembly
 PRINT '';

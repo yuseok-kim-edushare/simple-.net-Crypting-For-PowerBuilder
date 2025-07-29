@@ -57,7 +57,7 @@ CREATE TABLE #TempRestore (
 
 -- Use universal restore procedure
 INSERT INTO #TempRestore 
-EXEC dbo.RestoreEncryptedTable @encrypted, @password;
+EXEC dbo.DecryptTableWithMetadata @encrypted, @password;
 
 -- Now create properly typed table using SELECT INTO
 SELECT 
@@ -72,7 +72,7 @@ DROP TABLE #TempRestore;
 
 PRINT 'Step 3a: Data restored using stored procedure with SELECT INTO';
 
--- APPROACH 2: Using RestoreEncryptedTable procedure (recommended approach)
+-- APPROACH 2: Using DecryptTableWithMetadata procedure (recommended approach)
 CREATE TABLE #TempRestore2 (
     ID NVARCHAR(MAX),
     SensitiveInfo NVARCHAR(MAX), 
@@ -81,7 +81,7 @@ CREATE TABLE #TempRestore2 (
 );
 
 INSERT INTO #TempRestore2 
-EXEC dbo.RestoreEncryptedTable @encrypted, @password;
+EXEC dbo.DecryptTableWithMetadata @encrypted, @password;
 
 SELECT 
     CAST(ID AS INT) AS ID,
@@ -93,7 +93,7 @@ FROM #TempRestore2;
 
 DROP TABLE #TempRestore2;
 
-PRINT 'Step 3b: Data restored using RestoreEncryptedTable procedure';
+PRINT 'Step 3b: Data restored using DecryptTableWithMetadata procedure';
 
 -- PROOF: Same query works on both!
 PRINT '';
@@ -104,7 +104,7 @@ SELECT ID, SensitiveInfo, FinancialData FROM MyImportantData WHERE FinancialData
 PRINT 'Decrypted data (stored procedure method):';
 SELECT ID, SensitiveInfo, FinancialData FROM #RestoredData_Auto WHERE FinancialData > 100000;
 
-PRINT 'Decrypted data (RestoreEncryptedTable procedure method):';
+PRINT 'Decrypted data (DecryptTableWithMetadata procedure method):';
 SELECT ID, SensitiveInfo, FinancialData FROM #RestoredData_Procedure WHERE FinancialData > 100000;
 
 -- =============================================

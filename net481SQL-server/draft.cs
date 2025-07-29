@@ -933,7 +933,7 @@ namespace SecureLibrary.SQL
         /// </summary>
         [SqlProcedure]
         [SecuritySafeCritical]
-        public static void RestoreEncryptedTable(SqlString encryptedData, SqlString password)
+        public static void DecryptTableWithMetadata(SqlString encryptedData, SqlString password)
         {
             if (encryptedData.IsNull || password.IsNull)
                 return;
@@ -1029,7 +1029,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                SqlContext.Pipe.Send($"Error in RestoreEncryptedTable: {ex.Message}");
+                SqlContext.Pipe.Send($"Error in DecryptTableWithMetadata: {ex.Message}");
                 SqlContext.Pipe.Send($"Stack trace: {ex.StackTrace}");
             }
         }
