@@ -864,7 +864,19 @@ namespace SecureLibrary.SQL
                 // Build the metadata-enhanced XML package
                 string enhancedXml = XmlMetadataHandler.BuildMetadataEnhancedXml(tableName.Value);
                 if (string.IsNullOrEmpty(enhancedXml))
-                    return SqlString.Null;
+                {
+                    throw new Exception("Failed to build metadata-enhanced XML - returned null or empty.");
+                }
+
+                // Check if the XML contains an error
+                if (enhancedXml.Contains("<Error>"))
+                {
+                    throw new Exception($"Error building metadata: {enhancedXml}");
+                }
+
+                // Debug: Log the XML being encrypted (first 500 characters)
+                string debugXml = enhancedXml.Length > 500 ? enhancedXml.Substring(0, 500) + "..." : enhancedXml;
+                SqlContext.Pipe.Send($"Debug: XML to encrypt (first 500 chars): {debugXml}");
 
                 // Encrypt the enhanced package
                 string encrypted = BcryptInterop.EncryptAesGcmWithPassword(enhancedXml, password.Value, null, iterationCount);
@@ -874,8 +886,9 @@ namespace SecureLibrary.SQL
 
                 return new SqlString(encrypted);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                SqlContext.Pipe.Send($"Error in EncryptTableWithMetadataIterations: {ex.Message}");
                 return SqlString.Null;
             }
         }
@@ -951,7 +964,18 @@ namespace SecureLibrary.SQL
                     return;
                 }
 
-                // 2. Validate XML structure
+                // Debug: Log the decrypted XML (first 500 characters)
+                string debugXml = decryptedXml.Length > 500 ? decryptedXml.Substring(0, 500) + "..." : decryptedXml;
+                SqlContext.Pipe.Send($"Debug: Decrypted XML (first 500 chars): {debugXml}");
+
+                // 2. Check for error in XML
+                if (decryptedXml.Contains("<Error>"))
+                {
+                    SqlContext.Pipe.Send($"Error in encrypted data: {decryptedXml}");
+                    return;
+                }
+
+                // 3. Validate XML structure
                 var (isValid, errorMessage) = XmlMetadataHandler.ValidateXmlStructure(decryptedXml);
                 if (!isValid)
                 {
@@ -959,7 +983,7 @@ namespace SecureLibrary.SQL
                     return;
                 }
 
-                // 3. Parse the XML document to extract metadata and column information
+                // 4. Parse the XML document to extract metadata and column information
                 var doc = XDocument.Parse(decryptedXml);
                 
                 // FIXED: Use universal parsing approach
@@ -968,10 +992,31 @@ namespace SecureLibrary.SQL
                 if (columns.Count == 0)
                 {
                     SqlContext.Pipe.Send("No columns found in decrypted XML data.");
+                    SqlContext.Pipe.Send($"Debug: Root element name: {doc.Root?.Name}");
+                    SqlContext.Pipe.Send($"Debug: Root element children count: {doc.Root?.Elements().Count() ?? 0}");
+                    
+                    // Try to show what's in the XML for debugging
+                    var metadataElement = doc.Root?.Element("Metadata");
+                    if (metadataElement != null)
+                    {
+                        SqlContext.Pipe.Send($"Debug: Found Metadata element with {metadataElement.Elements().Count()} children");
+                    }
+                    
+                    var dataRows = doc.Root?.Elements("Row").ToList();
+                    if (dataRows != null && dataRows.Count > 0)
+                    {
+                        SqlContext.Pipe.Send($"Debug: Found {dataRows.Count} Row elements");
+                        var firstRow = dataRows.First();
+                        SqlContext.Pipe.Send($"Debug: First row attributes: {firstRow.Attributes().Count()}");
+                        SqlContext.Pipe.Send($"Debug: First row elements: {firstRow.Elements().Count()}");
+                    }
+                    
                     return;
                 }
 
-                // 4. Build the Dynamic SQL with automatic type casting
+                SqlContext.Pipe.Send($"Debug: Found {columns.Count} columns: " + string.Join(", ", columns.Select(c => c.Name)));
+
+                // 5. Build the Dynamic SQL with automatic type casting
                 var sql = new StringBuilder();
                 var columnExpressions = new List<string>();
 
@@ -989,7 +1034,10 @@ namespace SecureLibrary.SQL
                 sql.AppendLine(columnsClause);
                 sql.AppendLine("FROM @xml.nodes('/Root/Row') AS T(c);");
 
-                // 5. Execute the command and send the results to the client
+                // Debug: Show the generated SQL
+                SqlContext.Pipe.Send($"Debug: Generated SQL: {sql.ToString()}");
+
+                // 6. Execute the command and send the results to the client
                 using (var connection = new System.Data.SqlClient.SqlConnection("context connection=true"))
                 {
                     connection.Open();

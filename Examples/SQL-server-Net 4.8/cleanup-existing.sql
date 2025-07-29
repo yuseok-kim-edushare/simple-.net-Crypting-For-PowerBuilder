@@ -10,6 +10,7 @@ GO
 
 PRINT '=== FORCE CLEANUP OF EXISTING SECURELIBRARY-SQL OBJECTS ===';
 PRINT 'This script will forcefully remove all existing objects.';
+PRINT 'Use this before running install-complete.sql to ensure clean installation.';
 PRINT '';
 
 -- =============================================
@@ -184,7 +185,7 @@ SELECT
     COUNT(*) AS Count
 FROM sys.objects o
 WHERE o.type = 'PC' AND o.name IN (
-    'RestoreEncryptedTable', 'WrapDecryptProcedure', 'WrapDecryptProcedureAdvanced'
+    'RestoreEncryptedTable', 'WrapDecryptProcedure', 'WrapDecryptProcedureAdvanced', 'DecryptTableWithMetadata'
 )
 UNION ALL
 SELECT 
@@ -201,8 +202,27 @@ SELECT
 FROM sys.assemblies a
 WHERE a.name = 'SecureLibrary.SQL';
 
+-- Check for any remaining SecureLibrary objects
+PRINT '';
+PRINT 'Checking for any remaining SecureLibrary-related objects:';
+SELECT 
+    o.name AS ObjectName,
+    o.type_desc AS ObjectType,
+    o.create_date AS CreateDate
+FROM sys.objects o
+WHERE o.name LIKE '%Secure%' OR o.name LIKE '%Encrypt%' OR o.name LIKE '%Decrypt%' OR o.name LIKE '%Hash%' OR o.name LIKE '%Generate%'
+ORDER BY o.type_desc, o.name;
+
 PRINT '';
 PRINT '=== CLEANUP COMPLETED ===';
 PRINT 'All SecureLibrary-SQL objects have been forcefully removed.';
-PRINT 'You can now run install-complete.sql to perform a fresh installation.';
+PRINT '';
+PRINT 'NEXT STEPS:';
+PRINT '1. Ensure the updated DLL file is in the correct location';
+PRINT '2. Run install-complete.sql to perform a fresh installation';
+PRINT '3. The updated installation includes fixes for table encryption issues';
+PRINT '4. Test with simple-test.sql after installation';
+PRINT '';
+PRINT 'IMPORTANT: This cleanup ensures a clean slate for the updated assembly.';
+PRINT 'The new installation will include enhanced error handling and debugging.';
 PRINT '============================================='; 

@@ -1,7 +1,7 @@
 -- Comprehensive Test Script for SQL CLR Fixes
 -- This script tests all the critical fixes applied to the SecureLibrary-SQL implementation
 
-USE [YourDatabaseName]; -- Replace with your database name
+USE master; -- Replace with your database name
 GO
 
 -- Enable CLR if not already enabled

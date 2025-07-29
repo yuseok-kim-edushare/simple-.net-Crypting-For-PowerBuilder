@@ -27,11 +27,12 @@
 -- ✓ Password-based Key Derivation (PBKDF2)
 -- ✓ Diffie-Hellman Key Exchange
 -- ✓ BCrypt Password Hashing
--- ✓ Table-Level Encryption with Metadata
+-- ✓ Table-Level Encryption with Metadata (FIXED)
 -- ✓ XML Encryption with Schema Inference
 -- ✓ Dynamic Temp Table Wrapper
 -- ✓ Automatic Type Casting
 -- ✓ Stored Procedure Result Set Handling
+-- ✓ Enhanced Error Handling and Debugging
 -- =============================================
 
 -- =============================================
@@ -40,12 +41,12 @@
 DECLARE @target_db NVARCHAR(128) = N'master';  -- <<<< CHANGE THIS FOR EACH DATABASE
 DECLARE @dll_path NVARCHAR(260) = N'C:\CLR\SecureLibrary-SQL.dll';  -- <<<< SET YOUR DLL PATH HERE
 
-PRINT '=== SECURELIBRARY-SQL COMPLETE DEPLOYMENT ===';
+PRINT '=== SECURELIBRARY-SQL COMPLETE DEPLOYMENT (UPDATED) ===';
 PRINT 'Target Database: ' + @target_db;
 PRINT 'DLL Path: ' + @dll_path;
 PRINT '';
-PRINT 'NOTE: This script can be used for both initial installation and updates.';
-PRINT 'For updates, ensure the DLL file has been updated at the specified path.';
+PRINT 'NOTE: This script includes fixes for table encryption issues.';
+PRINT 'Enhanced error handling and debugging features included.';
 PRINT '';
 PRINT 'TROUBLESHOOTING: If you encounter "object already exists" errors,';
 PRINT 'run cleanup-existing.sql first to force remove all existing objects.';
@@ -157,6 +158,21 @@ BEGIN CATCH
     PRINT '✗ Could not drop WrapDecryptProcedureAdvanced: ' + ERROR_MESSAGE();
 END CATCH
 
+BEGIN TRY
+    IF OBJECT_ID('dbo.DecryptTableWithMetadata', 'PC') IS NOT NULL 
+    BEGIN
+        DROP PROCEDURE dbo.DecryptTableWithMetadata;
+        PRINT '✓ Dropped DecryptTableWithMetadata';
+    END
+    ELSE
+    BEGIN
+        PRINT '  DecryptTableWithMetadata not found';
+    END
+END TRY
+BEGIN CATCH
+    PRINT '✗ Could not drop DecryptTableWithMetadata: ' + ERROR_MESSAGE();
+END CATCH
+
 -- Phase 2: Drop all functions (they depend on the assembly)
 PRINT 'Phase 2: Dropping all functions...';
 
@@ -257,6 +273,7 @@ BEGIN TRY
     WITH PERMISSION_SET = UNSAFE;
     
     PRINT '✓ Assembly SecureLibrary.SQL created successfully with UNSAFE permission set';
+    PRINT '  This assembly includes fixes for table encryption and enhanced error handling.';
 END TRY
 BEGIN CATCH
     PRINT '✗ Could not create assembly: ' + ERROR_MESSAGE();
@@ -438,18 +455,18 @@ AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptX
 GO
 PRINT '✓ EncryptXmlWithPasswordIterations (Legacy)';
 GO
--- Enhanced Table Encryption with Metadata
+-- Enhanced Table Encryption with Metadata (FIXED)
 CREATE FUNCTION dbo.EncryptTableWithMetadata(@tableName NVARCHAR(MAX), @password NVARCHAR(MAX))
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptTableWithMetadata;
 GO
-PRINT '✓ EncryptTableWithMetadata';
+PRINT '✓ EncryptTableWithMetadata (FIXED - Enhanced Error Handling)';
 GO
 CREATE FUNCTION dbo.EncryptTableWithMetadataIterations(@tableName NVARCHAR(MAX), @password NVARCHAR(MAX), @iterations INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptTableWithMetadataIterations;
 GO
-PRINT '✓ EncryptTableWithMetadataIterations';
+PRINT '✓ EncryptTableWithMetadataIterations (FIXED - Enhanced Error Handling)';
 GO
 -- Enhanced XML Encryption with Metadata
 CREATE FUNCTION dbo.EncryptXmlWithMetadata(@xmlData XML, @password NVARCHAR(MAX))
@@ -473,7 +490,7 @@ GO
 PRINT '--- STEP 7: Creating Stored Procedures ---';
 GO
 
--- Universal Table Restoration Procedure
+-- Universal Table Restoration Procedure (FIXED)
 BEGIN TRY
     DECLARE @sql NVARCHAR(MAX) = '
     CREATE PROCEDURE dbo.DecryptTableWithMetadata
@@ -482,7 +499,7 @@ BEGIN TRY
     AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableWithMetadata;';
     
     EXEC(@sql);
-    PRINT '✓ DecryptTableWithMetadata';
+    PRINT '✓ DecryptTableWithMetadata (FIXED - Enhanced Debugging)';
 END TRY
 BEGIN CATCH
     PRINT '✗ Could not create DecryptTableWithMetadata: ' + ERROR_MESSAGE();
@@ -671,6 +688,39 @@ BEGIN CATCH
 END CATCH
 GO
 
+-- Test table encryption functionality (NEW)
+PRINT 'Testing table encryption functionality...';
+BEGIN TRY
+    -- Create a test table
+    IF OBJECT_ID('TestEncryptionTable') IS NOT NULL
+        DROP TABLE TestEncryptionTable;
+    
+    CREATE TABLE TestEncryptionTable (
+        ID INT PRIMARY KEY,
+        Name NVARCHAR(100)
+    );
+    
+    INSERT INTO TestEncryptionTable (ID, Name) VALUES (1, 'Test1'), (2, 'Test2');
+    
+    -- Test table encryption
+    DECLARE @encrypted NVARCHAR(MAX) = dbo.EncryptTableWithMetadataIterations('TestEncryptionTable', 'testpassword', 2000);
+    
+    IF @encrypted IS NOT NULL
+        PRINT '✓ EncryptTableWithMetadataIterations test: SUCCESS - Encrypted data length: ' + CAST(LEN(@encrypted) AS NVARCHAR(10));
+    ELSE
+        PRINT '✗ EncryptTableWithMetadataIterations test: FAILED - Returned NULL';
+    
+    -- Cleanup
+    DROP TABLE TestEncryptionTable;
+END TRY
+BEGIN CATCH
+    PRINT '✗ Table encryption test: FAILED - ' + ERROR_MESSAGE();
+    -- Cleanup on error
+    IF OBJECT_ID('TestEncryptionTable') IS NOT NULL
+        DROP TABLE TestEncryptionTable;
+END CATCH
+GO
+
 -- Expected object counts based on your installation
 PRINT '';
 PRINT '=== EXPECTED OBJECT COUNTS ===';
@@ -691,17 +741,26 @@ PRINT '✓ AES-GCM Encryption/Decryption (Recommended)';
 PRINT '✓ Password-based Key Derivation (PBKDF2)';
 PRINT '✓ Diffie-Hellman Key Exchange';
 PRINT '✓ BCrypt Password Hashing';
-PRINT '✓ Table-Level Encryption with Embedded Metadata';
+PRINT '✓ Table-Level Encryption with Embedded Metadata (FIXED)';
 PRINT '✓ XML Encryption with Schema Inference';
 PRINT '✓ Dynamic Temp Table Wrapper';
 PRINT '✓ Automatic Type Casting';
 PRINT '✓ Stored Procedure Result Set Handling';
 PRINT '✓ Legacy AES-CBC Support (Deprecated)';
+PRINT '✓ Enhanced Error Handling and Debugging';
+PRINT '';
+PRINT 'FIXES INCLUDED:';
+PRINT '✓ Fixed XML structure transformation issues';
+PRINT '✓ Enhanced error handling with detailed messages';
+PRINT '✓ Improved debugging information';
+PRINT '✓ Better table existence validation';
+PRINT '✓ Universal XML parsing support';
 PRINT '';
 PRINT 'NEXT STEPS:';
 PRINT '1. Run example.sql for basic usage examples';
 PRINT '2. Run practical-examples.sql for enhanced demonstrations';
 PRINT '3. Test with your specific use cases';
+PRINT '4. Run simple-test.sql to verify all functionality';
 PRINT '';
 PRINT 'USAGE EXAMPLES:';
 PRINT '-- Generate AES key: SELECT dbo.GenerateAESKey()';

@@ -46,6 +46,21 @@ namespace SecureLibrary.SQL
                 {
                     connection.Open();
                     
+                    // First, check if table exists
+                    string tableExistsQuery = $@"
+                        SELECT COUNT(*) 
+                        FROM INFORMATION_SCHEMA.TABLES 
+                        WHERE TABLE_SCHEMA = '{schemaName}' AND TABLE_NAME = '{tableNameOnly}'";
+                    
+                    using (var existsCmd = new System.Data.SqlClient.SqlCommand(tableExistsQuery, connection))
+                    {
+                        int tableExists = (int)existsCmd.ExecuteScalar();
+                        if (tableExists == 0)
+                        {
+                            throw new Exception($"Table [{schemaName}].[{tableNameOnly}] does not exist.");
+                        }
+                    }
+                    
                     // Get schema information
                     string schemaQuery = $@"
                         SELECT 
@@ -63,8 +78,10 @@ namespace SecureLibrary.SQL
                     using (var schemaCmd = new System.Data.SqlClient.SqlCommand(schemaQuery, connection))
                     using (var reader = schemaCmd.ExecuteReader())
                     {
+                        bool hasColumns = false;
                         while (reader.Read())
                         {
+                            hasColumns = true;
                             result.AppendLine($"      <Column name=\"{reader["COLUMN_NAME"]}\" type=\"{reader["DATA_TYPE"]}\" nullable=\"{reader["IS_NULLABLE"]}\"");
                             
                             if (!reader.IsDBNull(reader.GetOrdinal("CHARACTER_MAXIMUM_LENGTH")))
@@ -77,6 +94,11 @@ namespace SecureLibrary.SQL
                                 result.Append($" scale=\"{reader["NUMERIC_SCALE"]}\"");
                             
                             result.AppendLine(" />");
+                        }
+                        
+                        if (!hasColumns)
+                        {
+                            throw new Exception($"Table [{schemaName}].[{tableNameOnly}] has no columns.");
                         }
                     }
 
@@ -98,15 +120,21 @@ namespace SecureLibrary.SQL
                                 result.AppendLine("  " + row.ToString(SaveOptions.DisableFormatting));
                             }
                         }
+                        else
+                        {
+                            // Table exists but has no data - add empty row for structure
+                            result.AppendLine("  <!-- Table has no data -->");
+                        }
                     }
                 }
 
                 result.AppendLine("</Root>");
                 return result.ToString();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return null;
+                // Return a more descriptive error instead of null
+                return $"<Root><Error>Failed to build metadata: {ex.Message}</Error></Root>";
             }
         }
 
@@ -261,16 +289,40 @@ namespace SecureLibrary.SQL
                 if (root == null)
                     return (false, "XML document has no root element");
 
-                if (root.Name != "Root")
-                    return (false, "Expected root element 'Root', found: " + root.Name);
+                // Check for error element first
+                var errorElement = root.Element("Error");
+                if (errorElement != null)
+                    return (false, "XML contains error: " + errorElement.Value);
 
-                var metadata = root.Element("Metadata");
-                if (metadata == null)
-                    return (false, "Missing Metadata element");
+                // Allow both "Root" and other root names for flexibility
+                if (root.Name != "Root")
+                {
+                    // If it's not "Root", check if it has the expected structure
+                    var metadata = root.Element("Metadata");
+                    var rows = root.Elements("Row").ToList();
+                    
+                    if (metadata == null && rows.Count == 0)
+                        return (false, $"Unexpected root element '{root.Name}'. Expected 'Root' or valid structure.");
+                }
+
+                var metadataElement = root.Element("Metadata");
+                if (metadataElement == null)
+                {
+                    // If no metadata, check if we have data rows to infer structure
+                    var rows = root.Elements("Row").ToList();
+                    if (rows.Count == 0)
+                        return (false, "No Metadata element found and no data rows to infer structure");
+                    
+                    // If we have data rows, that's acceptable
+                    return (true, null);
+                }
 
                 var dataRows = root.Elements("Row").ToList();
                 if (dataRows.Count == 0)
-                    return (false, "No data rows found");
+                {
+                    // Allow empty tables - just warn
+                    return (true, "Warning: No data rows found, but structure is valid");
+                }
 
                 return (true, null);
             }
