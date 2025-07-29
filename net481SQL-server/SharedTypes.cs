@@ -66,34 +66,75 @@ namespace SecureLibrary.SQL
         }
 
         /// <summary>
-        /// Simple type inference from string values
+        /// Enhanced type inference from string values with better accuracy
         /// </summary>
         public static string InferDataType(string value)
         {
             if (string.IsNullOrEmpty(value))
                 return "nvarchar";
 
-            // Try integer
-            if (int.TryParse(value, out _))
-                return "int";
+            // Try GUID first (most specific)
+            if (Guid.TryParse(value, out _))
+                return "uniqueidentifier";
 
-            // Try decimal
-            if (decimal.TryParse(value, out _))
-                return "decimal";
-
-            // Try boolean
+            // Try boolean (specific pattern)
             if (value == "0" || value == "1" || 
                 value.Equals("true", StringComparison.OrdinalIgnoreCase) || 
                 value.Equals("false", StringComparison.OrdinalIgnoreCase))
                 return "bit";
 
-            // Try datetime
+            // Try integer (check for range)
+            if (int.TryParse(value, out int intValue))
+            {
+                if (intValue >= -32768 && intValue <= 32767)
+                    return "smallint";
+                else if (intValue >= 0 && intValue <= 255)
+                    return "tinyint";
+                else
+                    return "int";
+            }
+
+            // Try bigint
+            if (long.TryParse(value, out _))
+                return "bigint";
+
+            // Try decimal with precision detection
+            if (decimal.TryParse(value, out decimal decimalValue))
+            {
+                // Check if it's actually an integer
+                if (decimalValue == Math.Floor(decimalValue))
+                {
+                    if (decimalValue >= -32768 && decimalValue <= 32767)
+                        return "smallint";
+                    else if (decimalValue >= 0 && decimalValue <= 255)
+                        return "tinyint";
+                    else if (decimalValue >= int.MinValue && decimalValue <= int.MaxValue)
+                        return "int";
+                    else
+                        return "bigint";
+                }
+                
+                // Check decimal precision
+                string[] parts = value.Split('.');
+                if (parts.Length == 2)
+                {
+                    int precision = parts[0].Length + parts[1].Length;
+                    int scale = parts[1].Length;
+                    
+                    if (precision <= 38) // SQL Server max precision
+                        return "decimal";
+                }
+                
+                return "decimal";
+            }
+
+            // Try datetime with multiple formats
             if (DateTime.TryParse(value, out _))
                 return "datetime";
 
-            // Try GUID
-            if (Guid.TryParse(value, out _))
-                return "uniqueidentifier";
+            // Try specific date formats
+            if (value.Length == 10 && value.IndexOf("-", StringComparison.Ordinal) >= 0) // YYYY-MM-DD
+                return "date";
 
             // Default to nvarchar
             return "nvarchar";
@@ -105,6 +146,47 @@ namespace SecureLibrary.SQL
         public static string QUOTENAME(string identifier)
         {
             return "[" + identifier.Replace("]", "]]") + "]";
+        }
+
+        /// <summary>
+        /// Safely extracts value from XML element or attribute
+        /// </summary>
+        public static string GetXmlValue(XElement element, string name)
+        {
+            // Try attribute first
+            var attr = element.Attribute(name);
+            if (attr != null)
+                return attr.Value;
+
+            // Try element
+            var elem = element.Element(name);
+            if (elem != null)
+                return elem.Value;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Validates if a string can be safely used as a SQL identifier
+        /// </summary>
+        public static bool IsValidSqlIdentifier(string identifier)
+        {
+            if (string.IsNullOrEmpty(identifier))
+                return false;
+
+            // Check for SQL Server reserved words (basic check)
+            string[] reservedWords = {
+                "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
+                "TABLE", "VIEW", "PROCEDURE", "FUNCTION", "INDEX", "CONSTRAINT", "PRIMARY", "FOREIGN",
+                "KEY", "DEFAULT", "NULL", "NOT", "AND", "OR", "ORDER", "BY", "GROUP", "HAVING",
+                "UNION", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "CROSS", "FULL", "ON", "AS"
+            };
+
+            if (Array.IndexOf(reservedWords, identifier.ToUpperInvariant()) >= 0)
+                return false;
+
+            // Check for valid characters
+            return System.Text.RegularExpressions.Regex.IsMatch(identifier, @"^[a-zA-Z_][a-zA-Z0-9_]*$");
         }
     }
 } 

@@ -936,7 +936,10 @@ namespace SecureLibrary.SQL
         public static void DecryptTableWithMetadata(SqlString encryptedData, SqlString password)
         {
             if (encryptedData.IsNull || password.IsNull)
+            {
+                SqlContext.Pipe.Send("Error: Encrypted data or password is null.");
                 return;
+            }
 
             try
             {
@@ -948,49 +951,19 @@ namespace SecureLibrary.SQL
                     return;
                 }
 
-                // 2. Parse the XML document to extract metadata and column information
+                // 2. Validate XML structure
+                var (isValid, errorMessage) = XmlMetadataHandler.ValidateXmlStructure(decryptedXml);
+                if (!isValid)
+                {
+                    SqlContext.Pipe.Send($"XML validation failed: {errorMessage}");
+                    return;
+                }
+
+                // 3. Parse the XML document to extract metadata and column information
                 var doc = XDocument.Parse(decryptedXml);
-                var columns = new List<ColumnInfo>();
-
-                // Try to read embedded metadata first
-                var metadataElement = doc.Root?.Element("Metadata");
-                if (metadataElement != null)
-                {
-                    // Parse embedded schema metadata
-                    var columnsElement = metadataElement.Element("Columns");
-                    if (columnsElement != null)
-                    {
-                        columns = columnsElement.Elements("Column")
-                            .Select(x => new ColumnInfo {
-                                Name = (string)x.Attribute("name") ?? "Column",
-                                TypeName = (string)x.Attribute("type") ?? "nvarchar",
-                                MaxLength = XmlUtilities.GetIntAttribute(x, "maxLength"),
-                                Precision = XmlUtilities.GetByteAttribute(x, "precision"),
-                                Scale = XmlUtilities.GetByteAttribute(x, "scale"),
-                                IsNullable = (bool?)x.Attribute("nullable") ?? true
-                            })
-                            .ToList();
-                    }
-                }
-
-                // Fallback: Infer schema from first data row if no metadata
-                if (columns.Count == 0)
-                {
-                    var firstRow = doc.Root?.Elements("Row").FirstOrDefault();
-                    if (firstRow != null)
-                    {
-                        columns = firstRow.Attributes()
-                            .Select(attr => new ColumnInfo {
-                                Name = attr.Name.LocalName,
-                                TypeName = XmlUtilities.InferDataType(attr.Value),
-                                MaxLength = null,
-                                Precision = null,
-                                Scale = null,
-                                IsNullable = true
-                            })
-                            .ToList();
-                    }
-                }
+                
+                // FIXED: Use universal parsing approach
+                var columns = XmlMetadataHandler.ParseColumnsFromXml(doc.Root);
 
                 if (columns.Count == 0)
                 {
@@ -998,13 +971,13 @@ namespace SecureLibrary.SQL
                     return;
                 }
 
-                // 3. Build the Dynamic SQL with automatic type casting
+                // 4. Build the Dynamic SQL with automatic type casting
                 var sql = new StringBuilder();
                 var columnExpressions = new List<string>();
 
                 foreach (var column in columns)
                 {
-                    string columnExpression = BuildColumnExpression(column);
+                    string columnExpression = XmlMetadataHandler.BuildColumnExpression(column);
                     columnExpressions.Add(columnExpression);
                 }
 
@@ -1016,7 +989,7 @@ namespace SecureLibrary.SQL
                 sql.AppendLine(columnsClause);
                 sql.AppendLine("FROM @xml.nodes('/Root/Row') AS T(c);");
 
-                // 4. Execute the command and send the results to the client
+                // 5. Execute the command and send the results to the client
                 using (var connection = new System.Data.SqlClient.SqlConnection("context connection=true"))
                 {
                     connection.Open();
@@ -1036,24 +1009,7 @@ namespace SecureLibrary.SQL
 
         // Dynamic temp-table wrapper methods moved to DynamicTempTableWrapper.cs
 
-        /// <summary>
-        /// Builds a column expression with automatic type casting based on column metadata
-        /// Uses the existing SqlTypeMapping utility to avoid code duplication
-        /// </summary>
-        private static string BuildColumnExpression(ColumnInfo column)
-        {
-            string columnName = column.Name ?? "Column";
-            string rawValue = $"T.c.value('@{columnName}', 'NVARCHAR(MAX)')";
-            
-            // Use the existing SqlTypeMapping utility to determine the SQL type
-            var metaData = SqlTypeMapping.ToMetaData(column);
-            string sqlType = SqlTypeMapping.GetSqlTypeString(metaData.SqlDbType, metaData.Precision, metaData.Scale, metaData.MaxLength);
-            
-            return $"CAST({rawValue} AS {sqlType}) AS [{columnName}]";
-        }
-
-
-
-
+        // FIXED: BuildColumnExpression method moved to XmlMetadataHandler.cs for better organization
+        // and universal XML parsing support
     }
 }
