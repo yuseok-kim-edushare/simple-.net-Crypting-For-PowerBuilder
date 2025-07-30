@@ -31,7 +31,8 @@ namespace SecureLibrary
                 throw new ArgumentException("Invalid base64 key format", nameof(base64Key));
             }
 
-            try {
+            return ProtectedMemoryHelper.ExecuteWithProtection(key, (protectedKey) =>
+            {
                 // Generate new nonce
                 byte[] nonce = new byte[12];
                 using (var rng = RandomNumberGenerator.Create())
@@ -40,7 +41,7 @@ namespace SecureLibrary
                 }
                 string base64Nonce = Convert.ToBase64String(nonce);
 
-                using (var aesGcm = new AesGcm(key, 16))
+                using (var aesGcm = new AesGcm(protectedKey, 16))
                 {
                     byte[] encryptedData = new byte[plainText.Length];
                     byte[] tag = new byte[16]; // 128-bit tag
@@ -54,11 +55,7 @@ namespace SecureLibrary
                     // Combine nonce and ciphertext
                     return base64Nonce + ":" + encryptedBase64;
                 }
-            }
-            finally {
-                // Clear sensitive data
-                Array.Clear(key, 0, key.Length);
-            }
+            });
         }
 
         public static string DecryptAesGcm(string combinedData, string base64Key)
@@ -82,8 +79,9 @@ namespace SecureLibrary
             if (nonce.Length != 12) // 96 bits
                 throw new ArgumentException("Invalid nonce length", nameof(base64Nonce));
 
-            try {
-                using (var aesGcm = new AesGcm(key, 16))
+            return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
+            {
+                using (var aesGcm = new AesGcm(protectedArrays[0], 16))
                 {
                     // Split cipherText into encrypted data and tag
                     byte[] tag = new byte[16];
@@ -91,15 +89,10 @@ namespace SecureLibrary
                     Array.Copy(cipherText, encryptedData, encryptedData.Length);
                     Array.Copy(cipherText, encryptedData.Length, tag, 0, tag.Length);
                     byte[] decryptedData = new byte[encryptedData.Length];
-                    aesGcm.Decrypt(nonce, encryptedData, tag, decryptedData);
+                    aesGcm.Decrypt(protectedArrays[1], encryptedData, tag, decryptedData);
                     return Encoding.UTF8.GetString(decryptedData);
                 }
-            }
-            finally {
-                Array.Clear(key, 0, key.Length);
-                Array.Clear(nonce, 0, nonce.Length);
-                Array.Clear(cipherText, 0, cipherText.Length);
-            }
+            });
         }
 
         // Symmetric Encryption with AES CBC mode
@@ -330,21 +323,19 @@ namespace SecureLibrary
                 rng.GetBytes(nonce);
             }
 
-            byte[] encryptedData = EncryptAesGcmBytesWithKey(plainData, key, nonce);
+            return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
+            {
+                byte[] encryptedData = EncryptAesGcmBytesWithKey(plainData, protectedArrays[0], protectedArrays[1]);
 
-            // Combine salt length (4 bytes) + salt + nonce + encrypted data for output
-            byte[] result = new byte[4 + salt.Length + nonce.Length + encryptedData.Length];
-            Buffer.BlockCopy(BitConverter.GetBytes(salt.Length), 0, result, 0, 4); // Store salt length in first 4 bytes
-            Buffer.BlockCopy(salt, 0, result, 4, salt.Length);
-            Buffer.BlockCopy(nonce, 0, result, 4 + salt.Length, nonce.Length);
-            Buffer.BlockCopy(encryptedData, 0, result, 4 + salt.Length + nonce.Length, encryptedData.Length);
+                // Combine salt length (4 bytes) + salt + nonce + encrypted data for output
+                byte[] result = new byte[4 + salt.Length + protectedArrays[1].Length + encryptedData.Length];
+                Buffer.BlockCopy(BitConverter.GetBytes(salt.Length), 0, result, 0, 4); // Store salt length in first 4 bytes
+                Buffer.BlockCopy(salt, 0, result, 4, salt.Length);
+                Buffer.BlockCopy(protectedArrays[1], 0, result, 4 + salt.Length, protectedArrays[1].Length);
+                Buffer.BlockCopy(encryptedData, 0, result, 4 + salt.Length + protectedArrays[1].Length, encryptedData.Length);
 
-            // Clear sensitive data
-            Array.Clear(key, 0, key.Length);
-            Array.Clear(nonce, 0, nonce.Length);
-            Array.Clear(encryptedData, 0, encryptedData.Length);
-
-            return result;
+                return result;
+            });
         }
 
         /// <summary>
@@ -380,15 +371,11 @@ namespace SecureLibrary
             {
                 key = pbkdf2.GetBytes(32);
             }
-            byte[] result = DecryptAesGcmBytesWithKey(cipherWithTag, key, nonce);
             
-            // Clear sensitive data
-            Array.Clear(salt, 0, salt.Length);
-            Array.Clear(nonce, 0, nonce.Length);
-            Array.Clear(cipherWithTag, 0, cipherWithTag.Length);
-            Array.Clear(key, 0, key.Length);
-            
-            return result;
+            return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
+            {
+                return DecryptAesGcmBytesWithKey(cipherWithTag, protectedArrays[0], protectedArrays[1]);
+            });
         }
 
         /// <summary>
@@ -407,23 +394,22 @@ namespace SecureLibrary
             if (key.Length != 32) throw new ArgumentException("Key must be 32 bytes", nameof(key));
             if (nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", nameof(nonce));
 
-            using (var aesGcm = new AesGcm(key, 16))
+            return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
             {
-                byte[] encryptedData = new byte[plainData.Length];
-                byte[] tag = new byte[16]; // 128-bit tag
-                aesGcm.Encrypt(nonce, plainData, encryptedData, tag);
-                
-                // Combine encrypted data and tag
-                byte[] result = new byte[encryptedData.Length + tag.Length];
-                Buffer.BlockCopy(encryptedData, 0, result, 0, encryptedData.Length);
-                Buffer.BlockCopy(tag, 0, result, encryptedData.Length, tag.Length);
+                using (var aesGcm = new AesGcm(protectedArrays[0], 16))
+                {
+                    byte[] encryptedData = new byte[plainData.Length];
+                    byte[] tag = new byte[16]; // 128-bit tag
+                    aesGcm.Encrypt(protectedArrays[1], plainData, encryptedData, tag);
+                    
+                    // Combine encrypted data and tag
+                    byte[] result = new byte[encryptedData.Length + tag.Length];
+                    Buffer.BlockCopy(encryptedData, 0, result, 0, encryptedData.Length);
+                    Buffer.BlockCopy(tag, 0, result, encryptedData.Length, tag.Length);
 
-                // Clear sensitive data
-                Array.Clear(encryptedData, 0, encryptedData.Length);
-                Array.Clear(tag, 0, tag.Length);
-
-                return result;
-            }
+                    return result;
+                }
+            });
         }
 
         /// <summary>
@@ -446,23 +432,22 @@ namespace SecureLibrary
             if (cipherWithTag.Length < tagLength)
                 throw new ArgumentException("Encrypted data too short", nameof(cipherWithTag));
 
-            using (var aesGcm = new AesGcm(key, 16))
+            return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
             {
-                // Split cipherWithTag into encrypted data and tag
-                byte[] tag = new byte[tagLength];
-                byte[] encryptedData = new byte[cipherWithTag.Length - tagLength];
-                Buffer.BlockCopy(cipherWithTag, 0, encryptedData, 0, encryptedData.Length);
-                Buffer.BlockCopy(cipherWithTag, encryptedData.Length, tag, 0, tag.Length);
-                
-                byte[] decryptedData = new byte[encryptedData.Length];
-                aesGcm.Decrypt(nonce, encryptedData, tag, decryptedData);
+                using (var aesGcm = new AesGcm(protectedArrays[0], 16))
+                {
+                    // Split cipherWithTag into encrypted data and tag
+                    byte[] tag = new byte[tagLength];
+                    byte[] encryptedData = new byte[cipherWithTag.Length - tagLength];
+                    Buffer.BlockCopy(cipherWithTag, 0, encryptedData, 0, encryptedData.Length);
+                    Buffer.BlockCopy(cipherWithTag, encryptedData.Length, tag, 0, tag.Length);
+                    
+                    byte[] decryptedData = new byte[encryptedData.Length];
+                    aesGcm.Decrypt(protectedArrays[1], encryptedData, tag, decryptedData);
 
-                // Clear sensitive data
-                Array.Clear(tag, 0, tag.Length);
-                Array.Clear(encryptedData, 0, encryptedData.Length);
-
-                return decryptedData;
-            }
+                    return decryptedData;
+                }
+            });
         }
 
         /// <summary>
@@ -582,19 +567,16 @@ namespace SecureLibrary
             if (saltBytes.Length < 8 || saltBytes.Length > 64)
                 throw new ArgumentException("Salt length must be between 8 and 64 bytes", nameof(base64Salt));
 
-            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-            
-            // Replace the derived key portion with our pre-derived key to avoid PBKDF2
-            // This is a performance optimization that skips key derivation
-            byte[] optimizedEncryptedBytes = EncryptAesGcmBytesWithDerivedKey(plainBytes, key, saltBytes);
-            
-            // Clear sensitive data
-            Array.Clear(plainBytes, 0, plainBytes.Length);
-            Array.Clear(key, 0, key.Length);
-            // Note: saltBytes is used in the output format, so we don't clear it here
-            // Array.Clear(optimizedEncryptedBytes, 0, optimizedEncryptedBytes.Length);
-            
-            return Convert.ToBase64String(optimizedEncryptedBytes);
+            return ProtectedMemoryHelper.ExecuteWithProtection(key, (protectedKey) =>
+            {
+                byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+                
+                // Replace the derived key portion with our pre-derived key to avoid PBKDF2
+                // This is a performance optimization that skips key derivation
+                byte[] optimizedEncryptedBytes = EncryptAesGcmBytesWithDerivedKey(plainBytes, protectedKey, saltBytes);
+                
+                return Convert.ToBase64String(optimizedEncryptedBytes);
+            });
         }
 
         /// <summary>
@@ -615,17 +597,15 @@ namespace SecureLibrary
             if (key.Length != 32)
                 throw new ArgumentException("Derived key must be 32 bytes", nameof(base64DerivedKey));
 
-            byte[] encryptedBytes = Convert.FromBase64String(base64EncryptedData);
-            byte[] decryptedBytes = DecryptAesGcmBytesWithDerivedKey(encryptedBytes, key);
-            
-            string result = Encoding.UTF8.GetString(decryptedBytes);
-            
-            // Clear sensitive data
-            Array.Clear(key, 0, key.Length);
-            Array.Clear(encryptedBytes, 0, encryptedBytes.Length);
-            Array.Clear(decryptedBytes, 0, decryptedBytes.Length);
-            
-            return result;
+            return ProtectedMemoryHelper.ExecuteWithProtection(key, (protectedKey) =>
+            {
+                byte[] encryptedBytes = Convert.FromBase64String(base64EncryptedData);
+                byte[] decryptedBytes = DecryptAesGcmBytesWithDerivedKey(encryptedBytes, protectedKey);
+                
+                string result = Encoding.UTF8.GetString(decryptedBytes);
+                
+                return result;
+            });
         }
 
         /// <summary>
@@ -650,21 +630,20 @@ namespace SecureLibrary
                 rng.GetBytes(nonce);
             }
 
-            byte[] encryptedData = EncryptAesGcmBytesWithKey(plainData, key, nonce);
+            return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
+            {
+                byte[] encryptedData = EncryptAesGcmBytesWithKey(plainData, protectedArrays[0], protectedArrays[1]);
 
-            // Combine salt length (4 bytes) + salt + nonce + encrypted data for output
-            // This matches the format used by EncryptAesGcmBytesWithPassword
-            byte[] result = new byte[4 + salt.Length + nonce.Length + encryptedData.Length];
-            Buffer.BlockCopy(BitConverter.GetBytes(salt.Length), 0, result, 0, 4);
-            Buffer.BlockCopy(salt, 0, result, 4, salt.Length);
-            Buffer.BlockCopy(nonce, 0, result, 4 + salt.Length, nonce.Length);
-            Buffer.BlockCopy(encryptedData, 0, result, 4 + salt.Length + nonce.Length, encryptedData.Length);
+                // Combine salt length (4 bytes) + salt + nonce + encrypted data for output
+                // This matches the format used by EncryptAesGcmBytesWithPassword
+                byte[] result = new byte[4 + salt.Length + protectedArrays[1].Length + encryptedData.Length];
+                Buffer.BlockCopy(BitConverter.GetBytes(salt.Length), 0, result, 0, 4);
+                Buffer.BlockCopy(salt, 0, result, 4, salt.Length);
+                Buffer.BlockCopy(protectedArrays[1], 0, result, 4 + salt.Length, protectedArrays[1].Length);
+                Buffer.BlockCopy(encryptedData, 0, result, 4 + salt.Length + protectedArrays[1].Length, encryptedData.Length);
 
-            // Clear sensitive data
-            Array.Clear(nonce, 0, nonce.Length);
-            Array.Clear(encryptedData, 0, encryptedData.Length);
-
-            return result;
+                return result;
+            });
         }
 
         /// <summary>
@@ -698,13 +677,10 @@ namespace SecureLibrary
             Buffer.BlockCopy(encryptedData, headerLength + saltLength, nonce, 0, nonceLength);
             Buffer.BlockCopy(encryptedData, headerLength + saltLength + nonceLength, cipherWithTag, 0, cipherWithTag.Length);
 
-            byte[] result = DecryptAesGcmBytesWithKey(cipherWithTag, key, nonce);
-
-            // Clear sensitive data
-            Array.Clear(nonce, 0, nonce.Length);
-            Array.Clear(cipherWithTag, 0, cipherWithTag.Length);
-
-            return result;
+            return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
+            {
+                return DecryptAesGcmBytesWithKey(cipherWithTag, protectedArrays[0], protectedArrays[1]);
+            });
         }
     }
 }

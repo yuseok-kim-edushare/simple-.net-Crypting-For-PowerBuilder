@@ -228,83 +228,82 @@ namespace SecureLibrary.SQL.Services
             if (key.Length != 32) throw new ArgumentException("Key must be 32 bytes", nameof(key));
             if (nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", nameof(nonce));
 
-            lock (_lockObject)
+            return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
             {
-                IntPtr hAlg = IntPtr.Zero;
-                IntPtr hKey = IntPtr.Zero;
-
-                try
+                lock (_lockObject)
                 {
-                    // Initialize algorithm provider
-                    int status = BCryptOpenAlgorithmProvider(out hAlg, BCRYPT_AES_ALGORITHM, null, 0);
-                    if (status != STATUS_SUCCESS) 
-                        throw new CryptographicException($"BCryptOpenAlgorithmProvider failed with status {status}");
-
-                    // Set GCM mode
-                    status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE, 
-                        Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM), 
-                        Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM).Length, 0);
-                    if (status != STATUS_SUCCESS) 
-                        throw new CryptographicException($"BCryptSetProperty failed with status {status}");
-
-                    // Generate key
-                    status = BCryptGenerateSymmetricKey(hAlg, out hKey, IntPtr.Zero, 0, key, key.Length, 0);
-                    if (status != STATUS_SUCCESS) 
-                        throw new CryptographicException($"BCryptGenerateSymmetricKey failed with status {status}");
-
-                    const int tagLength = 16;  // GCM tag length
-
-                    var authInfo = BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO.Initialize();
-                    var nonceHandle = GCHandle.Alloc(nonce, GCHandleType.Pinned);
-                    var tagBuffer = new byte[tagLength];
-                    var tagHandle = GCHandle.Alloc(tagBuffer, GCHandleType.Pinned);
+                    IntPtr hAlg = IntPtr.Zero;
+                    IntPtr hKey = IntPtr.Zero;
 
                     try
                     {
-                        authInfo.pbNonce = nonceHandle.AddrOfPinnedObject();
-                        authInfo.cbNonce = nonce.Length;
-                        authInfo.pbTag = tagHandle.AddrOfPinnedObject();
-                        authInfo.cbTag = tagLength;
-
-                        // Get required size
-                        int cipherLength;
-                        status = BCryptEncrypt(hKey, plainData, plainData.Length, ref authInfo,
-                            null, 0, null, 0, out cipherLength, 0);
+                        // Initialize algorithm provider
+                        int status = BCryptOpenAlgorithmProvider(out hAlg, BCRYPT_AES_ALGORITHM, null, 0);
                         if (status != STATUS_SUCCESS) 
-                            throw new CryptographicException($"BCryptEncrypt size failed with status {status}");
+                            throw new CryptographicException($"BCryptOpenAlgorithmProvider failed with status {status}");
 
-                        byte[] cipherText = new byte[cipherLength];
-
-                        // Encrypt
-                        int bytesWritten;
-                        status = BCryptEncrypt(hKey, plainData, plainData.Length, ref authInfo,
-                            null, 0, cipherText, cipherText.Length, out bytesWritten, 0);
+                        // Set GCM mode
+                        status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE, 
+                            Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM), 
+                            Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM).Length, 0);
                         if (status != STATUS_SUCCESS) 
-                            throw new CryptographicException($"BCryptEncrypt failed with status {status}");
+                            throw new CryptographicException($"BCryptSetProperty failed with status {status}");
 
-                        // Combine ciphertext and tag
-                        byte[] result = new byte[bytesWritten + tagLength];
-                        Buffer.BlockCopy(cipherText, 0, result, 0, bytesWritten);
-                        Buffer.BlockCopy(tagBuffer, 0, result, bytesWritten, tagLength);
+                        // Generate key
+                        status = BCryptGenerateSymmetricKey(hAlg, out hKey, IntPtr.Zero, 0, protectedArrays[0], protectedArrays[0].Length, 0);
+                        if (status != STATUS_SUCCESS) 
+                            throw new CryptographicException($"BCryptGenerateSymmetricKey failed with status {status}");
 
-                        // Clear sensitive data
-                        Array.Clear(cipherText, 0, cipherText.Length);
-                        Array.Clear(tagBuffer, 0, tagBuffer.Length);
+                        const int tagLength = 16;  // GCM tag length
 
-                        return result;
+                        var authInfo = BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO.Initialize();
+                        var nonceHandle = GCHandle.Alloc(protectedArrays[1], GCHandleType.Pinned);
+                        var tagBuffer = new byte[tagLength];
+                        var tagHandle = GCHandle.Alloc(tagBuffer, GCHandleType.Pinned);
+
+                        try
+                        {
+                            authInfo.pbNonce = nonceHandle.AddrOfPinnedObject();
+                            authInfo.cbNonce = protectedArrays[1].Length;
+                            authInfo.pbTag = tagHandle.AddrOfPinnedObject();
+                            authInfo.cbTag = tagLength;
+
+                            // Get required size
+                            int cipherLength;
+                            status = BCryptEncrypt(hKey, plainData, plainData.Length, ref authInfo,
+                                null, 0, null, 0, out cipherLength, 0);
+                            if (status != STATUS_SUCCESS) 
+                                throw new CryptographicException($"BCryptEncrypt size failed with status {status}");
+
+                            byte[] cipherText = new byte[cipherLength];
+
+                            // Encrypt
+                            int bytesWritten;
+                            status = BCryptEncrypt(hKey, plainData, plainData.Length, ref authInfo,
+                                null, 0, cipherText, cipherText.Length, out bytesWritten, 0);
+                            if (status != STATUS_SUCCESS) 
+                                throw new CryptographicException($"BCryptEncrypt failed with status {status}");
+
+                            // Combine ciphertext and tag
+                            byte[] result = new byte[bytesWritten + tagLength];
+                            Buffer.BlockCopy(cipherText, 0, result, 0, bytesWritten);
+                            Buffer.BlockCopy(tagBuffer, 0, result, bytesWritten, tagLength);
+
+                            return result;
+                        }
+                        finally
+                        {
+                            if (nonceHandle.IsAllocated) nonceHandle.Free();
+                            if (tagHandle.IsAllocated) tagHandle.Free();
+                        }
                     }
                     finally
                     {
-                        if (nonceHandle.IsAllocated) nonceHandle.Free();
-                        if (tagHandle.IsAllocated) tagHandle.Free();
+                        if (hKey != IntPtr.Zero) BCryptDestroyKey(hKey);
+                        if (hAlg != IntPtr.Zero) BCryptCloseAlgorithmProvider(hAlg, 0);
                     }
                 }
-                finally
-                {
-                    if (hKey != IntPtr.Zero) BCryptDestroyKey(hKey);
-                    if (hAlg != IntPtr.Zero) BCryptCloseAlgorithmProvider(hAlg, 0);
-                }
-            }
+            });
         }
 
         /// <summary>
@@ -331,86 +330,84 @@ namespace SecureLibrary.SQL.Services
             if (cipherData.Length < tagLength)
                 throw new ArgumentException("Encrypted data too short", nameof(cipherData));
 
-            lock (_lockObject)
+            return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
             {
-                IntPtr hAlg = IntPtr.Zero;
-                IntPtr hKey = IntPtr.Zero;
-
-                try
+                lock (_lockObject)
                 {
-                    // Initialize algorithm provider
-                    int status = BCryptOpenAlgorithmProvider(out hAlg, BCRYPT_AES_ALGORITHM, null, 0);
-                    if (status != STATUS_SUCCESS) 
-                        throw new CryptographicException($"BCryptOpenAlgorithmProvider failed with status {status}");
-
-                    // Set GCM mode
-                    status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE,
-                        Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM),
-                        Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM).Length, 0);
-                    if (status != STATUS_SUCCESS) 
-                        throw new CryptographicException($"BCryptSetProperty failed with status {status}");
-
-                    // Generate key
-                    status = BCryptGenerateSymmetricKey(hAlg, out hKey, IntPtr.Zero, 0, key, key.Length, 0);
-                    if (status != STATUS_SUCCESS) 
-                        throw new CryptographicException($"BCryptGenerateSymmetricKey failed with status {status}");
-
-                    // Separate ciphertext and tag
-                    int encryptedDataLength = cipherData.Length - tagLength;
-                    byte[] encryptedData = new byte[encryptedDataLength];
-                    byte[] tag = new byte[tagLength];
-                    Buffer.BlockCopy(cipherData, 0, encryptedData, 0, encryptedDataLength);
-                    Buffer.BlockCopy(cipherData, encryptedDataLength, tag, 0, tagLength);
-
-                    var authInfo = BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO.Initialize();
-                    var nonceHandle = GCHandle.Alloc(nonce, GCHandleType.Pinned);
-                    var tagHandle = GCHandle.Alloc(tag, GCHandleType.Pinned);
+                    IntPtr hAlg = IntPtr.Zero;
+                    IntPtr hKey = IntPtr.Zero;
 
                     try
                     {
-                        authInfo.pbNonce = nonceHandle.AddrOfPinnedObject();
-                        authInfo.cbNonce = nonce.Length;
-                        authInfo.pbTag = tagHandle.AddrOfPinnedObject();
-                        authInfo.cbTag = tagLength;
-
-                        // Get required size
-                        int plainTextLength;
-                        status = BCryptDecrypt(hKey, encryptedData, encryptedData.Length, ref authInfo,
-                            null, 0, null, 0, out plainTextLength, 0);
+                        // Initialize algorithm provider
+                        int status = BCryptOpenAlgorithmProvider(out hAlg, BCRYPT_AES_ALGORITHM, null, 0);
                         if (status != STATUS_SUCCESS) 
-                            throw new CryptographicException($"BCryptDecrypt size failed with status {status}");
+                            throw new CryptographicException($"BCryptOpenAlgorithmProvider failed with status {status}");
 
-                        byte[] plainText = new byte[plainTextLength];
-
-                        // Decrypt
-                        int bytesWritten;
-                        status = BCryptDecrypt(hKey, encryptedData, encryptedData.Length, ref authInfo,
-                            null, 0, plainText, plainText.Length, out bytesWritten, 0);
+                        // Set GCM mode
+                        status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE,
+                            Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM),
+                            Encoding.Unicode.GetBytes(BCRYPT_CHAIN_MODE_GCM).Length, 0);
                         if (status != STATUS_SUCCESS) 
-                            throw new CryptographicException($"BCryptDecrypt failed with status {status}");
+                            throw new CryptographicException($"BCryptSetProperty failed with status {status}");
 
-                        byte[] result = new byte[bytesWritten];
-                        Buffer.BlockCopy(plainText, 0, result, 0, bytesWritten);
+                        // Generate key
+                        status = BCryptGenerateSymmetricKey(hAlg, out hKey, IntPtr.Zero, 0, protectedArrays[0], protectedArrays[0].Length, 0);
+                        if (status != STATUS_SUCCESS) 
+                            throw new CryptographicException($"BCryptGenerateSymmetricKey failed with status {status}");
 
-                        // Clear sensitive data
-                        Array.Clear(encryptedData, 0, encryptedData.Length);
-                        Array.Clear(tag, 0, tag.Length);
-                        Array.Clear(plainText, 0, plainText.Length);
+                        // Separate ciphertext and tag
+                        int encryptedDataLength = cipherData.Length - tagLength;
+                        byte[] encryptedData = new byte[encryptedDataLength];
+                        byte[] tag = new byte[tagLength];
+                        Buffer.BlockCopy(cipherData, 0, encryptedData, 0, encryptedDataLength);
+                        Buffer.BlockCopy(cipherData, encryptedDataLength, tag, 0, tagLength);
 
-                        return result;
+                        var authInfo = BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO.Initialize();
+                        var nonceHandle = GCHandle.Alloc(protectedArrays[1], GCHandleType.Pinned);
+                        var tagHandle = GCHandle.Alloc(tag, GCHandleType.Pinned);
+
+                        try
+                        {
+                            authInfo.pbNonce = nonceHandle.AddrOfPinnedObject();
+                            authInfo.cbNonce = protectedArrays[1].Length;
+                            authInfo.pbTag = tagHandle.AddrOfPinnedObject();
+                            authInfo.cbTag = tagLength;
+
+                            // Get required size
+                            int plainTextLength;
+                            status = BCryptDecrypt(hKey, encryptedData, encryptedData.Length, ref authInfo,
+                                null, 0, null, 0, out plainTextLength, 0);
+                            if (status != STATUS_SUCCESS) 
+                                throw new CryptographicException($"BCryptDecrypt size failed with status {status}");
+
+                            byte[] plainText = new byte[plainTextLength];
+
+                            // Decrypt
+                            int bytesWritten;
+                            status = BCryptDecrypt(hKey, encryptedData, encryptedData.Length, ref authInfo,
+                                null, 0, plainText, plainText.Length, out bytesWritten, 0);
+                            if (status != STATUS_SUCCESS) 
+                                throw new CryptographicException($"BCryptDecrypt failed with status {status}");
+
+                            byte[] result = new byte[bytesWritten];
+                            Buffer.BlockCopy(plainText, 0, result, 0, bytesWritten);
+
+                            return result;
+                        }
+                        finally
+                        {
+                            if (nonceHandle.IsAllocated) nonceHandle.Free();
+                            if (tagHandle.IsAllocated) tagHandle.Free();
+                        }
                     }
                     finally
                     {
-                        if (nonceHandle.IsAllocated) nonceHandle.Free();
-                        if (tagHandle.IsAllocated) tagHandle.Free();
+                        if (hKey != IntPtr.Zero) BCryptDestroyKey(hKey);
+                        if (hAlg != IntPtr.Zero) BCryptCloseAlgorithmProvider(hAlg, 0);
                     }
                 }
-                finally
-                {
-                    if (hKey != IntPtr.Zero) BCryptDestroyKey(hKey);
-                    if (hAlg != IntPtr.Zero) BCryptCloseAlgorithmProvider(hAlg, 0);
-                }
-            }
+            });
         }
 
         /// <summary>

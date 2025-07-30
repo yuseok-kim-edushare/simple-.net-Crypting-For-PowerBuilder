@@ -29,6 +29,7 @@
     <PackageReference Include="System.Numerics.Vectors" Version="4.6.1" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
     <PackageReference Include="Microsoft.SqlServer.Server" Version="1.0.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.7" />
   </ItemGroup>
 
   <ItemGroup>
@@ -43,6 +44,7 @@
     <Compile Include="Interfaces\IEncryptionEngine.cs" />
     <Compile Include="Interfaces\ISqlXmlConverter.cs" />
     <Compile Include="Interfaces\IPasswordHashingService.cs" />
+    <Compile Include="ProtectedMemoryHelper.cs" />
     <Compile Include="Services\CgnService.cs" />
     <Compile Include="Services\SqlXmlConverter.cs" />
     <Compile Include="Services\EncryptionEngine.cs" />
