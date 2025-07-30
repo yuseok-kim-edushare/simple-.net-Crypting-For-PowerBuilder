@@ -162,6 +162,16 @@ namespace SecureLibrary.SQL.Tests
             // Arrange - Test various boolean representations
             var xmlTemplate = @"<root>
   <RowData>
+    <xsd:schema targetNamespace=""urn:schemas-microsoft-com:sql:SqlRowSet4"" xmlns:schema=""urn:schemas-microsoft-com:sql:SqlRowSet4"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:sqltypes=""http://schemas.microsoft.com/sqlserver/2004/sqltypes"" elementFormDefault=""qualified"">
+      <xsd:import namespace=""http://schemas.microsoft.com/sqlserver/2004/sqltypes"" schemaLocation=""http://schemas.microsoft.com/sqlserver/2004/sqltypes/sqltypes.xsd"" />
+      <xsd:element name=""Row"">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name=""test_value"" type=""sqltypes:bit"" />
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:schema>
     <Row xmlns=""urn:schemas-microsoft-com:sql:SqlRowSet4"">
       <test_value>{0}</test_value>
     </Row>
@@ -171,12 +181,12 @@ namespace SecureLibrary.SQL.Tests
             // Test "1" -> true
             var xml1 = string.Format(xmlTemplate, "1");
             var result1 = _converter.ParseForXmlOutput(xml1);
-            Assert.AreEqual(true, bool.Parse(result1.Rows[0]["test_value"].ToString()));
+            Assert.AreEqual(true, result1.Rows[0]["test_value"]);
 
             // Test "0" -> false
             var xml0 = string.Format(xmlTemplate, "0");
             var result0 = _converter.ParseForXmlOutput(xml0);
-            Assert.AreEqual(false, bool.Parse(result0.Rows[0]["test_value"].ToString()));
+            Assert.AreEqual(false, result0.Rows[0]["test_value"]);
         }
 
         [TestMethod]

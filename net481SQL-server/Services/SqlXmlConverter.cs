@@ -570,7 +570,20 @@ namespace SecureLibrary.SQL.Services
                 {
                     // Use the inner content
                     workingRoot = dataElement;
+                    
+                    // Check for nested structure like RowsData > Rows > Row
+                    var nestedRowsElement = dataElement.Element("Rows");
+                    if (nestedRowsElement != null && nestedRowsElement.HasElements)
+                    {
+                        workingRoot = nestedRowsElement;
+                    }
                 }
+            }
+            // Check if the root element itself is a Row (without wrapper)
+            else if (root.Name.LocalName == "Row")
+            {
+                // Root is already a Row element, use it directly
+                workingRoot = root;
             }
 
             // Parse XML schema if present
@@ -595,10 +608,28 @@ namespace SecureLibrary.SQL.Services
                         }
                     }
                 }
+                // If workingRoot itself is a Row, use it to create columns
+                else if (workingRoot.Name.LocalName == "Row")
+                {
+                    foreach (var element in workingRoot.Elements())
+                    {
+                        var columnName = element.Name.LocalName;
+                        if (!dataTable.Columns.Contains(columnName))
+                        {
+                            dataTable.Columns.Add(columnName, typeof(string));
+                        }
+                    }
+                }
             }
 
-            // Parse row data
-            var rowElements = workingRoot.Elements().Where(e => e.Name.LocalName == "Row").ToList();
+            // Parse row data - look for Row elements at any level within workingRoot
+            var rowElements = workingRoot.Descendants().Where(e => e.Name.LocalName == "Row").ToList();
+            // If no Row elements found and workingRoot itself is a Row, use it
+            if (rowElements.Count == 0 && workingRoot.Name.LocalName == "Row")
+            {
+                rowElements.Add(workingRoot);
+            }
+            
             foreach (var rowElement in rowElements)
             {
                 var dataRow = dataTable.NewRow();
@@ -637,6 +668,13 @@ namespace SecureLibrary.SQL.Services
                 {
                     // Use the inner content
                     workingRoot = dataElement;
+                    
+                    // Check for nested structure like RowData > Rows > Row
+                    var nestedRowsElement = dataElement.Element("Rows");
+                    if (nestedRowsElement != null && nestedRowsElement.HasElements)
+                    {
+                        workingRoot = nestedRowsElement;
+                    }
                 }
             }
 
@@ -647,8 +685,8 @@ namespace SecureLibrary.SQL.Services
                 ParseSqlServerXmlSchema(schemaElement, dataTable);
             }
 
-            // Find the actual row element
-            var rowElement = workingRoot.Elements().FirstOrDefault(e => e.Name.LocalName == "Row");
+            // Find the actual row element - look for Row elements at any level within workingRoot
+            var rowElement = workingRoot.Descendants().FirstOrDefault(e => e.Name.LocalName == "Row");
             if (rowElement == null)
             {
                 throw new ArgumentException("No Row element found in XML");

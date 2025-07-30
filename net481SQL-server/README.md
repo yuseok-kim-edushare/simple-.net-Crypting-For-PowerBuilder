@@ -165,15 +165,6 @@ See the source code for detailed interface and class documentation.
 
 ---
 
-## 🗂️ Version Status
-
-- **v2.0.0 (Current):**
-  - Single value and single row encryption/decryption (AES-GCM)
-  - Bcrypt password hashing
-  - Table/multi-row encryption and ECDH: **Not yet implemented**
-
----
-
 ## 🤝 Contributing
 
 See [Contributing.md](../Contributing.md) for guidelines.
