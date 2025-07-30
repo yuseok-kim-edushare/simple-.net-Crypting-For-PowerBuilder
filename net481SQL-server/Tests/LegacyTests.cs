@@ -1,8 +1,9 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SecureLibrary.SQL;
+using System;
 using System.Linq;
 using System.Data.SqlTypes;
-using Microsoft.Data.SqlClient;
+using System.Data.SqlClient;
 using System.Security.Cryptography;
 
 namespace SecureLibrary.SQL.Tests
@@ -31,8 +32,11 @@ namespace SecureLibrary.SQL.Tests
             var key = SqlCLRCrypting.GenerateAESKey();
             
             // Act
+            #pragma warning disable CS0618
+            // this warning disable for obsolete method
             var encryptResult = SqlCLRCrypting.EncryptAES(plainText, key).Cast<SqlString[]>().First();
             var decrypted = SqlCLRCrypting.DecryptAES(encryptResult[0], key, encryptResult[1]);
+            #pragma warning restore CS0618
             
             // Assert
             Assert.AreEqual(plainText.Value, decrypted.Value, "Decrypted text should match original");

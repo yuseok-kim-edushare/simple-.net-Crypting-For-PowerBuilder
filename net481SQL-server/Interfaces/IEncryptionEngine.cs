@@ -64,6 +64,22 @@ namespace SecureLibrary.SQL.Interfaces
         /// Gets the supported encryption algorithms
         /// </summary>
         IEnumerable<string> SupportedAlgorithms { get; }
+
+        /// <summary>
+        /// Encrypts a single value with the specified encryption metadata
+        /// </summary>
+        /// <param name="value">Value to encrypt</param>
+        /// <param name="metadata">Encryption metadata</param>
+        /// <returns>Encrypted value data</returns>
+        EncryptedValueData EncryptValue(object value, EncryptionMetadata metadata);
+
+        /// <summary>
+        /// Decrypts a single encrypted value
+        /// </summary>
+        /// <param name="encryptedData">Encrypted value data</param>
+        /// <param name="metadata">Encryption metadata</param>
+        /// <returns>Decrypted value</returns>
+        object DecryptValue(EncryptedValueData encryptedData, EncryptionMetadata metadata);
     }
 
     /// <summary>
@@ -155,6 +171,37 @@ namespace SecureLibrary.SQL.Interfaces
 
         /// <summary>
         /// Encryption metadata used for this row
+        /// </summary>
+        public EncryptionMetadata Metadata { get; set; }
+
+        /// <summary>
+        /// Timestamp when encryption was performed
+        /// </summary>
+        public DateTime EncryptedAt { get; set; }
+
+        /// <summary>
+        /// Version of the encryption format
+        /// </summary>
+        public int FormatVersion { get; set; } = 1;
+    }
+
+    /// <summary>
+    /// Encrypted value data with metadata
+    /// </summary>
+    public class EncryptedValueData
+    {
+        /// <summary>
+        /// Encrypted value
+        /// </summary>
+        public byte[] EncryptedValue { get; set; }
+
+        /// <summary>
+        /// Data type of the original value
+        /// </summary>
+        public string DataType { get; set; }
+
+        /// <summary>
+        /// Encryption metadata used for this value
         /// </summary>
         public EncryptionMetadata Metadata { get; set; }
 

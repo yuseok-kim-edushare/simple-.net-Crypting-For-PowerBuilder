@@ -506,6 +506,76 @@ namespace SecureLibrary.SQL.Tests
 
         #endregion
 
+        #region Single Value Encryption/Decryption Tests
+
+        [TestMethod]
+        public void EncryptValue_ValidData_ReturnsEncryptedValueData()
+        {
+            // Arrange
+            var value = "This is a secret message";
+            var metadata = CreateValidEncryptionMetadata();
+
+            // Act
+            var encryptedData = _encryptionEngine.EncryptValue(value, metadata);
+
+            // Assert
+            Assert.IsNotNull(encryptedData);
+            Assert.IsNotNull(encryptedData.EncryptedValue);
+            Assert.IsTrue(encryptedData.EncryptedValue.Length > 0);
+            Assert.AreEqual(typeof(string).AssemblyQualifiedName, encryptedData.DataType);
+            Assert.IsNotNull(encryptedData.Metadata);
+            Assert.AreEqual(DateTime.UtcNow.Date, encryptedData.EncryptedAt.Date);
+            Assert.AreEqual(1, encryptedData.FormatVersion);
+        }
+
+        [TestMethod]
+        public void DecryptValue_ValidEncryptedData_ReturnsOriginalValue()
+        {
+            // Arrange
+            var originalValue = "This is a secret message";
+            var metadata = CreateValidEncryptionMetadata();
+            var encryptedData = _encryptionEngine.EncryptValue(originalValue, metadata);
+
+            // Act
+            var decryptedValue = _encryptionEngine.DecryptValue(encryptedData, metadata);
+
+            // Assert
+            Assert.IsNotNull(decryptedValue);
+            Assert.AreEqual(originalValue, decryptedValue);
+        }
+
+        [TestMethod]
+        public void EncryptValue_IntegerData_HandlesCorrectly()
+        {
+            // Arrange
+            var value = 12345;
+            var metadata = CreateValidEncryptionMetadata();
+
+            // Act
+            var encryptedData = _encryptionEngine.EncryptValue(value, metadata);
+            var decryptedValue = _encryptionEngine.DecryptValue(encryptedData, metadata);
+
+            // Assert
+            Assert.AreEqual(value, decryptedValue);
+        }
+
+        [TestMethod]
+        public void EncryptValue_DateTimeData_HandlesCorrectly()
+        {
+            // Arrange
+            var value = new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+            var metadata = CreateValidEncryptionMetadata();
+        
+            // Act
+            var encryptedData = _encryptionEngine.EncryptValue(value, metadata);
+            var decryptedValue = (DateTime)_encryptionEngine.DecryptValue(encryptedData, metadata);
+        
+            // Assert
+            Assert.AreEqual(value, decryptedValue);
+        }
+
+        #endregion
+
         #region Helper Methods
 
         private DataTable CreateTestTable()

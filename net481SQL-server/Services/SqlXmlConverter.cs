@@ -540,7 +540,13 @@ namespace SecureLibrary.SQL.Services
         }
 
         // Private helper methods
-        private string ConvertValueToString(object value, Type dataType)
+        /// <summary>
+        /// Converts a value to its string representation for XML serialization
+        /// </summary>
+        /// <param name="value">Value to convert</param>
+        /// <param name="dataType">Data type of the value</param>
+        /// <returns>String representation of the value</returns>
+        public string ConvertValueToString(object value, Type dataType)
         {
             if (value == null || value == DBNull.Value)
                 return string.Empty;
@@ -595,6 +601,47 @@ namespace SecureLibrary.SQL.Services
             return value.ToString();
         }
 
+        /// <summary>
+        /// Converts a string back to a value of the specified type
+        /// </summary>
+        /// <param name="value">String to convert</param>
+        /// <param name="dataType">Target data type</param>
+        /// <returns>Converted value</returns>
+        public object ConvertStringToValue(string value, Type dataType)
+        {
+            if (string.IsNullOrEmpty(value))
+                return DBNull.Value;
+
+            if (dataType == typeof(bool))
+                return bool.Parse(value);
+            if (dataType == typeof(byte))
+                return byte.Parse(value, CultureInfo.InvariantCulture);
+            if (dataType == typeof(short))
+                return short.Parse(value, CultureInfo.InvariantCulture);
+            if (dataType == typeof(int))
+                return int.Parse(value, CultureInfo.InvariantCulture);
+            if (dataType == typeof(long))
+                return long.Parse(value, CultureInfo.InvariantCulture);
+            if (dataType == typeof(decimal))
+                return decimal.Parse(value, CultureInfo.InvariantCulture);
+            if (dataType == typeof(double))
+                return double.Parse(value, CultureInfo.InvariantCulture);
+            if (dataType == typeof(float))
+                return float.Parse(value, CultureInfo.InvariantCulture);
+            if (dataType == typeof(DateTime))
+                return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+            if (dataType == typeof(TimeSpan))
+                return TimeSpan.Parse(value, CultureInfo.InvariantCulture);
+            if (dataType == typeof(DateTimeOffset))
+                return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
+            if (dataType == typeof(Guid))
+                return Guid.Parse(value);
+            if (dataType == typeof(byte[]))
+                return Convert.FromBase64String(value);
+
+            return value;
+        }
+
         private object ConvertStringToValue(string value, SqlDbType sqlType)
         {
             if (string.IsNullOrEmpty(value))
@@ -624,7 +671,7 @@ namespace SecureLibrary.SQL.Services
                 case SqlDbType.DateTime:
                 case SqlDbType.DateTime2:
                 case SqlDbType.SmallDateTime:
-                    return DateTime.Parse(value, CultureInfo.InvariantCulture);
+                    return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
                 case SqlDbType.Time:
                     return TimeSpan.Parse(value, CultureInfo.InvariantCulture);
                 case SqlDbType.DateTimeOffset:
@@ -645,41 +692,6 @@ namespace SecureLibrary.SQL.Services
                 default:
                     return value;
             }
-        }
-
-        private object ConvertStringToValue(string value, Type dataType)
-        {
-            if (string.IsNullOrEmpty(value))
-                return DBNull.Value;
-
-            if (dataType == typeof(bool))
-                return bool.Parse(value);
-            if (dataType == typeof(byte))
-                return byte.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(short))
-                return short.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(int))
-                return int.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(long))
-                return long.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(decimal))
-                return decimal.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(double))
-                return double.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(float))
-                return float.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(DateTime))
-                return DateTime.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(TimeSpan))
-                return TimeSpan.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(DateTimeOffset))
-                return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(Guid))
-                return Guid.Parse(value);
-            if (dataType == typeof(byte[]))
-                return Convert.FromBase64String(value);
-
-            return value;
         }
 
         private void SetRecordValue(SqlDataRecord record, int ordinal, object value, SqlDbType sqlType)

@@ -131,10 +131,20 @@ namespace SecureLibrary.SQL.Tests
             Assert.IsTrue(stopwatch.ElapsedMilliseconds < 2000, $"Round trip took {stopwatch.ElapsedMilliseconds}ms, expected < 2000ms");
             
             // Verify data integrity
-            for (int i = 0; i < Math.Min(10, table.Columns.Count); i++)
+            for (int i = 0; i < Math.Min(10, decryptedRow.Table.Columns.Count); i++)
             {
-                var column = table.Columns[i];
-                Assert.AreEqual(row[column], decryptedRow[column], $"Column {column.ColumnName} data mismatch");
+                var column = decryptedRow.Table.Columns[i];
+                var originalValue = row[column.ColumnName];
+                var decryptedValue = decryptedRow[column.ColumnName];
+                
+                if (column.DataType == typeof(byte[]))
+                {
+                    CollectionAssert.AreEqual((byte[])originalValue, (byte[])decryptedValue, $"Column {column.ColumnName} data mismatch");
+                }
+                else
+                {
+                    Assert.AreEqual(originalValue, decryptedValue, $"Column {column.ColumnName} data mismatch");
+                }
             }
             
             Console.WriteLine($"100 columns round trip: {stopwatch.ElapsedMilliseconds}ms");
@@ -233,18 +243,21 @@ namespace SecureLibrary.SQL.Tests
 
             // Act
             var stopwatch = Stopwatch.StartNew();
-            var tasks = Enumerable.Range(0, 10).Select(async i =>
+            var tasks = Enumerable.Range(0, 10).Select(i =>
             {
-                var row = table.NewRow();
-                PopulateRowWithTestData(row);
-                table.Rows.Add(row);
-
-                var encryptedData = _encryptionEngine.EncryptRow(row, metadata);
-                
-                lock (lockObject)
+                return System.Threading.Tasks.Task.Run(() =>
                 {
-                    results.Add(encryptedData);
-                }
+                    var row = table.NewRow();
+                    PopulateRowWithTestData(row);
+                    table.Rows.Add(row);
+
+                    var encryptedData = _encryptionEngine.EncryptRow(row, metadata);
+                    
+                    lock (lockObject)
+                    {
+                        results.Add(encryptedData);
+                    }
+                });
             }).ToArray();
 
             // Wait for all tasks to complete

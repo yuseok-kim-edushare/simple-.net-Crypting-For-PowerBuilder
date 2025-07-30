@@ -179,6 +179,13 @@ EXEC dbo.EncryptTableWithMetadata
     @password = 'YourPassword123!',
     @iterations = 10000,
     @encryptedData = @encryptedTableData OUTPUT;
+
+-- Encrypt a single value
+DECLARE @encryptedValue NVARCHAR(MAX) = dbo.EncryptValue('My secret data', 'YourPassword123!', 10000);
+SELECT @encryptedValue AS EncryptedValue;
+
+-- Decrypt a single value
+SELECT dbo.DecryptValue(@encryptedValue, 'YourPassword123!') AS DecryptedValue;
 ```
 
 ## 🧪 Testing
@@ -205,6 +212,7 @@ The library includes comprehensive tests covering:
 - ✅ Error handling
 - ✅ Edge cases (null values, large data, special characters)
 - ✅ Performance with large datasets
+- ✅ Single value encryption for various data types
 
 ### Performance Testing
 
@@ -288,6 +296,8 @@ public interface IEncryptionEngine
     ValidationResult ValidateEncryptionMetadata(EncryptionMetadata metadata);
     int MaxSupportedColumns { get; }
     IEnumerable<string> SupportedAlgorithms { get; }
+    EncryptedValueData EncryptValue(object value, EncryptionMetadata metadata);
+    object DecryptValue(EncryptedValueData encryptedData, EncryptionMetadata metadata);
 }
 ```
 
@@ -302,6 +312,8 @@ public interface ISqlXmlConverter
     DataRow FromXml(XDocument xml, DataTable table);
     XDocument ToXml(DataTable table);
     DataTable FromXml(XDocument xml);
+    EncryptedValueData EncryptValue(object value, EncryptionMetadata metadata);
+    object DecryptValue(EncryptedValueData encryptedData, EncryptionMetadata metadata);
     bool CanConvertToSqlType(object value, SqlDbType sqlType);
     object ConvertToSqlType(object value, SqlDbType sqlType);
     ValidationResult ValidateXmlStructure(XDocument xml);

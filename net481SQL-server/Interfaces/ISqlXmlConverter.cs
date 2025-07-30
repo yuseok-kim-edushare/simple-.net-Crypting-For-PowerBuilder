@@ -107,5 +107,21 @@ namespace SecureLibrary.SQL.Interfaces
         /// <param name="xml">XML to validate</param>
         /// <returns>Validation result with any error messages</returns>
         ValidationResult ValidateXmlStructure(XDocument xml);
+
+        /// <summary>
+        /// Converts a value to its string representation for XML serialization
+        /// </summary>
+        /// <param name="value">Value to convert</param>
+        /// <param name="dataType">Data type of the value</param>
+        /// <returns>String representation of the value</returns>
+        string ConvertValueToString(object value, Type dataType);
+
+        /// <summary>
+        /// Converts a string back to a value of the specified type
+        /// </summary>
+        /// <param name="value">String to convert</param>
+        /// <param name="dataType">Target data type</param>
+        /// <returns>Converted value</returns>
+        object ConvertStringToValue(string value, Type dataType);
     }
 } 

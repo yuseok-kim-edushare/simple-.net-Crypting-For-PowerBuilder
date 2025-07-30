@@ -577,6 +577,115 @@ namespace SecureLibrary.SQL
 
         #endregion
 
+        #region Single Value Encryption Functions
+
+        /// <summary>
+        /// Encrypts a single value with password-based key derivation
+        /// </summary>
+        /// <param name="value">Value to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">Number of iterations for key derivation</param>
+        /// <returns>Base64 encoded encrypted value data</returns>
+        [SqlFunction(
+            IsDeterministic = false, // Not deterministic due to random salt and nonce
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptValue(SqlString value, SqlString password, SqlInt32 iterations)
+        {
+            if (value.IsNull || password.IsNull || iterations.IsNull)
+                return SqlString.Null;
+
+            try
+            {
+                var metadata = new EncryptionMetadata
+                {
+                    Algorithm = "AES-GCM",
+                    Key = password.Value,
+                    Salt = _cgnService.GenerateNonce(32),
+                    Iterations = iterations.Value,
+                    AutoGenerateNonce = true
+                };
+
+                var encryptedData = _encryptionEngine.EncryptValue(value.Value, metadata);
+
+                // Serialize the encrypted value data to XML
+                var resultXml = new XElement("EncryptedValue",
+                    new XElement("DataType", encryptedData.DataType),
+                    new XElement("EncryptedData", Convert.ToBase64String(encryptedData.EncryptedValue)),
+                    new XElement("Metadata",
+                        new XElement("Algorithm", metadata.Algorithm),
+                        new XElement("Iterations", metadata.Iterations),
+                        new XElement("Salt", Convert.ToBase64String(metadata.Salt)),
+                        new XElement("Nonce", Convert.ToBase64String(metadata.Nonce))
+                    )
+                );
+
+                return new SqlString(resultXml.ToString());
+            }
+            catch (Exception ex)
+            {
+                throw new SqlException($"Value encryption failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Decrypts a single value with password-based key derivation
+        /// </summary>
+        /// <param name="encryptedValue">Base64 encoded encrypted value data</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <returns>Decrypted value</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString DecryptValue(SqlString encryptedValue, SqlString password)
+        {
+            if (encryptedValue.IsNull || password.IsNull)
+                return SqlString.Null;
+
+            try
+            {
+                // Parse the encrypted value XML
+                var xmlDoc = XDocument.Parse(encryptedValue.Value);
+                var root = xmlDoc.Root;
+
+                var dataType = root.Element("DataType").Value;
+                var encryptedDataBytes = Convert.FromBase64String(root.Element("EncryptedData").Value);
+                var metadataElement = root.Element("Metadata");
+
+                var metadata = new EncryptionMetadata
+                {
+                    Algorithm = metadataElement.Element("Algorithm").Value,
+                    Key = password.Value,
+                    Salt = Convert.FromBase64String(metadataElement.Element("Salt").Value),
+                    Nonce = Convert.FromBase64String(metadataElement.Element("Nonce").Value),
+                    Iterations = int.Parse(metadataElement.Element("Iterations").Value),
+                    AutoGenerateNonce = false
+                };
+
+                var encryptedData = new EncryptedValueData
+                {
+                    EncryptedValue = encryptedDataBytes,
+                    DataType = dataType,
+                    Metadata = metadata
+                };
+
+                var decryptedValue = _encryptionEngine.DecryptValue(encryptedData, metadata);
+                
+                return new SqlString(decryptedValue.ToString());
+            }
+            catch (Exception ex)
+            {
+                throw new SqlException($"Value decryption failed: {ex.Message}");
+            }
+        }
+
+        #endregion
+
         #region Table Encryption Functions
 
         /// <summary>

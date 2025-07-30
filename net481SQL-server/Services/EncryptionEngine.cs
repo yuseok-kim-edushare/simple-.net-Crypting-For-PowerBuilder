@@ -127,10 +127,16 @@ namespace SecureLibrary.SQL.Services
 
                 // Store encrypted data by column name for easy access
                 encryptedData.EncryptedColumns["RowData"] = encryptedXmlBytes;
+                
+                // Store the nonce used for encryption to ensure it's available during decryption
+                if (metadata.Nonce != null)
+                {
+                    encryptedData.EncryptedColumns["Nonce"] = metadata.Nonce;
+                }
 
                 // Clear sensitive data
                 Array.Clear(key, 0, key.Length);
-                if (nonce != null) Array.Clear(nonce, 0, nonce.Length);
+                if (nonce != null && nonce != metadata.Nonce) Array.Clear(nonce, 0, nonce.Length);
 
                 _logger?.LogInformation($"Successfully encrypted row with {row.Table.Columns.Count} columns");
                 return encryptedData;
@@ -175,6 +181,21 @@ namespace SecureLibrary.SQL.Services
                     throw new CryptographicException("Encrypted row data not found");
                 }
 
+                // Get the nonce used during encryption (stored in encrypted data)
+                byte[] nonce = null;
+                if (encryptedData.EncryptedColumns.TryGetValue("Nonce", out byte[] storedNonce))
+                {
+                    nonce = storedNonce;
+                }
+                else if (metadata.Nonce != null)
+                {
+                    nonce = metadata.Nonce;
+                }
+                else
+                {
+                    throw new CryptographicException("Nonce not found in encrypted data or metadata");
+                }
+
                 // Derive key if password-based encryption
                 byte[] key = null;
                 if (!string.IsNullOrEmpty(metadata.Key) && metadata.Salt != null)
@@ -186,8 +207,8 @@ namespace SecureLibrary.SQL.Services
                     throw new CryptographicException("Either Key+Salt or direct key must be provided");
                 }
 
-                // Decrypt the XML data
-                var decryptedXmlBytes = _cgnService.DecryptAesGcm(encryptedXmlBytes, key, metadata.Nonce);
+                // Decrypt the XML data using the stored nonce
+                var decryptedXmlBytes = _cgnService.DecryptAesGcm(encryptedXmlBytes, key, nonce);
                 var xmlString = Encoding.UTF8.GetString(decryptedXmlBytes);
 
                 // Parse XML and restore row
@@ -377,6 +398,153 @@ namespace SecureLibrary.SQL.Services
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Encrypts a single value with the specified encryption metadata
+        /// </summary>
+        /// <param name="value">Value to encrypt</param>
+        /// <param name="metadata">Encryption metadata</param>
+        /// <returns>Encrypted value data</returns>
+        public EncryptedValueData EncryptValue(object value, EncryptionMetadata metadata)
+        {
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+            if (metadata == null)
+                throw new ArgumentNullException(nameof(metadata));
+
+            _logger?.LogInformation($"Starting encryption of single value of type {value.GetType().Name}");
+
+            // Validate metadata
+            var validationResult = ValidateEncryptionMetadata(metadata);
+            if (!validationResult.IsValid)
+            {
+                var errorMessage = string.Join("; ", validationResult.Errors);
+                throw new CryptographicException($"Invalid encryption metadata: {errorMessage}");
+            }
+
+            try
+            {
+                // Convert value to string for encryption
+                var stringValue = _xmlConverter.ConvertValueToString(value, value.GetType());
+
+                // Generate nonce if auto-generate is enabled
+                byte[] nonce = null;
+                if (metadata.AutoGenerateNonce)
+                {
+                    nonce = _cgnService.GenerateNonce(12); // 12 bytes for AES-GCM
+                    metadata.Nonce = nonce;
+                }
+                else if (metadata.Nonce == null)
+                {
+                    throw new CryptographicException("Nonce is required when AutoGenerateNonce is false");
+                }
+
+                // Derive key if password-based encryption
+                byte[] key = null;
+                if (!string.IsNullOrEmpty(metadata.Key) && metadata.Salt != null)
+                {
+                    key = _cgnService.DeriveKeyFromPassword(metadata.Key, metadata.Salt, metadata.Iterations, 32);
+                }
+                else
+                {
+                    throw new CryptographicException("Either Key+Salt or direct key must be provided");
+                }
+
+                // Encrypt the string value
+                var encryptedBytes = _cgnService.EncryptAesGcm(Encoding.UTF8.GetBytes(stringValue), key, metadata.Nonce);
+
+                // Create encrypted value data
+                var encryptedData = new EncryptedValueData
+                {
+                    EncryptedValue = encryptedBytes,
+                    DataType = value.GetType().AssemblyQualifiedName,
+                    Metadata = metadata,
+                    EncryptedAt = DateTime.UtcNow,
+                    FormatVersion = 1
+                };
+
+                // Clear sensitive data
+                Array.Clear(key, 0, key.Length);
+                if (nonce != null && nonce != metadata.Nonce) Array.Clear(nonce, 0, nonce.Length);
+
+                _logger?.LogInformation($"Successfully encrypted single value of type {value.GetType().Name}");
+                return encryptedData;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"Value encryption failed: {ex.Message}");
+                throw new CryptographicException($"Value encryption failed: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Decrypts a single encrypted value
+        /// </summary>
+        /// <param name="encryptedData">Encrypted value data</param>
+        /// <param name="metadata">Encryption metadata</param>
+        /// <returns>Decrypted value</returns>
+        public object DecryptValue(EncryptedValueData encryptedData, EncryptionMetadata metadata)
+        {
+            if (encryptedData == null)
+                throw new ArgumentNullException(nameof(encryptedData));
+            if (metadata == null)
+                throw new ArgumentNullException(nameof(metadata));
+
+            _logger?.LogInformation($"Starting decryption of single value of type {encryptedData.DataType}");
+
+            try
+            {
+                // Validate metadata
+                var validationResult = ValidateEncryptionMetadata(metadata);
+                if (!validationResult.IsValid)
+                {
+                    var errorMessage = string.Join("; ", validationResult.Errors);
+                    throw new CryptographicException($"Invalid encryption metadata: {errorMessage}");
+                }
+
+                // Get the nonce used during encryption
+                byte[] nonce = encryptedData.Metadata.Nonce;
+                if (nonce == null)
+                {
+                    throw new CryptographicException("Nonce not found in encrypted data metadata");
+                }
+
+                // Derive key if password-based encryption
+                byte[] key = null;
+                if (!string.IsNullOrEmpty(metadata.Key) && metadata.Salt != null)
+                {
+                    key = _cgnService.DeriveKeyFromPassword(metadata.Key, metadata.Salt, metadata.Iterations, 32);
+                }
+                else
+                {
+                    throw new CryptographicException("Either Key+Salt or direct key must be provided");
+                }
+
+                // Decrypt the value
+                var decryptedBytes = _cgnService.DecryptAesGcm(encryptedData.EncryptedValue, key, nonce);
+                var stringValue = Encoding.UTF8.GetString(decryptedBytes);
+
+                // Convert string back to original type
+                var dataType = Type.GetType(encryptedData.DataType);
+                if (dataType == null)
+                {
+                    throw new CryptographicException($"Could not find type {encryptedData.DataType}");
+                }
+                var decryptedValue = _xmlConverter.ConvertStringToValue(stringValue, dataType);
+
+                // Clear sensitive data
+                Array.Clear(key, 0, key.Length);
+                Array.Clear(decryptedBytes, 0, decryptedBytes.Length);
+
+                _logger?.LogInformation($"Successfully decrypted single value of type {encryptedData.DataType}");
+                return decryptedValue;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"Value decryption failed: {ex.Message}");
+                throw new CryptographicException($"Value decryption failed: {ex.Message}", ex);
+            }
         }
     }
 

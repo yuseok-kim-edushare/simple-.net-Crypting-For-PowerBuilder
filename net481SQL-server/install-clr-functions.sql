@@ -142,6 +142,19 @@ AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].Decrypt
 GO
 PRINT '✓ DecryptXml';
 
+-- Single Value Encryption Functions
+CREATE FUNCTION dbo.EncryptValue(@value NVARCHAR(MAX), @password NVARCHAR(MAX), @iterations INT)
+RETURNS NVARCHAR(MAX)
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].EncryptValue;
+GO
+PRINT '✓ EncryptValue';
+
+CREATE FUNCTION dbo.DecryptValue(@encryptedValue NVARCHAR(MAX), @password NVARCHAR(MAX))
+RETURNS NVARCHAR(MAX)
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptValue;
+GO
+PRINT '✓ DecryptValue';
+
 -- Utility Functions
 CREATE FUNCTION dbo.ValidateEncryptionMetadata(@metadataXml XML)
 RETURNS XML
@@ -240,7 +253,8 @@ WHERE o.type = 'FS' AND o.name IN (
     'HashPassword', 'HashPasswordWithWorkFactor', 'VerifyPassword', 'GenerateSalt', 'GetHashInfo',
     'EncryptAesGcm', 'DecryptAesGcm', 'EncryptAesGcmWithPassword', 'DecryptAesGcmWithPassword',
     'GenerateKey', 'GenerateNonce', 'DeriveKeyFromPassword',
-    'EncryptXml', 'DecryptXml', 'ValidateEncryptionMetadata'
+    'EncryptXml', 'DecryptXml', 'ValidateEncryptionMetadata',
+    'EncryptValue', 'DecryptValue'
 )
 ORDER BY o.name;
 GO
@@ -302,6 +316,17 @@ PRINT 'XML encryption test: ' + CASE WHEN @encryptedXml IS NOT NULL THEN 'PASSED
 SET @decryptedXml = dbo.DecryptXml(@encryptedXml, @testPassword, 10000);
 PRINT 'XML decryption test: ' + CASE WHEN @decryptedXml IS NOT NULL THEN 'PASSED' ELSE 'FAILED' END;
 
+-- Test Single Value Encryption
+DECLARE @testValue NVARCHAR(MAX) = 'My secret value';
+DECLARE @encryptedValue NVARCHAR(MAX);
+DECLARE @decryptedValue NVARCHAR(MAX);
+
+SET @encryptedValue = dbo.EncryptValue(@testValue, @testPassword, 10000);
+PRINT 'Single value encryption test: ' + CASE WHEN @encryptedValue IS NOT NULL THEN 'PASSED' ELSE 'FAILED' END;
+
+SET @decryptedValue = dbo.DecryptValue(@encryptedValue, @testPassword);
+PRINT 'Single value decryption test: ' + CASE WHEN @decryptedValue = @testValue THEN 'PASSED' ELSE 'FAILED' END;
+
 PRINT '';
 PRINT '=== INSTALLATION COMPLETED SUCCESSFULLY ===';
 PRINT '';
@@ -311,6 +336,7 @@ PRINT '  - AES-GCM Encryption: EncryptAesGcm, DecryptAesGcm, EncryptAesGcmWithPa
 PRINT '  - Key Generation: GenerateKey, GenerateNonce, DeriveKeyFromPassword';
 PRINT '  - XML Encryption: EncryptXml, DecryptXml';
 PRINT '  - Utilities: ValidateEncryptionMetadata';
+PRINT '  - Single Value Encryption: EncryptValue, DecryptValue';
 PRINT '';
 PRINT 'Available Stored Procedures:';
 PRINT '  - Table Operations: EncryptTableWithMetadata, DecryptTableWithMetadata, WrapDecryptProcedure';
@@ -320,9 +346,15 @@ PRINT 'Example Usage:';
 PRINT '  -- Hash a password';
 PRINT '  SELECT dbo.HashPassword(''MyPassword123!'')';
 PRINT '';
+
 PRINT '  -- Encrypt text with password';
 PRINT '  SELECT dbo.EncryptAesGcmWithPassword(''Secret data'', ''MyPassword'', 10000)';
 PRINT '';
+
+PRINT '  -- Encrypt a single value';
+PRINT '  SELECT dbo.EncryptValue(''My secret value'', ''MyPassword'', 10000)';
+PRINT '';
+
 PRINT '  -- Encrypt XML data';
 PRINT '  SELECT dbo.EncryptXml(''<Data>Secret</Data>'', ''MyPassword'', 10000)';
 GO 
