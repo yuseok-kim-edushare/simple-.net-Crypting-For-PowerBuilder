@@ -35,9 +35,13 @@ namespace SecureLibrary.Tests
             string plainText = "Hello, World!";
             string key = EncryptionHelper.KeyGenAES256();
 
+            #pragma warning disable CS0618
+            // this warning disable for obsolete method
+
             // Act
             string[] encryptionResult = EncryptionHelper.EncryptAesCbcWithIv(plainText, key);
             string decrypted = EncryptionHelper.DecryptAesCbcWithIv(encryptionResult[0], key, encryptionResult[1]);
+            #pragma warning restore CS0618
 
             // Assert
             Assert.AreEqual(plainText, decrypted);
