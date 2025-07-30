@@ -106,6 +106,28 @@ jobs:
         $versionParts = $latest_release.Split('.')
         $versionParts[-1] = [int]$versionParts[-1] + 1
         $newVersionString = $versionParts -join '.'
+        $latestCommitMessages = (git log HEAD ^$latest_release --pretty=%B)
+        foreach ($line in $latestCommitMessages) {
+          if ($line -match "Update Version To (\d+\.\d+\.\d+)") {
+            $messageParts = $line -split ' '
+            $lastPart = $messageParts[-1]
+            # Compare version numbers as arrays of integers
+            $currentVersionParts = $newVersionString -split '\.' | ForEach-Object { [int]$_ }
+            $lastPartVersionParts = $lastPart -split '\.' | ForEach-Object { [int]$_ }
+            $updateVersion = $false
+            for ($i = 0; $i -lt [Math]::Min($currentVersionParts.Count, $lastPartVersionParts.Count); $i++) {
+              if ($currentVersionParts[$i] -lt $lastPartVersionParts[$i]) {
+                $updateVersion = $true
+                break
+              } elseif ($currentVersionParts[$i] -gt $lastPartVersionParts[$i]) {
+                break
+              }
+            }
+            if ($updateVersion) {
+              $newVersionString = $lastPart
+            }
+          }
+        }
         echo "new_release=$newVersionString" >> $env:GITHUB_ENV
         $releaseNotes = "## Changes in " + $latest_release + "`n"
         $releaseNotes += (git log HEAD ^$latest_release --oneline) -join "`n"
@@ -118,17 +140,6 @@ jobs:
         echo "release_notes<<EOF" >> $env:GITHUB_ENV
         echo "$releaseNotesContent" >> $env:GITHUB_ENV
         echo "EOF" >> $env:GITHUB_ENV
-        
-    - name: Explicit Version Order apply to create release
-      run: |
-        $latestCommitMessage = (git log -1 --pretty=%B)
-        foreach ($line in $latestCommitMessage) {
-          if ($line -match "Update Version To (\d+\.\d+\.\d+)") {
-            $messageParts = $line -split ' '
-            $lastPart = $messageParts[-1]
-            echo "new_release=$lastPart" >> $env:GITHUB_ENV
-          }
-        }
         
     - name: Create Release
       uses: softprops/action-gh-release@v2
