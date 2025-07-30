@@ -53,39 +53,37 @@ jobs:
 
     - name: Run Tests for solution
       run: dotnet test simple-.net-Crypting-For-PowerBuilder.slnx --configuration Debug
-  
-  trigger-cd:
+
+  trigger-auto-merge:
     runs-on: ubuntu-latest
-    needs: build # Wait for build to complete successfully
-    # Only run if this event is a main branch push and build job succeeded
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    needs: build
+    # Only run on pull requests when build succeeds
+    if: github.event_name == 'pull_request' && needs.build.result == 'success'
     permissions:
-      actions: write # Permission to trigger repository_dispatch
-      contents: write # Permission to write repository dispatch event    
+      actions: write
+      contents: write
     steps:
-      - name: Trigger CD workflow
+      - name: Trigger auto-merge workflow
         uses: actions/github-script@v7
         with:
           script: |
-            // Ensure we get the correct commit SHA for this event
-            let commitSha = undefined;
-            if (context.payload && context.payload.head_commit && context.payload.head_commit.id) {
-              commitSha = context.payload.head_commit.id;
-            } else if (context.sha) {
-              commitSha = context.sha;
-            } else if (context.payload && context.payload.after) {
-              commitSha = context.payload.after;
+            const prNumber = context.payload.pull_request.number;
+            
+            try {
+              await github.rest.repos.createDispatchEvent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                event_type: 'auto-merge-pr',
+                client_payload: {
+                  pr_number: prNumber,
+                  triggered_by: 'ci-workflow',
+                  triggered_at: new Date().toISOString()
+                }
+              });
+              
+              console.log(`Triggered auto-merge workflow for PR #${prNumber}`);
+              
+            } catch (error) {
+              console.error('Failed to trigger auto-merge workflow:', error.message);
+              core.setFailed(`Failed to trigger auto-merge workflow: ${error.message}`);
             }
-
-            if (!commitSha) {
-              throw new Error('Could not determine commit SHA for client_payload');
-            }
-
-            await github.rest.repos.createDispatchEvent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              event_type: 'main-branch-push',
-              client_payload: {
-                target_commit_sha: commitSha
-              }
-            });

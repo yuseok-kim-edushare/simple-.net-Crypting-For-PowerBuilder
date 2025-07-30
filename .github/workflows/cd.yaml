@@ -2,7 +2,7 @@ name: Continuous Deployment
 on:
   workflow_dispatch:
   repository_dispatch:
-    types: [main-branch-push]
+    types: [PR-merged]
 
 
 permissions:
