@@ -1,192 +1,187 @@
 using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
 using System.Xml.Linq;
 
 namespace SecureLibrary.SQL
 {
     /// <summary>
-    /// Column metadata information for SQL type mapping
+    /// Information about a database column
     /// </summary>
     public class ColumnInfo
     {
         public string Name { get; set; }
-        public string TypeName { get; set; }
-        public int? MaxLength { get; set; }
-        public byte? Precision { get; set; }
-        public byte? Scale { get; set; }
+        public string DataType { get; set; }
+        public string TypeName { get; set; } // Added for backward compatibility
+        public int MaxLength { get; set; }
         public bool IsNullable { get; set; }
+        public int OrdinalPosition { get; set; }
+        public byte? Precision { get; set; } // Added for backward compatibility
+        public byte? Scale { get; set; } // Added for backward compatibility
     }
 
     /// <summary>
-    /// Column metadata discovered from stored procedure result sets
+    /// Metadata for a column including encryption settings
     /// </summary>
     public class ColumnMetadata
     {
         public string Name { get; set; }
-        public string SystemTypeName { get; set; }
-        public int? MaxLength { get; set; }
-        public byte? Precision { get; set; }
-        public byte? Scale { get; set; }
+        public string DataType { get; set; }
+        public int MaxLength { get; set; }
         public bool IsNullable { get; set; }
-        public int Ordinal { get; set; }
+        public bool IsEncrypted { get; set; }
+        public string EncryptionAlgorithm { get; set; }
+        public string EncryptionKey { get; set; }
     }
 
     /// <summary>
-    /// Utility class for XML parsing and data type inference
+    /// Result of validation operations
+    /// </summary>
+    public class ValidationResult
+    {
+        /// <summary>
+        /// Whether the validation was successful
+        /// </summary>
+        public bool IsValid { get; set; }
+
+        /// <summary>
+        /// Error messages if validation failed
+        /// </summary>
+        public List<string> Errors { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Warning messages
+        /// </summary>
+        public List<string> Warnings { get; set; } = new List<string>();
+    }
+
+    /// <summary>
+    /// Utility methods for XML operations
     /// </summary>
     public static class XmlUtilities
     {
         /// <summary>
-        /// Helper method to safely parse int attributes from XML
+        /// Parses XML and extracts column information
         /// </summary>
-        public static int? GetIntAttribute(XElement element, string attributeName)
+        /// <param name="xml">XML string to parse</param>
+        /// <returns>List of column information</returns>
+        public static List<ColumnInfo> ParseColumnsFromXml(string xml)
         {
-            var attr = element.Attribute(attributeName);
-            if (attr == null || string.IsNullOrEmpty(attr.Value))
-                return null;
+            var columns = new List<ColumnInfo>();
             
-            if (int.TryParse(attr.Value, out int result))
-                return result;
-            
-            return null;
-        }
-
-        /// <summary>
-        /// Helper method to safely parse byte attributes from XML
-        /// </summary>
-        public static byte? GetByteAttribute(XElement element, string attributeName)
-        {
-            var attr = element.Attribute(attributeName);
-            if (attr == null || string.IsNullOrEmpty(attr.Value))
-                return null;
-            
-            if (byte.TryParse(attr.Value, out byte result))
-                return result;
-            
-            return null;
-        }
-
-        /// <summary>
-        /// Enhanced type inference from string values with better accuracy
-        /// </summary>
-        public static string InferDataType(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-                return "nvarchar";
-
-            // Try GUID first (most specific)
-            if (Guid.TryParse(value, out _))
-                return "uniqueidentifier";
-
-            // Try boolean (specific pattern)
-            if (value == "0" || value == "1" || 
-                value.Equals("true", StringComparison.OrdinalIgnoreCase) || 
-                value.Equals("false", StringComparison.OrdinalIgnoreCase))
-                return "bit";
-
-            // Try integer (check for range)
-            if (int.TryParse(value, out int intValue))
+            try
             {
-                if (intValue >= -32768 && intValue <= 32767)
-                    return "smallint";
-                else if (intValue >= 0 && intValue <= 255)
-                    return "tinyint";
-                else
-                    return "int";
-            }
-
-            // Try bigint
-            if (long.TryParse(value, out _))
-                return "bigint";
-
-            // Try decimal with precision detection
-            if (decimal.TryParse(value, out decimal decimalValue))
-            {
-                // Check if it's actually an integer
-                if (decimalValue == Math.Floor(decimalValue))
-                {
-                    if (decimalValue >= -32768 && decimalValue <= 32767)
-                        return "smallint";
-                    else if (decimalValue >= 0 && decimalValue <= 255)
-                        return "tinyint";
-                    else if (decimalValue >= int.MinValue && decimalValue <= int.MaxValue)
-                        return "int";
-                    else
-                        return "bigint";
-                }
+                var doc = XDocument.Parse(xml);
+                var columnElements = doc.Descendants("Column");
                 
-                // Check decimal precision
-                string[] parts = value.Split('.');
-                if (parts.Length == 2)
+                foreach (var element in columnElements)
                 {
-                    int precision = parts[0].Length + parts[1].Length;
-                    int scale = parts[1].Length;
+                    var column = new ColumnInfo
+                    {
+                        Name = element.Attribute("Name")?.Value ?? "",
+                        DataType = element.Attribute("Type")?.Value ?? "",
+                        TypeName = element.Attribute("Type")?.Value ?? "", // For backward compatibility
+                        MaxLength = int.TryParse(element.Attribute("MaxLength")?.Value, out int maxLen) ? maxLen : -1,
+                        IsNullable = element.Attribute("IsNullable")?.Value == "true",
+                        OrdinalPosition = int.TryParse(element.Attribute("Ordinal")?.Value, out int ordinal) ? ordinal : 0
+                    };
                     
-                    if (precision <= 38) // SQL Server max precision
-                        return "decimal";
+                    columns.Add(column);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error or handle as needed
+                throw new ArgumentException($"Failed to parse XML: {ex.Message}", nameof(xml), ex);
+            }
+            
+            return columns;
+        }
+
+        /// <summary>
+        /// Infers SQL data type from .NET type
+        /// </summary>
+        /// <param name="netType">.NET type to convert</param>
+        /// <returns>Corresponding SQL data type</returns>
+        public static string InferSqlDataType(Type netType)
+        {
+            if (netType == null) return "NVARCHAR(MAX)";
+            
+            if (netType == typeof(int)) return "INT";
+            if (netType == typeof(long)) return "BIGINT";
+            if (netType == typeof(short)) return "SMALLINT";
+            if (netType == typeof(byte)) return "TINYINT";
+            if (netType == typeof(decimal)) return "DECIMAL(18,2)";
+            if (netType == typeof(double)) return "FLOAT";
+            if (netType == typeof(float)) return "REAL";
+            if (netType == typeof(bool)) return "BIT";
+            if (netType == typeof(DateTime)) return "DATETIME2";
+            if (netType == typeof(DateTimeOffset)) return "DATETIMEOFFSET";
+            if (netType == typeof(TimeSpan)) return "TIME";
+            if (netType == typeof(Guid)) return "UNIQUEIDENTIFIER";
+            if (netType == typeof(byte[])) return "VARBINARY(MAX)";
+            if (netType == typeof(string)) return "NVARCHAR(MAX)";
+            
+            return "NVARCHAR(MAX)"; // Default fallback
+        }
+
+        /// <summary>
+        /// Validates XML structure for basic compliance
+        /// </summary>
+        /// <param name="xml">XML string to validate</param>
+        /// <returns>Validation result</returns>
+        public static ValidationResult ValidateXmlStructure(string xml)
+        {
+            var result = new ValidationResult { IsValid = true };
+            
+            if (string.IsNullOrWhiteSpace(xml))
+            {
+                result.IsValid = false;
+                result.Errors.Add("XML string is null or empty");
+                return result;
+            }
+            
+            try
+            {
+                var doc = XDocument.Parse(xml);
+                var root = doc.Root;
+                
+                if (root == null)
+                {
+                    result.IsValid = false;
+                    result.Errors.Add("XML has no root element");
+                    return result;
                 }
                 
-                return "decimal";
+                // Check for required elements based on root name
+                switch (root.Name.LocalName)
+                {
+                    case "Root":
+                    case "Table":
+                    case "Record":
+                    case "Row":
+                        // These are valid root elements
+                        break;
+                    default:
+                        result.Warnings.Add($"Unknown root element: {root.Name.LocalName}");
+                        break;
+                }
+                
+                // Check for Column elements
+                var columns = root.Descendants("Column");
+                if (!columns.Any())
+                {
+                    result.Warnings.Add("No Column elements found in XML");
+                }
             }
-
-            // Try datetime with multiple formats
-            if (DateTime.TryParse(value, out _))
-                return "datetime";
-
-            // Try specific date formats
-            if (value.Length == 10 && value.IndexOf("-", StringComparison.Ordinal) >= 0) // YYYY-MM-DD
-                return "date";
-
-            // Default to nvarchar
-            return "nvarchar";
-        }
-
-        /// <summary>
-        /// Helper method to properly quote identifiers
-        /// </summary>
-        public static string QUOTENAME(string identifier)
-        {
-            return "[" + identifier.Replace("]", "]]") + "]";
-        }
-
-        /// <summary>
-        /// Safely extracts value from XML element or attribute
-        /// </summary>
-        public static string GetXmlValue(XElement element, string name)
-        {
-            // Try attribute first
-            var attr = element.Attribute(name);
-            if (attr != null)
-                return attr.Value;
-
-            // Try element
-            var elem = element.Element(name);
-            if (elem != null)
-                return elem.Value;
-
-            return null;
-        }
-
-        /// <summary>
-        /// Validates if a string can be safely used as a SQL identifier
-        /// </summary>
-        public static bool IsValidSqlIdentifier(string identifier)
-        {
-            if (string.IsNullOrEmpty(identifier))
-                return false;
-
-            // Check for SQL Server reserved words (basic check)
-            string[] reservedWords = {
-                "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
-                "TABLE", "VIEW", "PROCEDURE", "FUNCTION", "INDEX", "CONSTRAINT", "PRIMARY", "FOREIGN",
-                "KEY", "DEFAULT", "NULL", "NOT", "AND", "OR", "ORDER", "BY", "GROUP", "HAVING",
-                "UNION", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "CROSS", "FULL", "ON", "AS"
-            };
-
-            if (Array.IndexOf(reservedWords, identifier.ToUpperInvariant()) >= 0)
-                return false;
-
-            // Check for valid characters
-            return System.Text.RegularExpressions.Regex.IsMatch(identifier, @"^[a-zA-Z_][a-zA-Z0-9_]*$");
+            catch (Exception ex)
+            {
+                result.IsValid = false;
+                result.Errors.Add($"XML parsing failed: {ex.Message}");
+            }
+            
+            return result;
         }
     }
 } 

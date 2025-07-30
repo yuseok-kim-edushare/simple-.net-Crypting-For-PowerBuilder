@@ -1,0 +1,171 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Security;
+
+namespace SecureLibrary.SQL.Interfaces
+{
+    /// <summary>
+    /// Interface for row-level encryption and decryption operations
+    /// Handles encryption/decryption of individual DataRow objects while preserving schema
+    /// </summary>
+    [SecuritySafeCritical]
+    public interface IEncryptionEngine
+    {
+        /// <summary>
+        /// Encrypts a single DataRow with the specified encryption metadata
+        /// </summary>
+        /// <param name="row">DataRow to encrypt</param>
+        /// <param name="metadata">Encryption metadata containing algorithm, key info, etc.</param>
+        /// <returns>Encrypted row data with preserved schema information</returns>
+        /// <exception cref="ArgumentNullException">Thrown when row or metadata is null</exception>
+        /// <exception cref="CryptographicException">Thrown when encryption fails</exception>
+        EncryptedRowData EncryptRow(DataRow row, EncryptionMetadata metadata);
+
+        /// <summary>
+        /// Decrypts a single encrypted row and restores the original DataRow
+        /// </summary>
+        /// <param name="encryptedData">Encrypted row data</param>
+        /// <param name="metadata">Encryption metadata used for decryption</param>
+        /// <returns>Decrypted DataRow with original schema and values</returns>
+        /// <exception cref="ArgumentNullException">Thrown when encryptedData or metadata is null</exception>
+        /// <exception cref="CryptographicException">Thrown when decryption fails</exception>
+        DataRow DecryptRow(EncryptedRowData encryptedData, EncryptionMetadata metadata);
+
+        /// <summary>
+        /// Encrypts multiple DataRows in batch for better performance
+        /// </summary>
+        /// <param name="rows">Collection of DataRows to encrypt</param>
+        /// <param name="metadata">Encryption metadata</param>
+        /// <returns>Collection of encrypted row data</returns>
+        IEnumerable<EncryptedRowData> EncryptRows(IEnumerable<DataRow> rows, EncryptionMetadata metadata);
+
+        /// <summary>
+        /// Decrypts multiple encrypted rows in batch for better performance
+        /// </summary>
+        /// <param name="encryptedRows">Collection of encrypted row data</param>
+        /// <param name="metadata">Encryption metadata</param>
+        /// <returns>Collection of decrypted DataRows</returns>
+        IEnumerable<DataRow> DecryptRows(IEnumerable<EncryptedRowData> encryptedRows, EncryptionMetadata metadata);
+
+        /// <summary>
+        /// Validates encryption metadata for correctness and security
+        /// </summary>
+        /// <param name="metadata">Encryption metadata to validate</param>
+        /// <returns>Validation result with any error messages</returns>
+        ValidationResult ValidateEncryptionMetadata(EncryptionMetadata metadata);
+
+        /// <summary>
+        /// Gets the maximum number of columns supported by this encryption engine
+        /// </summary>
+        int MaxSupportedColumns { get; }
+
+        /// <summary>
+        /// Gets the supported encryption algorithms
+        /// </summary>
+        IEnumerable<string> SupportedAlgorithms { get; }
+    }
+
+    /// <summary>
+    /// Metadata required for encryption/decryption operations
+    /// </summary>
+    public class EncryptionMetadata
+    {
+        /// <summary>
+        /// Encryption algorithm to use (e.g., "AES-GCM", "AES-CBC")
+        /// </summary>
+        public string Algorithm { get; set; }
+
+        /// <summary>
+        /// Encryption key (can be password-based or direct key)
+        /// </summary>
+        public string Key { get; set; }
+
+        /// <summary>
+        /// Salt for password-based key derivation
+        /// </summary>
+        public byte[] Salt { get; set; }
+
+        /// <summary>
+        /// Number of iterations for password-based key derivation
+        /// </summary>
+        public int Iterations { get; set; }
+
+        /// <summary>
+        /// Nonce/IV for encryption (if not auto-generated)
+        /// </summary>
+        public byte[] Nonce { get; set; }
+
+        /// <summary>
+        /// Whether to auto-generate nonce/IV
+        /// </summary>
+        public bool AutoGenerateNonce { get; set; } = true;
+
+        /// <summary>
+        /// Additional authenticated data (AAD) for GCM mode
+        /// </summary>
+        public byte[] AdditionalAuthenticatedData { get; set; }
+
+        /// <summary>
+        /// Column-specific encryption settings
+        /// </summary>
+        public Dictionary<string, ColumnEncryptionSettings> ColumnSettings { get; set; } = new Dictionary<string, ColumnEncryptionSettings>();
+    }
+
+    /// <summary>
+    /// Column-specific encryption settings
+    /// </summary>
+    public class ColumnEncryptionSettings
+    {
+        /// <summary>
+        /// Whether this column should be encrypted
+        /// </summary>
+        public bool Encrypt { get; set; } = true;
+
+        /// <summary>
+        /// Specific algorithm for this column (overrides global algorithm)
+        /// </summary>
+        public string Algorithm { get; set; }
+
+        /// <summary>
+        /// Specific key for this column (overrides global key)
+        /// </summary>
+        public string Key { get; set; }
+
+        /// <summary>
+        /// Whether to preserve null values (don't encrypt nulls)
+        /// </summary>
+        public bool PreserveNulls { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Encrypted row data with schema preservation
+    /// </summary>
+    public class EncryptedRowData
+    {
+        /// <summary>
+        /// Encrypted data for each column
+        /// </summary>
+        public Dictionary<string, byte[]> EncryptedColumns { get; set; } = new Dictionary<string, byte[]>();
+
+        /// <summary>
+        /// Schema information for the original row
+        /// </summary>
+        public DataTable Schema { get; set; }
+
+        /// <summary>
+        /// Encryption metadata used for this row
+        /// </summary>
+        public EncryptionMetadata Metadata { get; set; }
+
+        /// <summary>
+        /// Timestamp when encryption was performed
+        /// </summary>
+        public DateTime EncryptedAt { get; set; }
+
+        /// <summary>
+        /// Version of the encryption format
+        /// </summary>
+        public int FormatVersion { get; set; } = 1;
+    }
+} 
