@@ -34,10 +34,13 @@ namespace SecureLibrary.Tests
         [TestMethod]
         public void EncryptAesCbcWithIv_ShouldEncryptAndDecryptSuccessfully()
         {
+            #pragma warning disable CS0618
+            // This is a test method for the AES-CBC encryption with IV
+            // so we need to disable the warning
             // Act
             var encrypted = EncryptionHelper.EncryptAesCbcWithIv(plainText, key);
             var decrypted = EncryptionHelper.DecryptAesCbcWithIv(encrypted[0], key, encrypted[1]);
-            
+            #pragma warning restore CS0618
             // Assert
             Assert.AreEqual(plainText, decrypted);
         }
@@ -139,7 +142,7 @@ namespace SecureLibrary.Tests
             string encrypted = EncryptionHelper.EncryptAesGcmWithPassword(plainText, password, encryptIterations);
             
             // Assert - Should throw exception due to wrong iterations
-            Assert.ThrowsException<CryptographicException>(() => 
+            Assert.ThrowsExactly<CryptographicException>(() => 
                 EncryptionHelper.DecryptAesGcmWithPassword(encrypted, password, decryptIterations));
         }
 
@@ -183,8 +186,8 @@ namespace SecureLibrary.Tests
             int tooLarge = 128; // Above maximum of 64
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentException>(() => EncryptionHelper.GenerateSalt(tooSmall));
-            Assert.ThrowsException<ArgumentException>(() => EncryptionHelper.GenerateSalt(tooLarge));
+            Assert.ThrowsExactly<ArgumentException>(() => EncryptionHelper.GenerateSalt(tooSmall));
+            Assert.ThrowsExactly<ArgumentException>(() => EncryptionHelper.GenerateSalt(tooLarge));
         }
 
         [TestMethod]
@@ -246,13 +249,13 @@ namespace SecureLibrary.Tests
         public void PasswordBasedEncryption_InvalidInputs_ShouldThrowException()
         {
             // Test null inputs
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.EncryptAesGcmWithPassword(null, "password"));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.EncryptAesGcmWithPassword("text", null));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DecryptAesGcmWithPassword(null, "password"));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DecryptAesGcmWithPassword("data", null));
         }
 
@@ -266,9 +269,9 @@ namespace SecureLibrary.Tests
             int tooHigh = 200000; // Above maximum of 100000
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.EncryptAesGcmWithPassword(plainText, password, tooLow));
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.EncryptAesGcmWithPassword(plainText, password, tooHigh));
         }
 
@@ -378,19 +381,19 @@ namespace SecureLibrary.Tests
         public void DeriveKeyFromPassword_InvalidInputs_ShouldThrowException()
         {
             // Test null inputs
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DeriveKeyFromPassword(null, "salt"));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DeriveKeyFromPassword("password", null));
             
             // Test invalid salt
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.DeriveKeyFromPassword("password", Convert.ToBase64String(new byte[4])));
             
             // Test invalid iterations
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.DeriveKeyFromPassword("password", EncryptionHelper.GenerateSalt(), 500));
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.DeriveKeyFromPassword("password", EncryptionHelper.GenerateSalt(), 200000));
         }
 
@@ -476,20 +479,20 @@ namespace SecureLibrary.Tests
         public void DerivedKeyEncryption_InvalidInputs_ShouldThrowException()
         {
             // Test null inputs for encryption with derived key
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.EncryptAesGcmWithDerivedKey(null, "key", "salt"));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.EncryptAesGcmWithDerivedKey("text", null, "salt"));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.EncryptAesGcmWithDerivedKey("text", "key", null));
             
             // Test invalid key length
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.EncryptAesGcmWithDerivedKey("text", Convert.ToBase64String(new byte[16]), EncryptionHelper.GenerateSalt()));
             
             // Test invalid salt
             string validKey = EncryptionHelper.DeriveKeyFromPassword("password", EncryptionHelper.GenerateSalt());
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.EncryptAesGcmWithDerivedKey("text", validKey, Convert.ToBase64String(new byte[4])));
         }
 
@@ -497,13 +500,13 @@ namespace SecureLibrary.Tests
         public void DerivedKeyDecryption_InvalidInputs_ShouldThrowException()
         {
             // Test null inputs for decryption with derived key
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DecryptAesGcmWithDerivedKey(null, "key"));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DecryptAesGcmWithDerivedKey("data", null));
             
             // Test invalid key length
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.DecryptAesGcmWithDerivedKey("dummy", Convert.ToBase64String(new byte[16])));
         }
 
@@ -573,7 +576,7 @@ namespace SecureLibrary.Tests
             string encrypted = EncryptionHelper.EncryptAesGcmWithDerivedKey(plainText, derivedKey1, salt1);
             
             // Assert - Should throw exception when trying to decrypt with key derived from different salt
-            Assert.ThrowsException<CryptographicException>(() => 
+            Assert.ThrowsExactly<CryptographicException>(() => 
                 EncryptionHelper.DecryptAesGcmWithDerivedKey(encrypted, derivedKey2));
         }
 
@@ -592,7 +595,7 @@ namespace SecureLibrary.Tests
             string encrypted = EncryptionHelper.EncryptAesGcmWithDerivedKey(plainText, derivedKey1, salt);
             
             // Assert - Should throw exception when trying to decrypt with wrong key
-            Assert.ThrowsException<CryptographicException>(() => 
+            Assert.ThrowsExactly<CryptographicException>(() => 
                 EncryptionHelper.DecryptAesGcmWithDerivedKey(encrypted, derivedKey2));
         }
 
@@ -605,7 +608,7 @@ namespace SecureLibrary.Tests
             string invalidKey = Convert.ToBase64String(new byte[16]); // 128-bit key instead of 256-bit
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.EncryptAesGcm(plainText, invalidKey));
         }
 
@@ -618,7 +621,7 @@ namespace SecureLibrary.Tests
             string invalidKey = Convert.ToBase64String(new byte[16]); // 128-bit key instead of 256-bit
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.DecryptAesGcm(encrypted, invalidKey));
         }
 
@@ -630,7 +633,7 @@ namespace SecureLibrary.Tests
             string invalidData = "invalid:data:format";
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.DecryptAesGcm(invalidData, key));
         }
 
@@ -644,7 +647,7 @@ namespace SecureLibrary.Tests
             string invalidData = invalidNonce + ":" + dummyData;
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.DecryptAesGcm(invalidData, key));
         }
 
@@ -660,7 +663,7 @@ namespace SecureLibrary.Tests
             string corruptedData = parts[0] + ":" + parts[1].Substring(0, parts[1].Length - 1) + "X";
             
             // Act & Assert
-            Assert.ThrowsException<CryptographicException>(() => 
+            Assert.ThrowsExactly<CryptographicException>(() => 
                 EncryptionHelper.DecryptAesGcm(corruptedData, key));
         }
 
@@ -671,9 +674,9 @@ namespace SecureLibrary.Tests
             string key = EncryptionHelper.KeyGenAES256();
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.EncryptAesGcm(null, key));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.EncryptAesGcm("test", null));
         }
 
@@ -685,9 +688,9 @@ namespace SecureLibrary.Tests
             string encrypted = EncryptionHelper.EncryptAesGcm("test", key);
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DecryptAesGcm(null, key));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DecryptAesGcm(encrypted, null));
         }
 
@@ -742,9 +745,9 @@ namespace SecureLibrary.Tests
             int tooHigh = 32; // Above maximum of 31
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => 
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => 
                 EncryptionHelper.BcryptEncoding(password, tooLow));
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() => 
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => 
                 EncryptionHelper.BcryptEncoding(password, tooHigh));
         }
 
@@ -752,7 +755,7 @@ namespace SecureLibrary.Tests
         public void BcryptEncoding_NullPassword_ShouldThrowException()
         {
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.BcryptEncoding(null));
         }
 
@@ -763,9 +766,9 @@ namespace SecureLibrary.Tests
             string hashedPassword = EncryptionHelper.BcryptEncoding("test");
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.VerifyBcryptPassword(null, hashedPassword));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.VerifyBcryptPassword("test", null));
         }
 
@@ -795,9 +798,9 @@ namespace SecureLibrary.Tests
             string[] keys = EncryptionHelper.GenerateDiffieHellmanKeys();
             
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DeriveSharedKey(null, keys[1]));
-            Assert.ThrowsException<ArgumentNullException>(() => 
+            Assert.ThrowsExactly<ArgumentNullException>(() => 
                 EncryptionHelper.DeriveSharedKey(keys[0], null));
         }
 
