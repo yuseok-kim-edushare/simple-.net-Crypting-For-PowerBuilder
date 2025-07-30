@@ -1,32 +1,76 @@
-# SQL Server CLR Encryption Library
+# SQL Server CLR Encryption Library (`SecureLibrary-SQL.csproj`)
 
-A comprehensive SQL Server CLR assembly providing robust encryption, decryption, and cryptographic operations for PowerBuilder applications. This library implements SOLID principles with clear abstractions and supports tables with up to 1000 columns.
+A robust SQL Server CLR assembly for PowerBuilder and .NET applications, providing secure cryptographic operations. This project currently supports:
+
+- **Single Value Encryption/Decryption** (AES-GCM, password-based and direct key)
+- **Single Row Encryption/Decryption** (AES-GCM, password-based and direct key)
+- **Bcrypt Password Hashing**
+
+> **Note:** Table/multi-row encryption and ECDH key exchange are not yet implemented. See below for details.
+
+---
 
 ## 🏗️ Architecture Overview
 
-The library follows SOLID principles with the following key components:
+- **Core Interfaces**
+  - `ICgnService` – Windows CGN (Cryptographic Next Generation) API wrapper
+  - `IEncryptionEngine` – Row-level and value-level encryption/decryption
+  - `ISqlXmlConverter` – SQL type to XML conversion utilities
 
-### Core Interfaces
-- **`ICgnService`** - Windows CGN (Cryptographic Next Generation) API wrapper
-- **`IEncryptionEngine`** - Row-level encryption/decryption operations
-- **`ISqlXmlConverter`** - SQL type to XML conversion utilities
+- **Service Implementations**
+  - `CgnService` – Thread-safe Windows CGN API implementation
+  - `EncryptionEngine` – Row and value encryption with schema preservation
+  - `SqlXmlConverter` – SQL type conversion with round-trip capability
+  - `BcryptPasswordHashingService` – Bcrypt password hashing
 
-### Service Implementations
-- **`CgnService`** - Thread-safe Windows CGN API implementation
-- **`EncryptionEngine`** - Row-level encryption with schema preservation
-- **`SqlXmlConverter`** - Robust SQL type conversion with round-trip capability
+---
 
-### Key Features
-- ✅ **SOLID Architecture** - Clear separation of concerns
-- ✅ **Thread-Safe Operations** - Safe for concurrent use
-- ✅ **Schema Preservation** - Maintains original column structure
-- ✅ **Scalable Design** - Supports up to 1000 columns
-- ✅ **Comprehensive Testing** - 90%+ unit test coverage
-- ✅ **Security Best Practices** - AES-GCM, PBKDF2, proper key management
+## ✅ Current Features
+
+- **Single Value Encryption/Decryption**
+  - Encrypt and decrypt individual values using AES-GCM.
+  - Supports both password-based and direct key encryption.
+- **Single Row Encryption/Decryption**
+  - Encrypt and decrypt a single row (as XML) with schema preservation.
+- **Bcrypt Password Hashing**
+  - Secure password hashing and verification using Bcrypt.
+
+---
+
+## ⚠️ Current Limitations
+
+- **No Table/Multi-Row Encryption/Decryption**
+  - Batch/table-level encryption and decryption are not yet implemented.
+- **No ECDH Key Exchange**
+  - ECDH (Elliptic Curve Diffie-Hellman) is not yet available.
+- **Key Derivation for Performance**
+  - Refactoring in progress: single value encryption/decryption will use derived keys for performance (same password-based encryption will reuse derived keys).
+
+---
+
+## 🔄 Remaining Refactoring
+
+- **Derived Key Usage for Single Value Encryption/Decryption**
+  - To improve performance, repeated password-based encryption/decryption of single values will use a derived key (PBKDF2) instead of deriving the key every time.
+- **ECDH Implementation**
+  - ECDH key exchange functionality is planned but not yet implemented.
+
+- **IF you want to use these features, you can use legacy code.**
+  - [How To](../Examples/SQL-server-Net%204.8)
+
+---
+
+## 🚧 Remaining Implementations
+
+- **Table/Multi-Row Level Encryption/Decryption**
+  - Planned: encrypt and decrypt entire tables or multiple rows at once.
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - SQL Server 2016 or later
 - .NET Framework 4.8
 - Visual Studio 2019/2022 or .NET CLI
@@ -34,26 +78,12 @@ The library follows SOLID principles with the following key components:
 
 ### Building the Assembly
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd net481SQL-server
-   ```
-
-2. **Restore dependencies:**
-   ```bash
-   dotnet restore
-   ```
-
-3. **Build the assembly:**
-   ```bash
-   dotnet build --configuration Release
-   ```
-
-4. **Run tests:**
-   ```bash
-   dotnet test
-   ```
+```bash
+git clone <repository-url>
+cd net481SQL-server
+dotnet restore
+dotnet build --configuration Release
+```
 
 ### Deploying to SQL Server
 
@@ -62,101 +92,29 @@ The library follows SOLID principles with the following key components:
    sp_configure 'clr enabled', 1
    RECONFIGURE
    ```
-
 2. **Run the installation script:**
-   ```sql
-   -- Update the DLL path in install-clr-functions.sql first
-   EXEC install-clr-functions.sql
-   ```
+   - Update the DLL path in `install-clr-functions.sql`
+   - Run the script in SQL Server Management Studio
 
-3. **Test the installation:**
-   ```sql
-   -- Test password hashing
-   SELECT dbo.HashPassword('MyPassword123!') AS HashedPassword;
-   
-   -- Test encryption
-   SELECT dbo.EncryptAesGcmWithPassword('Secret data', 'MyPassword', 10000) AS EncryptedData;
-   ```
-
-## 🔧 Configuration
-
-### Encryption Keys
-
-The library supports both password-based and direct key encryption:
-
-#### Password-Based Encryption (Recommended)
-```csharp
-var metadata = new EncryptionMetadata
-{
-    Algorithm = "AES-GCM",
-    Key = "YourSecurePassword123!",
-    Salt = Convert.FromBase64String("YourBase64Salt"),
-    Iterations = 2000,  // PBKDF2 iterations
-    AutoGenerateNonce = true
-};
-```
-
-#### Direct Key Encryption (Performance)
-```csharp
-var metadata = new EncryptionMetadata
-{
-    Algorithm = "AES-GCM",
-    Key = Convert.ToBase64String(yourAesKey),
-    Salt = Convert.FromBase64String("YourBase64Salt"),
-    Iterations = 2000,
-    AutoGenerateNonce = true
-};
-```
-
-### Security Recommendations
-
-1. **Password Strength**: Use strong passwords (12+ characters, mixed case, numbers, symbols)
-2. **Salt Generation**: Use cryptographically secure random salts (16+ bytes)
-3. **Iteration Count**: Use at least 2000 PBKDF2 iterations
-4. **Key Management**: Store keys securely, never in code or configuration files
-5. **Nonce Management**: Always use unique nonces for each encryption operation
+---
 
 ## 📖 Usage Examples
 
-### Basic Row Encryption
-
-```csharp
-// Create encryption engine
-var cgnService = new CgnService();
-var xmlConverter = new SqlXmlConverter();
-var encryptionEngine = new EncryptionEngine(cgnService, xmlConverter);
-
-// Prepare metadata
-var metadata = new EncryptionMetadata
-{
-    Algorithm = "AES-GCM",
-    Key = "YourPassword123!",
-    Salt = Convert.FromBase64String("YourBase64Salt"),
-    Iterations = 2000,
-    AutoGenerateNonce = true
-};
-
-// Encrypt a row
-var encryptedData = encryptionEngine.EncryptRow(dataRow, metadata);
-
-// Decrypt the row
-var decryptedRow = encryptionEngine.DecryptRow(encryptedData, metadata);
-```
-
-### Batch Processing
-
-```csharp
-// Encrypt multiple rows
-var encryptedRows = encryptionEngine.EncryptRows(dataRows, metadata);
-
-// Decrypt multiple rows
-var decryptedRows = encryptionEngine.DecryptRows(encryptedRows, metadata);
-```
-
-### SQL Server Integration with FOR XML
+### Single Value Encryption/Decryption
 
 ```sql
--- Encrypt a single row using FOR XML (automatic schema generation!)
+-- Encrypt a single value
+DECLARE @encryptedValue NVARCHAR(MAX) = dbo.EncryptValue('My secret data', 'YourPassword123!', 10000);
+SELECT @encryptedValue AS EncryptedValue;
+
+-- Decrypt a single value
+SELECT dbo.DecryptValue(@encryptedValue, 'YourPassword123!') AS DecryptedValue;
+```
+
+### Single Row Encryption/Decryption
+
+```sql
+-- Encrypt a single row using FOR XML
 DECLARE @rowXml XML = (
     SELECT * FROM Users WHERE UserID = 1 
     FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -171,216 +129,55 @@ EXEC dbo.EncryptRowWithMetadata
 
 -- Decrypt the row
 EXEC dbo.DecryptRowWithMetadata @encryptedRow, 'YourPassword123!';
-
--- Encrypt entire table
-DECLARE @encryptedTableData NVARCHAR(MAX);
-EXEC dbo.EncryptTableWithMetadata 
-    @tableName = 'Users',
-    @password = 'YourPassword123!',
-    @iterations = 10000,
-    @encryptedData = @encryptedTableData OUTPUT;
-
--- Encrypt a single value
-DECLARE @encryptedValue NVARCHAR(MAX) = dbo.EncryptValue('My secret data', 'YourPassword123!', 10000);
-SELECT @encryptedValue AS EncryptedValue;
-
--- Decrypt a single value
-SELECT dbo.DecryptValue(@encryptedValue, 'YourPassword123!') AS DecryptedValue;
 ```
 
-## 🧪 Testing
+### Bcrypt Password Hashing
 
-### Running Unit Tests
+```sql
+-- Hash a password
+SELECT dbo.HashPassword('MyPassword123!') AS HashedPassword;
 
-```bash
-# Run all tests
-dotnet test
-
-# Run specific test class
-dotnet test --filter "FullyQualifiedName~EncryptionEngineTests"
-
-# Run with coverage
-dotnet test --collect:"XPlat Code Coverage"
+-- Verify a password (returns 1 for match, 0 for no match)
+SELECT dbo.VerifyPassword('MyPassword123!', dbo.HashPassword('MyPassword123!')) AS IsValid;
 ```
-
-### Test Coverage
-
-The library includes comprehensive tests covering:
-- ✅ Single row encryption/decryption
-- ✅ Batch processing
-- ✅ Metadata validation
-- ✅ Error handling
-- ✅ Edge cases (null values, large data, special characters)
-- ✅ Performance with large datasets
-- ✅ Single value encryption for various data types
-
-### Performance Testing
-
-```csharp
-// Test with 1000 columns
-var largeTable = CreateLargeTable(1000);
-var stopwatch = Stopwatch.StartNew();
-var encryptedData = encryptionEngine.EncryptRow(largeTable.Rows[0], metadata);
-stopwatch.Stop();
-Console.WriteLine($"Encryption time: {stopwatch.ElapsedMilliseconds}ms");
-```
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-1. **CLR Integration Disabled**
-   ```sql
-   -- Check CLR status
-   SELECT name, value, value_in_use 
-   FROM sys.configurations 
-   WHERE name = 'clr enabled'
-   ```
-
-2. **Assembly Loading Errors**
-   - Verify assembly path is accessible to SQL Server
-   - Check file permissions
-   - Ensure .NET Framework 4.8 is installed
-
-3. **Encryption Failures**
-   - Verify password and salt are correct
-   - Check iteration count is within valid range (1000-100000)
-   - Ensure nonce is exactly 12 bytes for AES-GCM
-
-4. **Memory Issues with Large Tables**
-   - Use batch processing for tables with many rows
-   - Monitor memory usage during encryption operations
-   - Consider processing in smaller chunks
-
-### Debugging
-
-Enable detailed logging:
-
-```csharp
-var logger = new ConsoleLogger(); // Or implement custom logger
-var encryptionEngine = new EncryptionEngine(cgnService, xmlConverter, logger);
-```
-
-### Performance Optimization
-
-1. **Use Direct Keys**: For high-performance scenarios, derive keys once and reuse
-2. **Batch Processing**: Process multiple rows together
-3. **Memory Management**: Dispose of services when done
-4. **Connection Pooling**: Reuse database connections
-
-## 📚 API Reference
-
-### ICgnService
-
-```csharp
-public interface ICgnService
-{
-    byte[] InvokeCgnOperation(byte[] inputData, CgnOperationType operationType);
-    byte[] GenerateKey(int keySize);
-    byte[] GenerateNonce(int nonceSize);
-    byte[] EncryptAesGcm(byte[] plainData, byte[] key, byte[] nonce);
-    byte[] DecryptAesGcm(byte[] cipherData, byte[] key, byte[] nonce);
-    byte[] DeriveKeyFromPassword(string password, byte[] salt, int iterations, int keySize);
-}
-```
-
-### IEncryptionEngine
-
-```csharp
-public interface IEncryptionEngine
-{
-    EncryptedRowData EncryptRow(DataRow row, EncryptionMetadata metadata);
-    DataRow DecryptRow(EncryptedRowData encryptedData, EncryptionMetadata metadata);
-    IEnumerable<EncryptedRowData> EncryptRows(IEnumerable<DataRow> rows, EncryptionMetadata metadata);
-    IEnumerable<DataRow> DecryptRows(IEnumerable<EncryptedRowData> encryptedRows, EncryptionMetadata metadata);
-    ValidationResult ValidateEncryptionMetadata(EncryptionMetadata metadata);
-    int MaxSupportedColumns { get; }
-    IEnumerable<string> SupportedAlgorithms { get; }
-    EncryptedValueData EncryptValue(object value, EncryptionMetadata metadata);
-    object DecryptValue(EncryptedValueData encryptedData, EncryptionMetadata metadata);
-}
-```
-
-### ISqlXmlConverter
-
-```csharp
-public interface ISqlXmlConverter
-{
-    XDocument ToXml(SqlDataRecord record);
-    SqlDataRecord FromXml(XDocument xml, SqlMetaData[] metadata);
-    XDocument ToXml(DataRow row);
-    DataRow FromXml(XDocument xml, DataTable table);
-    XDocument ToXml(DataTable table);
-    DataTable FromXml(XDocument xml);
-    EncryptedValueData EncryptValue(object value, EncryptionMetadata metadata);
-    object DecryptValue(EncryptedValueData encryptedData, EncryptionMetadata metadata);
-    bool CanConvertToSqlType(object value, SqlDbType sqlType);
-    object ConvertToSqlType(object value, SqlDbType sqlType);
-    ValidationResult ValidateXmlStructure(XDocument xml);
-}
-```
-
-## 🔒 Security Considerations
-
-### Key Management
-- Store encryption keys in secure key management systems (Azure Key Vault, AWS KMS, etc.)
-- Rotate keys regularly
-- Use different keys for different environments
-- Never log or expose encryption keys
-
-### Data Protection
-- Encrypt sensitive data at rest
-- Use secure communication channels
-- Implement proper access controls
-- Audit encryption/decryption operations
-
-### Compliance
-- The library supports various compliance requirements
-- Maintain audit trails for encryption operations
-- Implement proper data retention policies
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
-
-### Development Guidelines
-- Follow SOLID principles
-- Add comprehensive unit tests
-- Update documentation
-- Use meaningful commit messages
-- Follow the existing code style
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the test examples
-- Consult the API documentation
-
-## 🔄 Version History
-
-### v2.0.0 (Current)
-- Complete refactoring with SOLID architecture
-- New interfaces and service implementations
-- Enhanced security and performance
-- Comprehensive unit tests
-- Support for up to 1000 columns
-
-### v1.0.0
-- Initial release with basic encryption functionality
-- SQL Server CLR integration
-- PowerBuilder compatibility
 
 ---
 
-**Note**: This library is designed for SQL Server environments and requires appropriate permissions for CLR integration. Always test in a development environment before deploying to production. 
+## 🧪 Testing
+
+```bash
+dotnet test
+```
+
+---
+
+## 📚 API Reference
+
+See the source code for detailed interface and class documentation.
+
+---
+
+## 🔒 Security Considerations
+
+- Use strong passwords and secure key management.
+- Never store or log encryption keys in code or configuration files.
+- Always use unique nonces for AES-GCM.
+
+---
+
+## 🗂️ Version Status
+
+- **v2.0.0 (Current):**
+  - Single value and single row encryption/decryption (AES-GCM)
+  - Bcrypt password hashing
+  - Table/multi-row encryption and ECDH: **Not yet implemented**
+
+---
+
+## 🤝 Contributing
+
+See [Contributing.md](../Contributing.md) for guidelines.
+
+---
+
+**Note:** This library is designed for SQL Server environments and requires appropriate permissions for CLR integration. Always test in a development environment before deploying to production. 
