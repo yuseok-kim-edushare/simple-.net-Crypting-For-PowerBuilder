@@ -43,9 +43,9 @@ DECLARE @encryptedRow NVARCHAR(MAX);
 DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 DECLARE @iterations INT = 10000;
 
--- Get row as XML with schema
+-- Get row as XML with schema (single row only)
 SET @rowXml = (
-    SELECT * 
+    SELECT TOP 1 * 
     FROM dbo.tb_test_cust 
     WHERE cust_id = 16424 
     FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -79,7 +79,7 @@ DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 DECLARE @iterations INT = 10000;
 DECLARE @batchId NVARCHAR(50) = 'BATCH_' + CAST(GETDATE() AS NVARCHAR(50));
 
--- Get multiple rows as XML with schema
+-- Get multiple rows as XML with schema (for batch processing)
 SET @rowsXml = (
     SELECT * 
     FROM dbo.tb_test_cust 
@@ -112,9 +112,9 @@ DECLARE @encryptedSensitiveRow NVARCHAR(MAX);
 DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 DECLARE @iterations INT = 10000;
 
--- Get only sensitive columns as XML
+-- Get only sensitive columns as XML (single row only)
 SET @sensitiveRowXml = (
-    SELECT 
+    SELECT TOP 1
         cust_id,
         cust_name,
         email,
@@ -187,9 +187,9 @@ DECLARE @encryptedComplexRow NVARCHAR(MAX);
 DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 DECLARE @iterations INT = 10000;
 
--- Get complex row as XML
+-- Get complex row as XML (single row only)
 SET @complexRowXml = (
-    SELECT * 
+    SELECT TOP 1 * 
     FROM dbo.tb_complex_data 
     WHERE id = 1 
     FOR XML RAW('ComplexRow'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -236,10 +236,10 @@ BEGIN
     DECLARE @sql NVARCHAR(MAX);
     DECLARE @rowXml XML;
     
-    -- Build dynamic SQL to get row as XML
+    -- Build dynamic SQL to get row as XML (single row only)
     SET @sql = N'
         SET @rowXml = (
-            SELECT * 
+            SELECT TOP 1 * 
             FROM ' + QUOTENAME(@tableName) + N' 
             WHERE ' + @whereClause + N'
             FOR XML RAW(''Row''), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -304,7 +304,7 @@ GO
 -- Test with NULL password
 BEGIN TRY
     DECLARE @rowXml XML = (
-        SELECT * 
+        SELECT TOP 1 * 
         FROM dbo.tb_test_cust 
         WHERE cust_id = 16424 
         FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -411,7 +411,7 @@ GO
 
 -- Test that encrypted data cannot be decrypted with wrong password
 DECLARE @rowXml XML = (
-    SELECT * 
+    SELECT TOP 1 * 
     FROM dbo.tb_test_cust 
     WHERE cust_id = 16424 
     FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -459,7 +459,7 @@ PRINT '  6. PowerBuilder-friendly integration';
 PRINT '  7. Batch processing capabilities';
 PRINT '  8. Complex data type support';
 PRINT '';
-PRINT 'Example FOR XML Query:';
-PRINT '  SELECT * FROM dbo.tb_test_cust WHERE cust_id = 16424';
+PRINT 'Example FOR XML Query (Single Row):';
+PRINT '  SELECT TOP 1 * FROM dbo.tb_test_cust WHERE cust_id = 16424';
 PRINT '  FOR XML RAW(''Row''), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE';
 GO 

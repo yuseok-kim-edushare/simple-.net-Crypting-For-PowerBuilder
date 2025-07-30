@@ -49,9 +49,9 @@ DECLARE @rowXml XML;
 DECLARE @encryptedRow NVARCHAR(MAX);
 DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 
--- Get row as XML with schema and metadata
+-- Get row as XML with schema and metadata (single row only)
 SET @rowXml = (
-    SELECT * 
+    SELECT TOP 1 * 
     FROM Users 
     WHERE UserID = 1 
     FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -107,9 +107,9 @@ DECLARE @sensitiveRowXml XML;
 DECLARE @encryptedSensitiveRow NVARCHAR(MAX);
 DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 
--- Get only sensitive columns as XML
+-- Get only sensitive columns as XML (single row only)
 SET @sensitiveRowXml = (
-    SELECT 
+    SELECT TOP 1
         UserID,
         Username,
         Email,
@@ -157,10 +157,10 @@ BEGIN
     DECLARE @sql NVARCHAR(MAX);
     DECLARE @rowXml XML;
     
-    -- Build dynamic SQL to get row as XML
+    -- Build dynamic SQL to get row as XML (single row only)
     SET @sql = N'
         SET @rowXml = (
-            SELECT * 
+            SELECT TOP 1 * 
             FROM ' + QUOTENAME(@tableName) + N' 
             WHERE ' + @whereClause + N'
             FOR XML RAW(''Row''), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -243,9 +243,9 @@ DECLARE @complexRowXml XML;
 DECLARE @encryptedComplexRow NVARCHAR(MAX);
 DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 
--- Get complex row as XML
+-- Get complex row as XML (single row only)
 SET @complexRowXml = (
-    SELECT * 
+    SELECT TOP 1 * 
     FROM dbo.ComplexData 
     WHERE ID = 1 
     FOR XML RAW('ComplexRow'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -293,7 +293,7 @@ GO
 PRINT 'Testing error handling with NULL password...';
 BEGIN TRY
     DECLARE @rowXml XML = (
-        SELECT * 
+        SELECT TOP 1 * 
         FROM Users 
         WHERE UserID = 1 
         FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -401,7 +401,7 @@ GO
 -- Test that encrypted data cannot be decrypted with wrong password
 PRINT 'Testing security with wrong password...';
 DECLARE @rowXml XML = (
-    SELECT * 
+    SELECT TOP 1 * 
     FROM Users 
     WHERE UserID = 1 
     FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
@@ -453,8 +453,8 @@ PRINT '  8. Complex data type support';
 PRINT '  9. Comprehensive error handling';
 PRINT '  10. Performance optimization';
 PRINT '';
-PRINT 'Example FOR XML Query:';
-PRINT '  SELECT * FROM Users WHERE UserID = 1';
+PRINT 'Example FOR XML Query (Single Row):';
+PRINT '  SELECT TOP 1 * FROM Users WHERE UserID = 1';
 PRINT '  FOR XML RAW(''Row''), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE';
 PRINT '';
 PRINT 'For more examples, see: for-xml-usage-examples.sql';

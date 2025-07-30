@@ -220,25 +220,21 @@ GO
 CREATE FUNCTION dbo.HashPassword(@password NVARCHAR(MAX))
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].HashPassword;
-PRINT '✓ HashPassword';
 GO
 
 CREATE FUNCTION dbo.HashPasswordWithWorkFactor(@password NVARCHAR(MAX), @workFactor INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].HashPasswordWithWorkFactor;
-PRINT '✓ HashPasswordWithWorkFactor';
 GO
 
 CREATE FUNCTION dbo.VerifyPassword(@password NVARCHAR(MAX), @hashedPassword NVARCHAR(MAX))
 RETURNS BIT
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].VerifyPassword;
-PRINT '✓ VerifyPassword';
 GO
 
 CREATE FUNCTION dbo.GenerateSalt(@workFactor INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].GenerateSalt;
-PRINT '✓ GenerateSalt';
 GO
 
 
@@ -247,77 +243,65 @@ GO
 CREATE FUNCTION dbo.EncryptAesGcm(@plainText NVARCHAR(MAX), @base64Key NVARCHAR(MAX))
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].EncryptAesGcm;
-PRINT '✓ EncryptAesGcm';
 GO
 
 CREATE FUNCTION dbo.DecryptAesGcm(@base64EncryptedData NVARCHAR(MAX), @base64Key NVARCHAR(MAX))
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptAesGcm;
-PRINT '✓ DecryptAesGcm';
 GO
 
 CREATE FUNCTION dbo.EncryptAesGcmWithPassword(@plainText NVARCHAR(MAX), @password NVARCHAR(MAX), @iterations INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].EncryptAesGcmWithPassword;
-PRINT '✓ EncryptAesGcmWithPassword';
 GO
 
 CREATE FUNCTION dbo.DecryptAesGcmWithPassword(@base64EncryptedData NVARCHAR(MAX), @password NVARCHAR(MAX), @iterations INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptAesGcmWithPassword;
-PRINT '✓ DecryptAesGcmWithPassword';
 GO
 
 -- Key Generation Functions
 CREATE FUNCTION dbo.GenerateKey(@keySizeBits INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].GenerateKey;
-PRINT '✓ GenerateKey';
 GO
 
 CREATE FUNCTION dbo.GenerateNonce(@nonceSizeBytes INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].GenerateNonce;
-PRINT '✓ GenerateNonce';
 GO
 
 CREATE FUNCTION dbo.DeriveKeyFromPassword(@password NVARCHAR(MAX), @base64Salt NVARCHAR(MAX), @iterations INT, @keySizeBytes INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DeriveKeyFromPassword;
-PRINT '✓ DeriveKeyFromPassword';
 GO
 
 -- XML Encryption Functions
 CREATE FUNCTION dbo.EncryptXml(@xmlData XML, @password NVARCHAR(MAX), @iterations INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].EncryptXml;
-PRINT '✓ EncryptXml';
 GO
 
 CREATE FUNCTION dbo.DecryptXml(@base64EncryptedXml NVARCHAR(MAX), @password NVARCHAR(MAX), @iterations INT)
 RETURNS XML
-AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptXml;
-PRINT '✓ DecryptXml';
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptXml;        
 GO
 
 -- Single Value Encryption Functions
 CREATE FUNCTION dbo.EncryptValue(@value NVARCHAR(MAX), @password NVARCHAR(MAX), @iterations INT)
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].EncryptValue;
-PRINT '✓ EncryptValue';
 GO
 
 CREATE FUNCTION dbo.DecryptValue(@encryptedValue NVARCHAR(MAX), @password NVARCHAR(MAX))
 RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptValue;
-PRINT '✓ DecryptValue';
 GO
 
 -- Utility Functions
 CREATE FUNCTION dbo.ValidateEncryptionMetadata(@metadataXml XML)
 RETURNS XML
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].ValidateEncryptionMetadata;
-PRINT '✓ ValidateEncryptionMetadata';
 GO
 
 -- =============================================
@@ -333,7 +317,6 @@ CREATE PROCEDURE dbo.EncryptTableWithMetadata
     @iterations INT,
     @encryptedData NVARCHAR(MAX) OUTPUT
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].EncryptTableWithMetadata;
-PRINT '✓ EncryptTableWithMetadata';
 GO
 
 CREATE PROCEDURE dbo.DecryptTableWithMetadata
@@ -341,14 +324,12 @@ CREATE PROCEDURE dbo.DecryptTableWithMetadata
     @password NVARCHAR(MAX),
     @targetTableName NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].DecryptTableWithMetadata;
-PRINT '✓ DecryptTableWithMetadata';
 GO
 
 CREATE PROCEDURE dbo.WrapDecryptProcedure
     @encryptedData NVARCHAR(MAX),
     @password NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].WrapDecryptProcedure;
-PRINT '✓ WrapDecryptProcedure';
 GO
 
 -- Enhanced Row-Level Encryption Procedures
@@ -358,14 +339,12 @@ CREATE PROCEDURE dbo.EncryptRowWithMetadata
     @iterations INT,
     @encryptedRow NVARCHAR(MAX) OUTPUT
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].EncryptRowWithMetadata;
-PRINT '✓ EncryptRowWithMetadata';
 GO
 
 CREATE PROCEDURE dbo.DecryptRowWithMetadata
     @encryptedRow NVARCHAR(MAX),
     @password NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].DecryptRowWithMetadata;
-PRINT '✓ DecryptRowWithMetadata';
 GO
 
 CREATE PROCEDURE dbo.EncryptRowsBatch
@@ -374,14 +353,12 @@ CREATE PROCEDURE dbo.EncryptRowsBatch
     @iterations INT,
     @batchId NVARCHAR(50)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].EncryptRowsBatch;
-PRINT '✓ EncryptRowsBatch';
 GO
 
 CREATE PROCEDURE dbo.DecryptRowsBatch
     @batchId NVARCHAR(50),
     @password NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].DecryptRowsBatch;
-PRINT '✓ DecryptRowsBatch';
 GO
 
 -- =============================================

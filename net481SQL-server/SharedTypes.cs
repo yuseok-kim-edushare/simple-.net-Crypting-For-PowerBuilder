@@ -36,6 +36,44 @@ namespace SecureLibrary.SQL
     }
 
     /// <summary>
+    /// Encryption metadata for cryptographic operations
+    /// </summary>
+    public class EncryptionMetadata
+    {
+        public string Algorithm { get; set; } = "AES-GCM";
+        public string Key { get; set; }
+        public byte[] Salt { get; set; }
+        public byte[] Nonce { get; set; }
+        public int Iterations { get; set; } = 10000;
+        public bool AutoGenerateNonce { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Encrypted value data structure
+    /// </summary>
+    public class EncryptedValueData
+    {
+        public byte[] EncryptedValue { get; set; }
+        public string DataType { get; set; }
+        public EncryptionMetadata Metadata { get; set; }
+
+        public DateTime EncryptedAt { get; set; }
+        public int FormatVersion { get; set; } = 1;
+    }
+
+    /// <summary>
+    /// Encrypted row data structure
+    /// </summary>
+    public class EncryptedRowData
+    {
+        public DataTable Schema { get; set; }
+        public EncryptionMetadata Metadata { get; set; }
+        public DateTime EncryptedAt { get; set; }
+        public int FormatVersion { get; set; } = 1;
+        public Dictionary<string, byte[]> EncryptedColumns { get; set; } = new Dictionary<string, byte[]>();
+    }
+
+    /// <summary>
     /// Result of validation operations
     /// </summary>
     public class ValidationResult

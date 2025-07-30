@@ -9,9 +9,53 @@ namespace SecureLibrary.SQL.Interfaces
     /// <summary>
     /// Interface for SQL type to XML conversion operations
     /// Provides robust handling of all SQL CLR types and nulls with round-trip capability
+    /// Includes specialized methods for FOR XML output handling
     /// </summary>
     public interface ISqlXmlConverter
     {
+        #region FOR XML Specific Methods
+
+        /// <summary>
+        /// Parses FOR XML output (RAW, ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE) into DataTable
+        /// </summary>
+        /// <param name="forXmlOutput">XML string from FOR XML query</param>
+        /// <returns>DataTable with parsed data and schema</returns>
+        /// <exception cref="ArgumentNullException">Thrown when forXmlOutput is null</exception>
+        DataTable ParseForXmlOutput(string forXmlOutput);
+
+        /// <summary>
+        /// Parses a single row from FOR XML output
+        /// </summary>
+        /// <param name="forXmlRow">Single row XML from FOR XML query</param>
+        /// <returns>DataRow with parsed data</returns>
+        /// <exception cref="ArgumentNullException">Thrown when forXmlRow is null</exception>
+        DataRow ParseForXmlRow(string forXmlRow);
+
+        /// <summary>
+        /// Converts DataTable back to FOR XML compatible format
+        /// </summary>
+        /// <param name="table">DataTable to convert</param>
+        /// <param name="rootName">Root element name (default: "rows")</param>
+        /// <param name="rowName">Row element name (default: "Row")</param>
+        /// <param name="includeSchema">Whether to include XML schema</param>
+        /// <returns>XML string in FOR XML format</returns>
+        /// <exception cref="ArgumentNullException">Thrown when table is null</exception>
+        string ToForXmlFormat(DataTable table, string rootName = "rows", string rowName = "Row", bool includeSchema = true);
+
+        /// <summary>
+        /// Converts DataRow back to FOR XML compatible format
+        /// </summary>
+        /// <param name="row">DataRow to convert</param>
+        /// <param name="rowName">Row element name (default: "Row")</param>
+        /// <param name="includeSchema">Whether to include XML schema</param>
+        /// <returns>XML string in FOR XML format</returns>
+        /// <exception cref="ArgumentNullException">Thrown when row is null</exception>
+        string ToForXmlFormat(DataRow row, string rowName = "Row", bool includeSchema = true);
+
+        #endregion
+
+        #region Standard XML Conversion Methods
+
         /// <summary>
         /// Converts a SqlDataRecord to XML representation
         /// </summary>
@@ -61,6 +105,10 @@ namespace SecureLibrary.SQL.Interfaces
         /// <returns>DataTable with restored schema and data</returns>
         /// <exception cref="ArgumentNullException">Thrown when xml is null</exception>
         DataTable FromXml(XDocument xml);
+
+        #endregion
+
+        #region Utility Methods
 
         /// <summary>
         /// Validates that a value can be safely converted to the specified SQL type
@@ -123,5 +171,7 @@ namespace SecureLibrary.SQL.Interfaces
         /// <param name="dataType">Target data type</param>
         /// <returns>Converted value</returns>
         object ConvertStringToValue(string value, Type dataType);
+
+        #endregion
     }
 } 

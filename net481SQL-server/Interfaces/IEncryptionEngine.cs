@@ -83,52 +83,6 @@ namespace SecureLibrary.SQL.Interfaces
     }
 
     /// <summary>
-    /// Metadata required for encryption/decryption operations
-    /// </summary>
-    public class EncryptionMetadata
-    {
-        /// <summary>
-        /// Encryption algorithm to use (e.g., "AES-GCM", "AES-CBC")
-        /// </summary>
-        public string Algorithm { get; set; }
-
-        /// <summary>
-        /// Encryption key (can be password-based or direct key)
-        /// </summary>
-        public string Key { get; set; }
-
-        /// <summary>
-        /// Salt for password-based key derivation
-        /// </summary>
-        public byte[] Salt { get; set; }
-
-        /// <summary>
-        /// Number of iterations for password-based key derivation
-        /// </summary>
-        public int Iterations { get; set; }
-
-        /// <summary>
-        /// Nonce/IV for encryption (if not auto-generated)
-        /// </summary>
-        public byte[] Nonce { get; set; }
-
-        /// <summary>
-        /// Whether to auto-generate nonce/IV
-        /// </summary>
-        public bool AutoGenerateNonce { get; set; } = true;
-
-        /// <summary>
-        /// Additional authenticated data (AAD) for GCM mode
-        /// </summary>
-        public byte[] AdditionalAuthenticatedData { get; set; }
-
-        /// <summary>
-        /// Column-specific encryption settings
-        /// </summary>
-        public Dictionary<string, ColumnEncryptionSettings> ColumnSettings { get; set; } = new Dictionary<string, ColumnEncryptionSettings>();
-    }
-
-    /// <summary>
     /// Column-specific encryption settings
     /// </summary>
     public class ColumnEncryptionSettings
@@ -152,67 +106,5 @@ namespace SecureLibrary.SQL.Interfaces
         /// Whether to preserve null values (don't encrypt nulls)
         /// </summary>
         public bool PreserveNulls { get; set; } = true;
-    }
-
-    /// <summary>
-    /// Encrypted row data with schema preservation
-    /// </summary>
-    public class EncryptedRowData
-    {
-        /// <summary>
-        /// Encrypted data for each column
-        /// </summary>
-        public Dictionary<string, byte[]> EncryptedColumns { get; set; } = new Dictionary<string, byte[]>();
-
-        /// <summary>
-        /// Schema information for the original row
-        /// </summary>
-        public DataTable Schema { get; set; }
-
-        /// <summary>
-        /// Encryption metadata used for this row
-        /// </summary>
-        public EncryptionMetadata Metadata { get; set; }
-
-        /// <summary>
-        /// Timestamp when encryption was performed
-        /// </summary>
-        public DateTime EncryptedAt { get; set; }
-
-        /// <summary>
-        /// Version of the encryption format
-        /// </summary>
-        public int FormatVersion { get; set; } = 1;
-    }
-
-    /// <summary>
-    /// Encrypted value data with metadata
-    /// </summary>
-    public class EncryptedValueData
-    {
-        /// <summary>
-        /// Encrypted value
-        /// </summary>
-        public byte[] EncryptedValue { get; set; }
-
-        /// <summary>
-        /// Data type of the original value
-        /// </summary>
-        public string DataType { get; set; }
-
-        /// <summary>
-        /// Encryption metadata used for this value
-        /// </summary>
-        public EncryptionMetadata Metadata { get; set; }
-
-        /// <summary>
-        /// Timestamp when encryption was performed
-        /// </summary>
-        public DateTime EncryptedAt { get; set; }
-
-        /// <summary>
-        /// Version of the encryption format
-        /// </summary>
-        public int FormatVersion { get; set; } = 1;
     }
 } 

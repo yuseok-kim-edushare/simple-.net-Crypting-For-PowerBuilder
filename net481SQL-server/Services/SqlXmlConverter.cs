@@ -13,6 +13,7 @@ namespace SecureLibrary.SQL.Services
     /// <summary>
     /// Implementation of SQL type to XML conversion operations
     /// Provides robust handling of all SQL CLR types and nulls with round-trip capability
+    /// Includes specialized methods for FOR XML output handling
     /// </summary>
     public class SqlXmlConverter : ISqlXmlConverter
     {
@@ -538,6 +539,518 @@ namespace SecureLibrary.SQL.Services
 
             return result;
         }
+
+        #region FOR XML Specific Methods
+
+        /// <summary>
+        /// Parses FOR XML output (RAW, ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE) into DataTable
+        /// </summary>
+        /// <param name="forXmlOutput">XML string from FOR XML query</param>
+        /// <returns>DataTable with parsed data and schema</returns>
+        /// <exception cref="ArgumentNullException">Thrown when forXmlOutput is null</exception>
+        public DataTable ParseForXmlOutput(string forXmlOutput)
+        {
+            if (string.IsNullOrEmpty(forXmlOutput))
+                throw new ArgumentNullException(nameof(forXmlOutput));
+
+            var xmlDoc = XDocument.Parse(forXmlOutput);
+            var root = xmlDoc.Root;
+
+            if (root == null)
+                throw new ArgumentException("Invalid XML structure: no root element");
+
+            var dataTable = new DataTable();
+
+            // Parse XML schema if present
+            var schemaElement = root.Element(XName.Get("schema", "http://www.w3.org/2001/XMLSchema"));
+            if (schemaElement != null)
+            {
+                ParseSqlServerXmlSchema(schemaElement, dataTable);
+            }
+
+            // If no schema was parsed, create default columns from the first row
+            if (dataTable.Columns.Count == 0)
+            {
+                var firstRow = root.Elements().FirstOrDefault(e => e.Name.LocalName == "Row");
+                if (firstRow != null)
+                {
+                    foreach (var element in firstRow.Elements())
+                    {
+                        var columnName = element.Name.LocalName;
+                        if (!dataTable.Columns.Contains(columnName))
+                        {
+                            dataTable.Columns.Add(columnName, typeof(string));
+                        }
+                    }
+                }
+            }
+
+            // Parse row data
+            var rowElements = root.Elements().Where(e => e.Name.LocalName == "Row").ToList();
+            foreach (var rowElement in rowElements)
+            {
+                var dataRow = dataTable.NewRow();
+                ParseForXmlRow(rowElement, dataRow, dataTable);
+                dataTable.Rows.Add(dataRow);
+            }
+
+            return dataTable;
+        }
+
+        /// <summary>
+        /// Parses a single row from FOR XML output
+        /// </summary>
+        /// <param name="forXmlRow">Single row XML from FOR XML query</param>
+        /// <returns>DataRow with parsed data</returns>
+        /// <exception cref="ArgumentNullException">Thrown when forXmlRow is null</exception>
+        public DataRow ParseForXmlRow(string forXmlRow)
+        {
+            if (string.IsNullOrEmpty(forXmlRow))
+                throw new ArgumentNullException(nameof(forXmlRow));
+
+            var xmlDoc = XDocument.Parse(forXmlRow);
+            var root = xmlDoc.Root;
+
+            if (root == null)
+                throw new ArgumentException("Invalid XML structure: no root element");
+
+            var dataTable = new DataTable();
+
+            // Parse XML schema if present
+            var schemaElement = root.Element(XName.Get("schema", "http://www.w3.org/2001/XMLSchema"));
+            if (schemaElement != null)
+            {
+                ParseSqlServerXmlSchema(schemaElement, dataTable);
+            }
+
+            // Find the actual row element
+            var rowElement = root.Elements().FirstOrDefault(e => e.Name.LocalName == "Row");
+            if (rowElement == null)
+            {
+                throw new ArgumentException("No Row element found in XML");
+            }
+
+            // If no schema was parsed, create columns from the row
+            if (dataTable.Columns.Count == 0)
+            {
+                foreach (var element in rowElement.Elements())
+                {
+                    var columnName = element.Name.LocalName;
+                    if (!dataTable.Columns.Contains(columnName))
+                    {
+                        dataTable.Columns.Add(columnName, typeof(string));
+                    }
+                }
+            }
+
+            // Now create and parse the row
+            var dataRow = dataTable.NewRow();
+            ParseForXmlRow(rowElement, dataRow, dataTable);
+            dataTable.Rows.Add(dataRow);
+
+            return dataRow;
+        }
+
+        /// <summary>
+        /// Converts DataTable back to FOR XML compatible format
+        /// </summary>
+        /// <param name="table">DataTable to convert</param>
+        /// <param name="rootName">Root element name (default: "rows")</param>
+        /// <param name="rowName">Row element name (default: "Row")</param>
+        /// <param name="includeSchema">Whether to include XML schema</param>
+        /// <returns>XML string in FOR XML format</returns>
+        /// <exception cref="ArgumentNullException">Thrown when table is null</exception>
+        public string ToForXmlFormat(DataTable table, string rootName = "rows", string rowName = "Row", bool includeSchema = true)
+        {
+            if (table == null)
+                throw new ArgumentNullException(nameof(table));
+
+            var xsiNamespace = XNamespace.Get("http://www.w3.org/2001/XMLSchema-instance");
+            var rowNamespace = XNamespace.Get("urn:schemas-microsoft-com:sql:SqlRowSet4");
+            
+            var root = new XElement(rootName);
+            
+            // Add XML namespace for schema instance
+            root.Add(new XAttribute(XNamespace.Xmlns + "xsi", xsiNamespace));
+
+            if (includeSchema)
+            {
+                var schemaElement = CreateSqlServerXmlSchema(table);
+                root.Add(schemaElement);
+            }
+
+            // Add row data
+            foreach (DataRow row in table.Rows)
+            {
+                var rowElement = new XElement(rowNamespace + rowName);
+
+                foreach (DataColumn column in table.Columns)
+                {
+                    var value = row[column];
+                    var columnElement = new XElement(rowNamespace + column.ColumnName);
+
+                    if (value == DBNull.Value || value == null)
+                    {
+                        columnElement.Add(new XAttribute(xsiNamespace + "nil", "true"));
+                    }
+                    else
+                    {
+                        columnElement.Value = ConvertValueToString(value, column.DataType);
+                    }
+
+                    rowElement.Add(columnElement);
+                }
+
+                root.Add(rowElement);
+            }
+
+            return root.ToString();
+        }
+
+        /// <summary>
+        /// Converts DataRow back to FOR XML compatible format
+        /// </summary>
+        /// <param name="row">DataRow to convert</param>
+        /// <param name="rowName">Row element name (default: "Row")</param>
+        /// <param name="includeSchema">Whether to include XML schema</param>
+        /// <returns>XML string in FOR XML format</returns>
+        /// <exception cref="ArgumentNullException">Thrown when row is null</exception>
+        public string ToForXmlFormat(DataRow row, string rowName = "Row", bool includeSchema = true)
+        {
+            if (row == null)
+                throw new ArgumentNullException(nameof(row));
+
+            var xsiNamespace = XNamespace.Get("http://www.w3.org/2001/XMLSchema-instance");
+            var rowNamespace = XNamespace.Get("urn:schemas-microsoft-com:sql:SqlRowSet4");
+            
+            var root = new XElement("rows");
+            root.Add(new XAttribute(XNamespace.Xmlns + "xsi", xsiNamespace));
+
+            if (includeSchema)
+            {
+                var schemaElement = CreateSqlServerXmlSchema(row.Table);
+                root.Add(schemaElement);
+            }
+
+            var rowElement = new XElement(rowNamespace + rowName);
+
+            foreach (DataColumn column in row.Table.Columns)
+            {
+                var value = row[column];
+                var columnElement = new XElement(rowNamespace + column.ColumnName);
+
+                if (value == DBNull.Value || value == null)
+                {
+                    columnElement.Add(new XAttribute(xsiNamespace + "nil", "true"));
+                }
+                else
+                {
+                    columnElement.Value = ConvertValueToString(value, column.DataType);
+                }
+
+                rowElement.Add(columnElement);
+            }
+
+            root.Add(rowElement);
+            return root.ToString();
+        }
+
+        #endregion
+
+        #region SQL Server XML Schema Methods
+
+        /// <summary>
+        /// Parses SQL Server XML schema to extract column definitions
+        /// </summary>
+        /// <param name="schemaElement">XML schema element</param>
+        /// <param name="dataTable">DataTable to populate with schema</param>
+        private void ParseSqlServerXmlSchema(XElement schemaElement, DataTable dataTable)
+        {
+            var xsdNamespace = "http://www.w3.org/2001/XMLSchema";
+
+            // Find the Row element definition in the schema
+            var rowElement = schemaElement.Element(XName.Get("element", xsdNamespace));
+            if (rowElement == null || rowElement.Attribute("name")?.Value != "Row") return;
+
+            var complexType = rowElement.Element(XName.Get("complexType", xsdNamespace));
+            if (complexType == null) return;
+
+            var sequence = complexType.Element(XName.Get("sequence", xsdNamespace));
+            if (sequence == null) return;
+
+            foreach (var element in sequence.Elements(XName.Get("element", xsdNamespace)))
+            {
+                var name = element.Attribute("name")?.Value;
+                var type = element.Attribute("type")?.Value;
+                var nillable = element.Attribute("nillable")?.Value == "1";
+
+                if (string.IsNullOrEmpty(name)) continue;
+
+                Type dataType = typeof(string); // Default to string
+
+                // Check if there's a direct type attribute
+                if (!string.IsNullOrEmpty(type))
+                {
+                    dataType = GetClrTypeFromSqlServerType(type);
+                }
+                else
+                {
+                    // Check for simpleType with restriction
+                    var simpleType = element.Element(XName.Get("simpleType", xsdNamespace));
+                    if (simpleType != null)
+                    {
+                        var restriction = simpleType.Element(XName.Get("restriction", xsdNamespace));
+                        if (restriction != null)
+                        {
+                            var baseType = restriction.Attribute("base")?.Value;
+                            if (!string.IsNullOrEmpty(baseType))
+                            {
+                                dataType = GetClrTypeFromSqlServerType(baseType);
+                            }
+                        }
+                    }
+                }
+
+                var column = new DataColumn(name, dataType);
+                column.AllowDBNull = nillable;
+
+                // Extract max length for string types
+                var simpleTypeForLength = element.Element(XName.Get("simpleType", xsdNamespace));
+                if (simpleTypeForLength != null)
+                {
+                    var restriction = simpleTypeForLength.Element(XName.Get("restriction", xsdNamespace));
+                    if (restriction != null)
+                    {
+                        var maxLength = restriction.Element(XName.Get("maxLength", xsdNamespace));
+                        if (maxLength != null)
+                        {
+                            var lengthValue = maxLength.Attribute("value")?.Value;
+                            if (int.TryParse(lengthValue, out int maxLen))
+                            {
+                                column.MaxLength = maxLen;
+                            }
+                        }
+                    }
+                }
+
+                // Only add column if it doesn't already exist
+                if (!dataTable.Columns.Contains(name))
+                {
+                    dataTable.Columns.Add(column);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Creates SQL Server XML schema from DataTable
+        /// </summary>
+        /// <param name="table">DataTable to create schema for</param>
+        /// <returns>XML schema element</returns>
+        private XElement CreateSqlServerXmlSchema(DataTable table)
+        {
+            var xsdNamespace = XNamespace.Get("http://www.w3.org/2001/XMLSchema");
+            var sqlTypesNamespace = XNamespace.Get("http://schemas.microsoft.com/sqlserver/2004/sqltypes");
+
+            var schema = new XElement(xsdNamespace + "schema",
+                new XAttribute(XNamespace.Xmlns + "xsd", xsdNamespace),
+                new XAttribute(XNamespace.Xmlns + "sqltypes", sqlTypesNamespace),
+                new XAttribute("targetNamespace", "urn:schemas-microsoft-com:sql:SqlRowSet4"),
+                new XAttribute("elementFormDefault", "qualified"),
+                new XElement(xsdNamespace + "import",
+                    new XAttribute("namespace", sqlTypesNamespace.NamespaceName),
+                    new XAttribute("schemaLocation", "http://schemas.microsoft.com/sqlserver/2004/sqltypes/sqltypes.xsd")
+                ),
+                new XElement(xsdNamespace + "element",
+                    new XAttribute("name", "Row"),
+                    new XElement(xsdNamespace + "complexType",
+                        new XElement(xsdNamespace + "sequence",
+                            table.Columns.Cast<DataColumn>().Select(col =>
+                                CreateSchemaElement(col, xsdNamespace, sqlTypesNamespace)
+                            )
+                        )
+                    )
+                )
+            );
+
+            return schema;
+        }
+
+        /// <summary>
+        /// Creates schema element for a column
+        /// </summary>
+        /// <param name="column">DataColumn to create schema for</param>
+        /// <param name="xsdNamespace">XSD namespace</param>
+        /// <param name="sqlTypesNamespace">SQL types namespace</param>
+        /// <returns>Schema element</returns>
+        private XElement CreateSchemaElement(DataColumn column, XNamespace xsdNamespace, XNamespace sqlTypesNamespace)
+        {
+            var element = new XElement(xsdNamespace + "element",
+                new XAttribute("name", column.ColumnName),
+                new XAttribute("nillable", column.AllowDBNull ? "1" : "0")
+            );
+
+            // Map CLR types to SQL Server types
+            var sqlServerType = GetSqlServerTypeFromClrType(column.DataType);
+            
+            // For simple types like int, use direct type attribute
+            if (column.DataType == typeof(int) || column.DataType == typeof(long) || 
+                column.DataType == typeof(short) || column.DataType == typeof(byte) ||
+                column.DataType == typeof(bool) || column.DataType == typeof(DateTime) ||
+                column.DataType == typeof(decimal) || column.DataType == typeof(double) ||
+                column.DataType == typeof(float))
+            {
+                element.Add(new XAttribute("type", sqlServerType));
+            }
+            else
+            {
+                // For string types, create simpleType with restriction
+                element.Add(new XElement(xsdNamespace + "simpleType",
+                    new XElement(xsdNamespace + "restriction",
+                        new XAttribute("base", sqlServerType),
+                        new XAttribute(sqlTypesNamespace + "localeId", "1042"),
+                        new XAttribute(sqlTypesNamespace + "sqlCompareOptions", "IgnoreCase IgnoreKanaType IgnoreWidth"),
+                        new XElement(xsdNamespace + "maxLength",
+                            new XAttribute("value", column.MaxLength > 0 ? column.MaxLength.ToString() : "50")
+                        )
+                    )
+                ));
+            }
+
+            return element;
+        }
+
+        /// <summary>
+        /// Converts SQL Server type to CLR type
+        /// </summary>
+        /// <param name="sqlServerType">SQL Server type string</param>
+        /// <returns>CLR type</returns>
+        private Type GetClrTypeFromSqlServerType(string sqlServerType)
+        {
+            if (string.IsNullOrEmpty(sqlServerType))
+                return typeof(string);
+
+            // Remove namespace prefix if present
+            var typeName = sqlServerType;
+            if (sqlServerType.Contains(":"))
+            {
+                typeName = sqlServerType.Split(':').Last();
+            }
+
+            switch (typeName.ToLower())
+            {
+                case "int":
+                    return typeof(int);
+                case "bigint":
+                    return typeof(long);
+                case "smallint":
+                    return typeof(short);
+                case "tinyint":
+                    return typeof(byte);
+                case "decimal":
+                case "money":
+                case "smallmoney":
+                    return typeof(decimal);
+                case "float":
+                    return typeof(double);
+                case "real":
+                    return typeof(float);
+                case "bit":
+                    return typeof(bool);
+                case "datetime":
+                case "datetime2":
+                case "smalldatetime":
+                    return typeof(DateTime);
+                case "date":
+                    return typeof(DateTime);
+                case "time":
+                    return typeof(TimeSpan);
+                case "datetimeoffset":
+                    return typeof(DateTimeOffset);
+                case "uniqueidentifier":
+                    return typeof(Guid);
+                case "binary":
+                case "varbinary":
+                case "image":
+                    return typeof(byte[]);
+                case "char":
+                case "varchar":
+                case "text":
+                case "nchar":
+                case "nvarchar":
+                case "ntext":
+                case "xml":
+                default:
+                    return typeof(string);
+            }
+        }
+
+        /// <summary>
+        /// Converts CLR type to SQL Server type
+        /// </summary>
+        /// <param name="clrType">CLR type</param>
+        /// <returns>SQL Server type string</returns>
+        private string GetSqlServerTypeFromClrType(Type clrType)
+        {
+            if (clrType == typeof(int)) return "sqltypes:int";
+            if (clrType == typeof(long)) return "sqltypes:bigint";
+            if (clrType == typeof(short)) return "sqltypes:smallint";
+            if (clrType == typeof(byte)) return "sqltypes:tinyint";
+            if (clrType == typeof(decimal)) return "sqltypes:decimal";
+            if (clrType == typeof(double)) return "sqltypes:float";
+            if (clrType == typeof(float)) return "sqltypes:real";
+            if (clrType == typeof(bool)) return "sqltypes:bit";
+            if (clrType == typeof(DateTime)) return "sqltypes:datetime2";
+            if (clrType == typeof(TimeSpan)) return "sqltypes:time";
+            if (clrType == typeof(DateTimeOffset)) return "sqltypes:datetimeoffset";
+            if (clrType == typeof(Guid)) return "sqltypes:uniqueidentifier";
+            if (clrType == typeof(byte[])) return "sqltypes:varbinary";
+            if (clrType == typeof(string)) return "sqltypes:nvarchar";
+            
+            return "sqltypes:nvarchar";
+        }
+
+        /// <summary>
+        /// Parses a single row element from FOR XML output
+        /// </summary>
+        /// <param name="rowElement">Row XML element</param>
+        /// <param name="dataRow">DataRow to populate</param>
+        /// <param name="dataTable">DataTable containing the row</param>
+        private void ParseForXmlRow(XElement rowElement, DataRow dataRow, DataTable dataTable)
+        {
+            foreach (var element in rowElement.Elements())
+            {
+                var columnName = element.Name.LocalName;
+                
+                // Add column if it doesn't exist (fallback)
+                if (!dataTable.Columns.Contains(columnName))
+                {
+                    dataTable.Columns.Add(columnName, typeof(string));
+                }
+
+                var column = dataTable.Columns[columnName];
+                var isNull = element.Attribute(XName.Get("nil", "http://www.w3.org/2001/XMLSchema-instance"))?.Value == "true";
+
+                if (isNull || string.IsNullOrEmpty(element.Value))
+                {
+                    dataRow[columnName] = DBNull.Value;
+                }
+                else
+                {
+                    try
+                    {
+                        var convertedValue = ConvertStringToValue(element.Value, column.DataType);
+                        dataRow[columnName] = convertedValue;
+                    }
+                    catch
+                    {
+                        // If conversion fails, store as string
+                        dataRow[columnName] = element.Value;
+                    }
+                }
+            }
+        }
+
+        #endregion
 
         // Private helper methods
         /// <summary>

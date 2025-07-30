@@ -222,8 +222,8 @@ namespace SecureLibrary.SQL
 
             try
             {
-                // Parse the FOR XML output and extract row data
-                var dataRow = ParseForXmlRow(rowXml);
+                // Parse the FOR XML output using the converter
+                var dataRow = _xmlConverter.ParseForXmlRow(rowXml.Value);
 
                 // Encrypt the row using the encryption engine
                 var metadata = new EncryptionMetadata
@@ -264,7 +264,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Row encryption failed: {ex.Message}", ex);
+                throw new InvalidOperationException($"Row encryption failed: {ex.Message}");
             }
         }
 
@@ -323,7 +323,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Row decryption failed: {ex.Message}", ex);
+                throw new InvalidOperationException($"Row decryption failed: {ex.Message}");
             }
         }
 
@@ -348,11 +348,11 @@ namespace SecureLibrary.SQL
 
             try
             {
-                // Parse the FOR XML output and extract multiple rows
-                var dataRows = ParseForXmlRows(rowsXml);
+                // Parse the FOR XML output using the converter
+                var dataTable = _xmlConverter.ParseForXmlOutput(rowsXml.Value);
 
                 // Encrypt each row
-                foreach (var dataRow in dataRows)
+                foreach (DataRow dataRow in dataTable.Rows)
                 {
                     var metadata = new EncryptionMetadata
                     {
@@ -371,7 +371,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Batch row encryption failed: {ex.Message}", ex);
+                throw new InvalidOperationException($"Batch row encryption failed: {ex.Message}");
             }
         }
 
@@ -404,204 +404,34 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Batch row decryption failed: {ex.Message}", ex);
+                throw new InvalidOperationException($"Batch row decryption failed: {ex.Message}");
             }
         }
 
         #endregion
 
-        #region FOR XML Parsing Methods
+        #region FOR XML Parsing Methods (Simplified - Using SqlXmlConverter)
 
         /// <summary>
         /// Parses a single row from FOR XML RAW, ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE output
+        /// Uses the centralized SqlXmlConverter for consistent parsing
         /// </summary>
         /// <param name="rowXml">XML containing a single row</param>
         /// <returns>DataRow with the parsed data</returns>
         private static DataRow ParseForXmlRow(SqlXml rowXml)
         {
-            var xmlDoc = XDocument.Parse(rowXml.Value);
-            var root = xmlDoc.Root;
-
-            // Handle FOR XML RAW output - the root element contains the row data
-            var dataTable = new DataTable();
-            var dataRow = dataTable.NewRow();
-
-            // Extract schema information if available (from XMLSCHEMA)
-            var schemaElement = root.Element(XName.Get("schema", "http://www.w3.org/2001/XMLSchema"));
-            if (schemaElement != null)
-            {
-                // Parse XML schema to determine column types
-                ParseXmlSchema(schemaElement, dataTable);
-            }
-
-            // Parse row data
-            foreach (var element in root.Elements())
-            {
-                var columnName = element.Name.LocalName;
-                var columnValue = element.Value;
-
-                // Add column if it doesn't exist
-                if (!dataTable.Columns.Contains(columnName))
-                {
-                    dataTable.Columns.Add(columnName, typeof(string));
-                }
-
-                // Handle NULL values (xs:nil="true")
-                if (element.Attribute(XName.Get("nil", "http://www.w3.org/2001/XMLSchema-instance"))?.Value == "true")
-                {
-                    dataRow[columnName] = DBNull.Value;
-                }
-                else
-                {
-                    // Handle binary data (BINARY BASE64)
-                    if (element.Attribute("type")?.Value == "xs:base64Binary")
-                    {
-                        dataRow[columnName] = Convert.FromBase64String(columnValue);
-                    }
-                    else
-                    {
-                        dataRow[columnName] = columnValue;
-                    }
-                }
-            }
-
-            dataTable.Rows.Add(dataRow);
-            return dataRow;
+            return _xmlConverter.ParseForXmlRow(rowXml.Value);
         }
 
         /// <summary>
         /// Parses multiple rows from FOR XML RAW, ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE output
+        /// Uses the centralized SqlXmlConverter for consistent parsing
         /// </summary>
         /// <param name="rowsXml">XML containing multiple rows</param>
-        /// <returns>List of DataRows with the parsed data</returns>
-        private static List<DataRow> ParseForXmlRows(SqlXml rowsXml)
+        /// <returns>DataTable with the parsed data</returns>
+        private static DataTable ParseForXmlRows(SqlXml rowsXml)
         {
-            var xmlDoc = XDocument.Parse(rowsXml.Value);
-            var root = xmlDoc.Root;
-            var dataRows = new List<DataRow>();
-
-            // Handle FOR XML RAW output - each child element is a row
-            var dataTable = new DataTable();
-
-            // Extract schema information if available (from XMLSCHEMA)
-            var schemaElement = root.Element(XName.Get("schema", "http://www.w3.org/2001/XMLSchema"));
-            if (schemaElement != null)
-            {
-                // Parse XML schema to determine column types
-                ParseXmlSchema(schemaElement, dataTable);
-            }
-
-            // Parse each row
-            foreach (var rowElement in root.Elements())
-            {
-                var dataRow = dataTable.NewRow();
-
-                foreach (var element in rowElement.Elements())
-                {
-                    var columnName = element.Name.LocalName;
-                    var columnValue = element.Value;
-
-                    // Add column if it doesn't exist
-                    if (!dataTable.Columns.Contains(columnName))
-                    {
-                        dataTable.Columns.Add(columnName, typeof(string));
-                    }
-
-                    // Handle NULL values (xs:nil="true")
-                    if (element.Attribute(XName.Get("nil", "http://www.w3.org/2001/XMLSchema-instance"))?.Value == "true")
-                    {
-                        dataRow[columnName] = DBNull.Value;
-                    }
-                    else
-                    {
-                        // Handle binary data (BINARY BASE64)
-                        if (element.Attribute("type")?.Value == "xs:base64Binary")
-                        {
-                            dataRow[columnName] = Convert.FromBase64String(columnValue);
-                        }
-                        else
-                        {
-                            dataRow[columnName] = columnValue;
-                        }
-                    }
-                }
-
-                dataTable.Rows.Add(dataRow);
-                dataRows.Add(dataRow);
-            }
-
-            return dataRows;
-        }
-
-        /// <summary>
-        /// Parses XML schema information to determine column types
-        /// </summary>
-        /// <param name="schemaElement">XML schema element</param>
-        /// <param name="dataTable">DataTable to populate with schema information</param>
-        private static void ParseXmlSchema(XElement schemaElement, DataTable dataTable)
-        {
-            var complexType = schemaElement.Element(XName.Get("complexType", "http://www.w3.org/2001/XMLSchema"));
-            if (complexType != null)
-            {
-                var sequence = complexType.Element(XName.Get("sequence", "http://www.w3.org/2001/XMLSchema"));
-                if (sequence != null)
-                {
-                    foreach (var element in sequence.Elements(XName.Get("element", "http://www.w3.org/2001/XMLSchema")))
-                    {
-                        var name = element.Attribute("name")?.Value;
-                        var type = element.Attribute("type")?.Value;
-
-                        if (!string.IsNullOrEmpty(name) && !dataTable.Columns.Contains(name))
-                        {
-                            var dataType = GetClrTypeFromXmlType(type);
-                            dataTable.Columns.Add(name, dataType);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Converts XML schema type to CLR type
-        /// </summary>
-        /// <param name="xmlType">XML schema type name</param>
-        /// <returns>CLR type</returns>
-        private static Type GetClrTypeFromXmlType(string xmlType)
-        {
-            if (string.IsNullOrEmpty(xmlType))
-                return typeof(string);
-
-            switch (xmlType.ToLower())
-            {
-                case "xs:int":
-                case "xs:integer":
-                    return typeof(int);
-                case "xs:long":
-                    return typeof(long);
-                case "xs:short":
-                    return typeof(short);
-                case "xs:byte":
-                    return typeof(byte);
-                case "xs:decimal":
-                    return typeof(decimal);
-                case "xs:double":
-                    return typeof(double);
-                case "xs:float":
-                    return typeof(float);
-                case "xs:boolean":
-                    return typeof(bool);
-                case "xs:date":
-                case "xs:datetime":
-                    return typeof(DateTime);
-                case "xs:time":
-                    return typeof(TimeSpan);
-                case "xs:base64binary":
-                    return typeof(byte[]);
-                case "xs:guid":
-                    return typeof(Guid);
-                default:
-                    return typeof(string);
-            }
+            return _xmlConverter.ParseForXmlOutput(rowsXml.Value);
         }
 
         #endregion
@@ -615,7 +445,28 @@ namespace SecureLibrary.SQL
             foreach (DataColumn column in decryptedRow.Table.Columns)
             {
                 var sqlType = GetSqlTypeFromClrType(column.DataType);
-                metadata.Add(new SqlMetaData(column.ColumnName, sqlType));
+                
+                // Handle string types that require length specification
+                if (sqlType == SqlDbType.NVarChar || sqlType == SqlDbType.VarChar || 
+                    sqlType == SqlDbType.NChar || sqlType == SqlDbType.Char)
+                {
+                    var maxLength = column.MaxLength > 0 ? column.MaxLength : -1; // -1 for MAX
+                    metadata.Add(new SqlMetaData(column.ColumnName, sqlType, maxLength));
+                }
+                else if (sqlType == SqlDbType.VarBinary || sqlType == SqlDbType.Binary)
+                {
+                    var maxLength = column.MaxLength > 0 ? column.MaxLength : -1; // -1 for MAX
+                    metadata.Add(new SqlMetaData(column.ColumnName, sqlType, maxLength));
+                }
+                else if (sqlType == SqlDbType.Decimal)
+                {
+                    // For decimal types, use default precision and scale
+                    metadata.Add(new SqlMetaData(column.ColumnName, sqlType, 18, 2));
+                }
+                else
+                {
+                    metadata.Add(new SqlMetaData(column.ColumnName, sqlType));
+                }
             }
 
             var record = new SqlDataRecord(metadata.ToArray());
