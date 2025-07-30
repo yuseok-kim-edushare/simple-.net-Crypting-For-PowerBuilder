@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Linq;
 using System.Text;
@@ -42,7 +43,7 @@ namespace SecureLibrary.SQL
                 result.AppendLine($"    <Table>{tableNameOnly}</Table>");
                 result.AppendLine("    <Columns>");
 
-                using (var connection = new System.Data.SqlClient.SqlConnection("context connection=true"))
+                using (var connection = new SqlConnection("context connection=true"))
                 {
                     connection.Open();
                     
@@ -52,7 +53,7 @@ namespace SecureLibrary.SQL
                         FROM INFORMATION_SCHEMA.TABLES 
                         WHERE TABLE_SCHEMA = '{schemaName}' AND TABLE_NAME = '{tableNameOnly}'";
                     
-                    using (var existsCmd = new System.Data.SqlClient.SqlCommand(tableExistsQuery, connection))
+                    using (var existsCmd = new SqlCommand(tableExistsQuery, connection))
                     {
                         int tableExists = (int)existsCmd.ExecuteScalar();
                         if (tableExists == 0)
@@ -75,7 +76,7 @@ namespace SecureLibrary.SQL
                         WHERE TABLE_SCHEMA = '{schemaName}' AND TABLE_NAME = '{tableNameOnly}'
                         ORDER BY ORDINAL_POSITION";
 
-                    using (var schemaCmd = new System.Data.SqlClient.SqlCommand(schemaQuery, connection))
+                    using (var schemaCmd = new SqlCommand(schemaQuery, connection))
                     using (var reader = schemaCmd.ExecuteReader())
                     {
                         bool hasColumns = false;
@@ -107,7 +108,7 @@ namespace SecureLibrary.SQL
 
                     // Get data - FIXED: Preserve original XML structure
                     string dataQuery = $"SELECT * FROM [{schemaName}].[{tableNameOnly}] FOR XML PATH('Row'), ROOT('Data')";
-                    using (var dataCmd = new System.Data.SqlClient.SqlCommand(dataQuery, connection))
+                    using (var dataCmd = new SqlCommand(dataQuery, connection))
                     {
                         var dataXml = dataCmd.ExecuteScalar() as string;
                         if (!string.IsNullOrEmpty(dataXml))

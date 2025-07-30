@@ -1,7 +1,7 @@
 -- Quick Fix: Immediate Working Solution
 -- 현재 문제를 우회하여 즉시 사용 가능한 해결책을 제공합니다
 
-USE [YourDatabaseName]; -- Replace with your database name
+USE master; -- Replace with your database name
 GO
 
 PRINT '=== Quick Fix: Immediate Working Solution ===';

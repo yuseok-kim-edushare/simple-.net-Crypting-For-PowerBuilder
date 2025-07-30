@@ -1,7 +1,7 @@
 -- Simple Test Script for SQL CLR Fixes
 -- This script tests the basic functionality with better error reporting
 
-USE [YourDatabaseName]; -- Replace with your database name
+USE master; -- Replace with your database name
 GO
 
 -- Test 1: Create a simple test table

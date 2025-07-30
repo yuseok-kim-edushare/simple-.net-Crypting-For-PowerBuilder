@@ -1,7 +1,7 @@
 -- Working Solution: XML-Based Encryption
 -- 현재 테이블 암호화에 문제가 있으므로 XML 기반 방법을 사용합니다
 
-USE [YourDatabaseName]; -- Replace with your database name
+USE master; -- Replace with your database name
 GO
 
 -- Solution 1: Create a working table encryption wrapper
