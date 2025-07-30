@@ -1,3 +1,4 @@
+#if !RELEASE_WITHOUT_TESTS
 using System;
 using System.Security.Cryptography;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -293,3 +294,4 @@ namespace SecureLibrary.Tests
         }
     }
 } 
+#endif
