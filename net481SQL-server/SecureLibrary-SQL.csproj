@@ -42,8 +42,13 @@
     <Compile Include="Interfaces\ICgnService.cs" />
     <Compile Include="Interfaces\IEncryptionEngine.cs" />
     <Compile Include="Interfaces\ISqlXmlConverter.cs" />
+    <Compile Include="Interfaces\IPasswordHashingService.cs" />
     <Compile Include="Services\CgnService.cs" />
     <Compile Include="Services\SqlXmlConverter.cs" />
     <Compile Include="Services\EncryptionEngine.cs" />
+    <Compile Include="Services\BcryptPasswordHashingService.cs" />
+    <!-- SQL Server CLR Functions and Procedures -->
+    <Compile Include="SqlCLRFunctions.cs" />
+    <Compile Include="SqlCLRProcedures.cs" />
   </ItemGroup>
 </Project>
