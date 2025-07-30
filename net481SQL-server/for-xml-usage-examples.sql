@@ -44,11 +44,15 @@ DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 DECLARE @iterations INT = 10000;
 
 -- Get row as XML with schema (single row only)
+-- Note: Wrapped in root element to handle XMLSCHEMA properly
 SET @rowXml = (
-    SELECT TOP 1 * 
-    FROM dbo.tb_test_cust 
-    WHERE cust_id = 16424 
-    FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    SELECT (
+        SELECT TOP 1 * 
+        FROM dbo.tb_test_cust 
+        WHERE cust_id = 16424 
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    ) AS 'RowData'
+    FOR XML PATH('root'), TYPE
 );
 
 -- Encrypt the row
@@ -80,11 +84,15 @@ DECLARE @iterations INT = 10000;
 DECLARE @batchId NVARCHAR(50) = 'BATCH_' + CAST(GETDATE() AS NVARCHAR(50));
 
 -- Get multiple rows as XML with schema (for batch processing)
+-- Note: Wrapped in root element to handle XMLSCHEMA properly
 SET @rowsXml = (
-    SELECT * 
-    FROM dbo.tb_test_cust 
-    WHERE cust_id IN (16424, 16425, 16426)
-    FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE, ROOT('Rows')
+    SELECT (
+        SELECT * 
+        FROM dbo.tb_test_cust 
+        WHERE cust_id IN (16424, 16425, 16426)
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE, ROOT('Rows')
+    ) AS 'RowsData'
+    FOR XML PATH('root'), TYPE
 );
 
 -- Encrypt the rows in batch
@@ -113,16 +121,20 @@ DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 DECLARE @iterations INT = 10000;
 
 -- Get only sensitive columns as XML (single row only)
+-- Note: Wrapped in root element to handle XMLSCHEMA properly
 SET @sensitiveRowXml = (
-    SELECT TOP 1
-        cust_id,
-        cust_name,
-        email,
-        phone,
-        salary
-    FROM dbo.tb_test_cust 
-    WHERE cust_id = 16424 
-    FOR XML RAW('SensitiveRow'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    SELECT (
+        SELECT TOP 1
+            cust_id,
+            cust_name,
+            email,
+            phone,
+            salary
+        FROM dbo.tb_test_cust 
+        WHERE cust_id = 16424 
+        FOR XML RAW('SensitiveRow'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    ) AS 'RowData'
+    FOR XML PATH('root'), TYPE
 );
 
 -- Encrypt the sensitive data
@@ -236,13 +248,17 @@ BEGIN
     DECLARE @sql NVARCHAR(MAX);
     DECLARE @rowXml XML;
     
-    -- Build dynamic SQL to get row as XML (single row only)
+    -- Build dynamic SQL to get row as XML with schema (single row only)
+    -- Note: Wrapped in root element to handle XMLSCHEMA properly
     SET @sql = N'
         SET @rowXml = (
-            SELECT TOP 1 * 
-            FROM ' + QUOTENAME(@tableName) + N' 
-            WHERE ' + @whereClause + N'
-            FOR XML RAW(''Row''), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+            SELECT (
+                SELECT TOP 1 * 
+                FROM ' + QUOTENAME(@tableName) + N' 
+                WHERE ' + @whereClause + N'
+                FOR XML RAW(''Row''), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+            ) AS ''RowData''
+            FOR XML PATH(''root''), TYPE
         )';
     
     -- Execute dynamic SQL
@@ -460,6 +476,9 @@ PRINT '  7. Batch processing capabilities';
 PRINT '  8. Complex data type support';
 PRINT '';
 PRINT 'Example FOR XML Query (Single Row):';
-PRINT '  SELECT TOP 1 * FROM dbo.tb_test_cust WHERE cust_id = 16424';
-PRINT '  FOR XML RAW(''Row''), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE';
+PRINT '  SELECT (';
+PRINT '      SELECT TOP 1 * FROM dbo.tb_test_cust WHERE cust_id = 16424';
+PRINT '      FOR XML RAW(''Row''), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE';
+PRINT '  ) AS ''RowData''';
+PRINT '  FOR XML PATH(''root''), TYPE';
 GO 

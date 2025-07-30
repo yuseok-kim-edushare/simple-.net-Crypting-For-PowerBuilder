@@ -560,9 +560,21 @@ namespace SecureLibrary.SQL.Services
                 throw new ArgumentException("Invalid XML structure: no root element");
 
             var dataTable = new DataTable();
+            XElement workingRoot = root;
+
+            // Check if this is wrapped XML (root > RowData/RowsData > actual content)
+            if (root.Name.LocalName == "root" || root.Name.LocalName == "Rows")
+            {
+                var dataElement = root.Element("RowData") ?? root.Element("RowsData") ?? root.Element("Data");
+                if (dataElement != null && dataElement.HasElements)
+                {
+                    // Use the inner content
+                    workingRoot = dataElement;
+                }
+            }
 
             // Parse XML schema if present
-            var schemaElement = root.Element(XName.Get("schema", "http://www.w3.org/2001/XMLSchema"));
+            var schemaElement = workingRoot.Element(XName.Get("schema", "http://www.w3.org/2001/XMLSchema"));
             if (schemaElement != null)
             {
                 ParseSqlServerXmlSchema(schemaElement, dataTable);
@@ -571,7 +583,7 @@ namespace SecureLibrary.SQL.Services
             // If no schema was parsed, create default columns from the first row
             if (dataTable.Columns.Count == 0)
             {
-                var firstRow = root.Elements().FirstOrDefault(e => e.Name.LocalName == "Row");
+                var firstRow = workingRoot.Elements().FirstOrDefault(e => e.Name.LocalName == "Row");
                 if (firstRow != null)
                 {
                     foreach (var element in firstRow.Elements())
@@ -586,7 +598,7 @@ namespace SecureLibrary.SQL.Services
             }
 
             // Parse row data
-            var rowElements = root.Elements().Where(e => e.Name.LocalName == "Row").ToList();
+            var rowElements = workingRoot.Elements().Where(e => e.Name.LocalName == "Row").ToList();
             foreach (var rowElement in rowElements)
             {
                 var dataRow = dataTable.NewRow();
@@ -615,16 +627,28 @@ namespace SecureLibrary.SQL.Services
                 throw new ArgumentException("Invalid XML structure: no root element");
 
             var dataTable = new DataTable();
+            XElement workingRoot = root;
+
+            // Check if this is wrapped XML (root > RowData > actual content)
+            if (root.Name.LocalName == "root")
+            {
+                var dataElement = root.Element("RowData") ?? root.Element("Data");
+                if (dataElement != null && dataElement.HasElements)
+                {
+                    // Use the inner content
+                    workingRoot = dataElement;
+                }
+            }
 
             // Parse XML schema if present
-            var schemaElement = root.Element(XName.Get("schema", "http://www.w3.org/2001/XMLSchema"));
+            var schemaElement = workingRoot.Element(XName.Get("schema", "http://www.w3.org/2001/XMLSchema"));
             if (schemaElement != null)
             {
                 ParseSqlServerXmlSchema(schemaElement, dataTable);
             }
 
             // Find the actual row element
-            var rowElement = root.Elements().FirstOrDefault(e => e.Name.LocalName == "Row");
+            var rowElement = workingRoot.Elements().FirstOrDefault(e => e.Name.LocalName == "Row");
             if (rowElement == null)
             {
                 throw new ArgumentException("No Row element found in XML");
@@ -1126,7 +1150,14 @@ namespace SecureLibrary.SQL.Services
                 return DBNull.Value;
 
             if (dataType == typeof(bool))
+            {
+                // Handle SQL Server boolean format (1/0) as well as true/false
+                if (value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    return true;
+                if (value == "0" || value.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    return false;
                 return bool.Parse(value);
+            }
             if (dataType == typeof(byte))
                 return byte.Parse(value, CultureInfo.InvariantCulture);
             if (dataType == typeof(short))
@@ -1163,6 +1194,11 @@ namespace SecureLibrary.SQL.Services
             switch (sqlType)
             {
                 case SqlDbType.Bit:
+                    // Handle SQL Server boolean format (1/0) as well as true/false
+                    if (value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    if (value == "0" || value.Equals("false", StringComparison.OrdinalIgnoreCase))
+                        return false;
                     return bool.Parse(value);
                 case SqlDbType.TinyInt:
                     return byte.Parse(value, CultureInfo.InvariantCulture);

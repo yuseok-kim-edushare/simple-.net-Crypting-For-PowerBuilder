@@ -51,10 +51,13 @@ DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 
 -- Get row as XML with schema and metadata (single row only)
 SET @rowXml = (
-    SELECT TOP 1 * 
-    FROM Users 
-    WHERE UserID = 1 
-    FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    SELECT (
+        SELECT TOP 1 * 
+        FROM Users 
+        WHERE UserID = 1 
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    ) AS 'RowData'
+    FOR XML PATH('root'), TYPE
 );
 
 -- Encrypt the row
@@ -80,10 +83,13 @@ DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 
 -- Get multiple rows as XML with schema
 SET @rowsXml = (
-    SELECT * 
-    FROM Users 
-    WHERE IsActive = 1
-    FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE, ROOT('Rows')
+    SELECT (
+        SELECT * 
+        FROM Users 
+        WHERE IsActive = 1
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE, ROOT('Rows')
+    ) AS 'RowsData'
+    FOR XML PATH('root'), TYPE
 );
 
 -- Encrypt the rows in batch
@@ -109,15 +115,18 @@ DECLARE @password NVARCHAR(MAX) = 'MySecurePassword123!';
 
 -- Get only sensitive columns as XML (single row only)
 SET @sensitiveRowXml = (
-    SELECT TOP 1
-        UserID,
-        Username,
-        Email,
-        SSN,
-        Salary
-    FROM Users 
-    WHERE UserID = 1 
-    FOR XML RAW('SensitiveRow'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    SELECT (
+        SELECT TOP 1
+            UserID,
+            Username,
+            Email,
+            SSN,
+            Salary
+        FROM Users 
+        WHERE UserID = 1 
+        FOR XML RAW('SensitiveRow'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    ) AS 'RowData'
+    FOR XML PATH('root'), TYPE
 );
 
 -- Encrypt the sensitive data

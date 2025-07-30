@@ -84,10 +84,13 @@ WHILE @@FETCH_STATUS = 0
 BEGIN
     -- Get single row as XML (this is the key - always use TOP 1 for single row)
     SET @rowXml = (
-        SELECT TOP 1 * 
-        FROM dbo.Customers 
-        WHERE CustomerID = @customerID 
-        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+        SELECT (
+            SELECT TOP 1 * 
+            FROM dbo.Customers 
+            WHERE CustomerID = @customerID 
+            FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+        ) AS 'RowData'
+        FOR XML PATH('root'), TYPE
     );
 
     -- Encrypt the row
@@ -180,10 +183,13 @@ BEGIN
     BEGIN
         -- Get single row as XML
         DECLARE @rowXml XML = (
-            SELECT TOP 1 * 
-            FROM dbo.Customers 
-            WHERE CustomerID = @customerID 
-            FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+            SELECT (
+                SELECT TOP 1 * 
+                FROM dbo.Customers 
+                WHERE CustomerID = @customerID 
+                FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+            ) AS 'RowData'
+            FOR XML PATH('root'), TYPE
         );
 
         -- Encrypt the row
@@ -258,10 +264,13 @@ DECLARE @iterations INT = 10000;
 
 -- Get single row as XML
 SET @rowXml = (
-    SELECT TOP 1 * 
-    FROM dbo.Customers 
-    WHERE CustomerID = 1 
-    FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    SELECT (
+        SELECT TOP 1 * 
+        FROM dbo.Customers 
+        WHERE CustomerID = 1 
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    ) AS 'RowData'
+    FOR XML PATH('root'), TYPE
 );
 
 -- Encrypt the row
