@@ -7,6 +7,7 @@ on:
 permissions:
   actions: write # Permission to trigger repository_dispatch
   contents: write # Permission to write repository dispatch event
+  pull-requests: read # Permission to Read PR status
 
 jobs:
   trigger-cd:
