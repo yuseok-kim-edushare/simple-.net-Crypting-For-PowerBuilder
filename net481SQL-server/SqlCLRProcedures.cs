@@ -13,9 +13,6 @@ using System.Data.SqlClient;
 using SecureLibrary.SQL.Services;
 using SecureLibrary.SQL.Interfaces;
 
-[assembly: AllowPartiallyTrustedCallers]
-[assembly: SecurityRules(SecurityRuleSet.Level2)]
-
 namespace SecureLibrary.SQL
 {
     /// <summary>

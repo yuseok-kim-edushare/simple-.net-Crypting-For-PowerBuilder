@@ -215,6 +215,7 @@ namespace SecureLibrary.SQL.Services
         /// <param name="key">Encryption key</param>
         /// <param name="nonce">Nonce for GCM mode</param>
         /// <returns>Encrypted data with authentication tag</returns>
+        [SecuritySafeCritical]
         public byte[] EncryptAesGcm(byte[] plainData, byte[] key, byte[] nonce)
         {
             if (_disposed)
@@ -313,6 +314,7 @@ namespace SecureLibrary.SQL.Services
         /// <param name="key">Decryption key</param>
         /// <param name="nonce">Nonce for GCM mode</param>
         /// <returns>Decrypted data</returns>
+        [SecuritySafeCritical]
         public byte[] DecryptAesGcm(byte[] cipherData, byte[] key, byte[] nonce)
         {
             if (_disposed)

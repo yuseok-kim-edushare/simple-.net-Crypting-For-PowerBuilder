@@ -5,7 +5,7 @@
     <RootNamespace>SecureLibrary.SQL</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLSCompliant>true</CLSCompliant>
-    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>..\Simple-Crypt4PB.snk</AssemblyOriginatorKeyFile>
@@ -32,6 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="AssemblyInfo.cs" />
     <Compile Include="Legacy\draft.cs" />
     <Compile Include="Legacy\invokeCGN.cs" />
     <Compile Include="Legacy\SqlTypeMapping.cs" />
@@ -44,15 +45,5 @@
     <Compile Include="Services\CgnService.cs" />
     <Compile Include="Services\SqlXmlConverter.cs" />
     <Compile Include="Services\EncryptionEngine.cs" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageReference Include="MSTest.TestFramework" Version="2.2.10" />
-    <PackageReference Include="MSTest.TestAdapter" Version="2.2.10" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <Compile Include="Tests\EncryptionEngineTests.cs" />
-    <Compile Include="Tests\PerformanceTests.cs" />
   </ItemGroup>
 </Project>

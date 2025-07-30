@@ -11,9 +11,6 @@ using System.Linq;
 using System.Xml.Linq;
 using System.Data;
 
-[assembly: AllowPartiallyTrustedCallers]
-[assembly: SecurityRules(SecurityRuleSet.Level2)]
-
 namespace SecureLibrary.SQL
 {
     [SqlUserDefinedType(Format.Native)]

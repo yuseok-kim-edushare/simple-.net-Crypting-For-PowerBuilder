@@ -47,15 +47,15 @@ namespace SecureLibrary.Tests
             string plainText = "Test data";
 
             // Act & Assert - Test invalid key lengths
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.EncryptAesGcmWithDerivedKey(plainText, Convert.ToBase64String(new byte[16]), salt));
             
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.DecryptAesGcmWithDerivedKey("dummy", Convert.ToBase64String(new byte[16])));
 
             // Test invalid salt
             string validKey = EncryptionHelper.DeriveKeyFromPassword(password, salt);
-            Assert.ThrowsException<ArgumentException>(() => 
+            Assert.ThrowsExactly<ArgumentException>(() => 
                 EncryptionHelper.EncryptAesGcmWithDerivedKey(plainText, validKey, Convert.ToBase64String(new byte[4])));
         }
 

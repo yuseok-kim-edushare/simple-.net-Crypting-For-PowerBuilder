@@ -3,6 +3,10 @@ using System.Security.Cryptography;
 using System.Text;
 using BCrypt.Net;
 
+#pragma warning disable CA1416
+// this warning disable is for this project's purpose
+// this project target is powerbuilder interop
+// so only target is windows, thus CA1416 warning is not applicable
 namespace SecureLibrary
 {
     [ComVisible(true)]

@@ -4,6 +4,10 @@ using SecureLibrary;
 using System;
 using System.Security.Cryptography;
 
+
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+// this warning disable is for the test methods that are not nullable related issues like null reference exception
+// so we need to disable the warning
 namespace SecureLibrary.Tests
 {
     [TestClass]

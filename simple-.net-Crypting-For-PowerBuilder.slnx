@@ -23,4 +23,12 @@
       <Property Name="Release|Any CPU.Build.0" Value="Release|Any CPU" />
     </Properties>
   </Project>
+  <Project Path="net481SQL-server/Tests/SecureLibrary-SQL.Tests.csproj">
+    <Properties Name="ProjectConfigurations" Scope="PostLoad">
+      <Property Name="Debug|Any CPU.ActiveCfg" Value="Debug|Any CPU" />
+      <Property Name="Debug|Any CPU.Build.0" Value="Debug|Any CPU" />
+      <Property Name="Release|Any CPU.ActiveCfg" Value="Release|Any CPU" />
+      <Property Name="Release|Any CPU.Build.0" Value="Release|Any CPU" />
+    </Properties>
+  </Project>
 </Solution>
