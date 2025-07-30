@@ -102,13 +102,7 @@ BEGIN
     BEGIN
         DROP FUNCTION dbo.GenerateSalt;
         PRINT '✓ Dropped GenerateSalt';
-    END
-    
-    IF EXISTS (SELECT * FROM sys.objects WHERE name = 'GetHashInfo' AND type = 'FS')
-    BEGIN
-        DROP FUNCTION dbo.GetHashInfo;
-        PRINT '✓ Dropped GetHashInfo';
-    END
+    END 
     
     IF EXISTS (SELECT * FROM sys.objects WHERE name = 'EncryptAesGcm' AND type = 'FS')
     BEGIN
@@ -247,11 +241,7 @@ AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].Generat
 PRINT '✓ GenerateSalt';
 GO
 
-CREATE FUNCTION dbo.GetHashInfo(@hashedPassword NVARCHAR(MAX))
-RETURNS XML
-AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].GetHashInfo;
-PRINT '✓ GetHashInfo';
-GO
+
 
 -- AES-GCM Encryption Functions
 CREATE FUNCTION dbo.EncryptAesGcm(@plainText NVARCHAR(MAX), @base64Key NVARCHAR(MAX))
@@ -418,7 +408,7 @@ SELECT
     o.create_date AS CreateDate
 FROM sys.objects o
 WHERE o.type = 'FS' AND o.name IN (
-    'HashPassword', 'HashPasswordWithWorkFactor', 'VerifyPassword', 'GenerateSalt', 'GetHashInfo',
+    'HashPassword', 'HashPasswordWithWorkFactor', 'VerifyPassword', 'GenerateSalt',
     'EncryptAesGcm', 'DecryptAesGcm', 'EncryptAesGcmWithPassword', 'DecryptAesGcmWithPassword',
     'GenerateKey', 'GenerateNonce', 'DeriveKeyFromPassword',
     'EncryptXml', 'DecryptXml', 'ValidateEncryptionMetadata',

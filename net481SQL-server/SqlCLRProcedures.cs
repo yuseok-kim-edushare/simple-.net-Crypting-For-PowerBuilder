@@ -119,7 +119,7 @@ namespace SecureLibrary.SQL
                             new XElement("Iterations", metadata.Iterations),
                             new XElement("Salt", Convert.ToBase64String(metadata.Salt)),
                             new XElement("Nonce", Convert.ToBase64String(metadata.Nonce)),
-                            new XElement("EncryptedAt", metadata.EncryptedAt.ToString("O")),
+                            new XElement("EncryptedAt", encryptedTableData.EncryptedAt.ToString("O")),
                             new XElement("FormatVersion", encryptedTableData.FormatVersion)
                         ),
                         new XElement("EncryptedData", encryptedTableData.EncryptedXml)
@@ -130,7 +130,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Table encryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Table encryption failed: {ex.Message}", ex);
             }
         }
 
@@ -191,7 +191,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Table decryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Table decryption failed: {ex.Message}", ex);
             }
         }
 
@@ -253,7 +253,7 @@ namespace SecureLibrary.SQL
                         new XElement("Iterations", metadata.Iterations),
                         new XElement("Salt", Convert.ToBase64String(metadata.Salt)),
                         new XElement("Nonce", Convert.ToBase64String(metadata.Nonce)),
-                        new XElement("EncryptedAt", metadata.EncryptedAt.ToString("O")),
+                        new XElement("EncryptedAt", encryptedRowData.EncryptedAt.ToString("O")),
                         new XElement("FormatVersion", encryptedRowData.FormatVersion)
                     ),
                     new XElement("EncryptedData", 
@@ -264,7 +264,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Row encryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Row encryption failed: {ex.Message}", ex);
             }
         }
 
@@ -323,7 +323,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Row decryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Row decryption failed: {ex.Message}", ex);
             }
         }
 
@@ -371,7 +371,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Batch row encryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Batch row encryption failed: {ex.Message}", ex);
             }
         }
 
@@ -404,7 +404,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Batch row decryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Batch row decryption failed: {ex.Message}", ex);
             }
         }
 
@@ -680,8 +680,8 @@ namespace SecureLibrary.SQL
                 new XElement("Iterations", metadata.Iterations),
                 new XElement("Salt", Convert.ToBase64String(metadata.Salt)),
                 new XElement("Nonce", Convert.ToBase64String(metadata.Nonce)),
-                new XElement("EncryptedAt", metadata.EncryptedAt.ToString("O")),
-                new XElement("FormatVersion", metadata.FormatVersion)
+                new XElement("EncryptedAt", DateTime.UtcNow.ToString("O")),
+                new XElement("FormatVersion", 1)
             );
 
             return xml.ToString();

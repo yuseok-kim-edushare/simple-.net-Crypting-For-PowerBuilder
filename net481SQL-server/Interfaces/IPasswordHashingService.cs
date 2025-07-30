@@ -51,5 +51,13 @@ namespace SecureLibrary.SQL.Interfaces
         /// Gets the maximum work factor allowed
         /// </summary>
         int MaximumWorkFactor { get; }
+
+        /// <summary>
+        /// Generates a salt for password hashing
+        /// </summary>
+        /// <param name="workFactor">Work factor for salt generation</param>
+        /// <returns>Generated salt string</returns>
+        string GenerateSalt(int workFactor = 12);
+
     }
 } 

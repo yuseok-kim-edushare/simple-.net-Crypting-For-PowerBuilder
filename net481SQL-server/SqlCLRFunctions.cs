@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 using System.Data;
+using System.Data.SqlClient;
 using SecureLibrary.SQL.Services;
 using SecureLibrary.SQL.Interfaces;
 
@@ -66,7 +67,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Password hashing failed: {ex.Message}");
+                throw new InvalidOperationException($"Password hashing failed: {ex.Message}", ex);
             }
         }
 
@@ -94,7 +95,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Password hashing failed: {ex.Message}");
+                throw new InvalidOperationException($"Password hashing failed: {ex.Message}");
             }
         }
 
@@ -122,7 +123,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Password verification failed: {ex.Message}");
+                throw new InvalidOperationException($"Password verification failed: {ex.Message}", ex);
             }
         }
 
@@ -149,40 +150,11 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Salt generation failed: {ex.Message}");
+                throw new InvalidOperationException($"Salt generation failed: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Gets information about a hashed password
-        /// </summary>
-        /// <param name="hashedPassword">Hashed password to analyze</param>
-        /// <returns>Password hash information as XML</returns>
-        [SqlFunction(
-            IsDeterministic = true,
-            IsPrecise = true,
-            DataAccess = DataAccessKind.None
-        )]
-        [SecuritySafeCritical]
-        public static SqlXml GetHashInfo(SqlString hashedPassword)
-        {
-            if (hashedPassword.IsNull)
-                return SqlXml.Null;
 
-            try
-            {
-                var info = _passwordHashingService.GetHashInfo(hashedPassword.Value);
-                var xml = new XElement("HashInfo",
-                    new XElement("WorkFactor", info.WorkFactor),
-                    new XElement("IsValid", info.IsValid)
-                );
-                return new SqlXml(xml.CreateReader());
-            }
-            catch (Exception ex)
-            {
-                throw new SqlException($"Hash analysis failed: {ex.Message}");
-            }
-        }
 
         #endregion
 
@@ -221,7 +193,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"AES-GCM encryption failed: {ex.Message}");
+                throw new InvalidOperationException($"AES-GCM encryption failed: {ex.Message}");
             }
         }
 
@@ -270,7 +242,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"AES-GCM decryption failed: {ex.Message}");
+                throw new InvalidOperationException($"AES-GCM decryption failed: {ex.Message}");
             }
         }
 
@@ -318,7 +290,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Password-based AES-GCM encryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Password-based AES-GCM encryption failed: {ex.Message}");
             }
         }
 
@@ -372,7 +344,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Password-based AES-GCM decryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Password-based AES-GCM decryption failed: {ex.Message}");
             }
         }
 
@@ -403,7 +375,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Key generation failed: {ex.Message}");
+                throw new InvalidOperationException($"Key generation failed: {ex.Message}");
             }
         }
 
@@ -430,7 +402,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Nonce generation failed: {ex.Message}");
+                throw new InvalidOperationException($"Nonce generation failed: {ex.Message}");
             }
         }
 
@@ -461,7 +433,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Key derivation failed: {ex.Message}");
+                throw new InvalidOperationException($"Key derivation failed: {ex.Message}");
             }
         }
 
@@ -514,7 +486,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"XML encryption failed: {ex.Message}");
+                throw new InvalidOperationException($"XML encryption failed: {ex.Message}");
             }
         }
 
@@ -571,7 +543,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"XML decryption failed: {ex.Message}");
+                throw new InvalidOperationException($"XML decryption failed: {ex.Message}");
             }
         }
 
@@ -626,7 +598,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Value encryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Value encryption failed: {ex.Message}");
             }
         }
 
@@ -680,7 +652,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Value decryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Value decryption failed: {ex.Message}");
             }
         }
 
@@ -714,7 +686,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Table encryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Table encryption failed: {ex.Message}");
             }
         }
 
@@ -768,7 +740,7 @@ namespace SecureLibrary.SQL
             }
             catch (Exception ex)
             {
-                throw new SqlException($"Metadata validation failed: {ex.Message}");
+                throw new InvalidOperationException($"Metadata validation failed: {ex.Message}");
             }
         }
 

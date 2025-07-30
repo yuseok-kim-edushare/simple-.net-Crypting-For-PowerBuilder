@@ -110,46 +110,5 @@ namespace SecureLibrary.SQL.Services
             }
         }
 
-        /// <summary>
-        /// Gets information about a hashed password
-        /// </summary>
-        /// <param name="hashedPassword">Hashed password to analyze</param>
-        /// <returns>Password hash information</returns>
-        public PasswordHashInfo GetHashInfo(string hashedPassword)
-        {
-            if (hashedPassword == null)
-                throw new ArgumentNullException(nameof(hashedPassword));
-
-            try
-            {
-                var info = new PasswordHashInfo
-                {
-                    WorkFactor = BCrypt.Net.BCrypt.GetWorkFactor(hashedPassword),
-                    IsValid = BCrypt.Net.BCrypt.ValidateAndReplacePassword(hashedPassword, hashedPassword) != null
-                };
-
-                return info;
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to analyze hash: {ex.Message}", ex);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Information about a password hash
-    /// </summary>
-    public class PasswordHashInfo
-    {
-        /// <summary>
-        /// Work factor used in the hash
-        /// </summary>
-        public int WorkFactor { get; set; }
-
-        /// <summary>
-        /// Whether the hash is valid
-        /// </summary>
-        public bool IsValid { get; set; }
     }
 } 
