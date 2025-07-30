@@ -102,7 +102,6 @@ jobs:
               
               // Set output for next step
               core.setOutput('merge-sha', result.data.sha);
-              core.setOutput('merge-commit-message', result.data.commit.message);
               
             } catch (error) {
               console.error('Failed to merge PR:', error.message);
@@ -130,7 +129,6 @@ jobs:
                 client_payload: {
                   pr_number: prNumber,
                   merge_sha: mergeSha,
-                  merge_commit_message: '${{ steps.merge-commit-message }}',
                   merged_by: 'github-actions[bot]',
                   merged_at: new Date().toISOString()
                 }
