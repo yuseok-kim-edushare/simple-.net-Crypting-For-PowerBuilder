@@ -1,56 +1,3 @@
--- Complete Usage Examples for SecureLibrary-SQL CLR Functions
--- This script demonstrates all functionality including new features from PR #61
---
--- NOTE: For more practical, developer-focused examples that address
--- dynamic table creation, schema comparison, and SELECT INTO patterns,
--- see practical-examples.sql which provides enhanced real-world examples.
-
--- =============================================
--- NEW FEATURES: Password-Based Table Encryption
--- =============================================
-
-PRINT '=== NEW: Password-Based Table Encryption Examples ===';
-
--- Step 1: Create a sample table with data
-IF OBJECT_ID('tempdb..#SampleData') IS NOT NULL
-    DROP TABLE #SampleData;
-
-CREATE TABLE #SampleData (
-    ID INT PRIMARY KEY,
-    Name NVARCHAR(100),
-    Department NVARCHAR(50),
-    Salary DECIMAL(18, 2),
-    JoinDate DATETIME
-);
-INSERT INTO #SampleData VALUES
-(1, 'John Doe', 'Engineering', 95000.00, '2023-01-15'),
-(2, 'Jane Smith', 'Marketing', 82000.00, '2022-05-20'),
-(3, '김민준', 'IT Support', 68000.00, '2023-08-01');
-
-PRINT 'Sample data created.';
-
--- Step 2: Password-based table encryption
-DECLARE @password NVARCHAR(MAX) = 'SuperSecretP@ssw0rdForTesting!';
-DECLARE @xmlData XML = (SELECT * FROM #SampleData FOR XML PATH('Row'), ROOT('Root'));
-DECLARE @encryptedTable NVARCHAR(MAX) = dbo.EncryptXmlWithPassword(@xmlData, @password);
-PRINT 'Table encrypted with password: ' + LEFT(@encryptedTable, 100) + '...';
-
--- Step 3: Universal table restoration using stored procedure
-PRINT 'Restoring encrypted table with stored procedure...';
-CREATE TABLE #RestoredData (
-    ID NVARCHAR(MAX),
-    Name NVARCHAR(MAX),
-    Department NVARCHAR(MAX),
-    Salary NVARCHAR(MAX),
-    JoinDate NVARCHAR(MAX)
-);
-
-INSERT INTO #RestoredData
-EXEC dbo.RestoreEncryptedTable @encryptedTable, @password;
-
-PRINT 'Restored data:';
-SELECT * FROM #RestoredData;
-
 -- =============================================
 -- INDIVIDUAL DATA ENCRYPTION EXAMPLES
 -- =============================================
@@ -174,15 +121,6 @@ DECLARE @loginAttempt NVARCHAR(MAX) = N'PBUserPassword!';
 DECLARE @loginValid BIT = dbo.VerifyPassword(@loginAttempt, @storedHash);
 PRINT 'Login attempt result: ' + CASE WHEN @loginValid = 1 THEN 'SUCCESS - User authenticated' ELSE 'FAILED - Invalid credentials' END;
 
--- Example 3: Complete table backup and restore for PowerBuilder
-PRINT 'Example 3: Complete table backup for PowerBuilder';
-DECLARE @backupPassword NVARCHAR(MAX) = N'BackupPwd2024!';
-DECLARE @tableBackup NVARCHAR(MAX) = dbo.EncryptXmlWithPassword(@xmlData, @backupPassword);
-PRINT 'Table backup created (encrypted): ' + LEFT(@tableBackup, 80) + '...';
-
--- PowerBuilder would call this procedure to restore the table
-PRINT 'PowerBuilder table restore command:';
-PRINT 'EXEC dbo.RestoreEncryptedTable @encryptedData, @password';
 
 -- =============================================
 -- Performance and Best Practices
@@ -192,17 +130,14 @@ PRINT '';
 PRINT '=== Performance and Best Practices ===';
 
 PRINT 'Best Practices:';
-PRINT '1. Use EncryptXmlWithPassword + RestoreEncryptedTable for full table encryption';
 PRINT '2. Use EncryptAesGcmWithPassword for simple text encryption';
 PRINT '3. Use HashPasswordDefault + VerifyPassword for user authentication';
 PRINT '4. Use GenerateDiffieHellmanKeys for secure key exchange';
-PRINT '5. Use row-by-row functions for structured data processing';
 PRINT '';
 PRINT 'Security Notes:';
 PRINT '• All functions use AES-256-GCM with 128-bit authentication tags';
 PRINT '• Password-based functions use PBKDF2 with 10,000 iterations by default';
 PRINT '• All functions are safe for Korean and Unicode text';
-PRINT '• RestoreEncryptedTable dynamically handles any table structure';
 
 -- Clean up
 DROP TABLE #SampleData;
@@ -215,11 +150,6 @@ PRINT '';
 PRINT '=== SUMMARY ===';
 PRINT 'All SQL CLR functions tested successfully!';
 PRINT '';
-PRINT 'NEW in this release (PR #61):';
-PRINT '✓ Password-based table encryption with universal restore';
-PRINT '✓ Row-by-row encryption for structured data';
-PRINT '✓ Bulk processing capabilities';
-PRINT '✓ Enhanced PowerBuilder integration';
 PRINT '';
 PRINT 'Core features:';
 PRINT '✓ AES-GCM encryption/decryption';

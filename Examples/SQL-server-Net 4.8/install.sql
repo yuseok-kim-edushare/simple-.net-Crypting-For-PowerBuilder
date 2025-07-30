@@ -309,32 +309,7 @@ END CATCH
 -- Create all functions and procedures
 -- =============================================
 
-PRINT 'Creating all functions and procedures...';
-GO
-
--- Password-Based Table Encryption Functions
-CREATE FUNCTION dbo.EncryptXmlWithPassword(
-    @xmlData XML, 
-    @password NVARCHAR(MAX)
-)
-RETURNS NVARCHAR(MAX)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptXmlWithPassword;
-GO
-
-CREATE FUNCTION dbo.EncryptXmlWithPasswordIterations(
-    @xmlData XML, 
-    @password NVARCHAR(MAX),
-    @iterations INT
-)
-RETURNS NVARCHAR(MAX)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptXmlWithPasswordIterations;
-GO
-
--- Universal procedure to decrypt and restore any table
-CREATE PROCEDURE dbo.RestoreEncryptedTable
-    @encryptedData NVARCHAR(MAX),
-    @password NVARCHAR(MAX)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].RestoreEncryptedTable;
+PRINT 'Creating all functions...';
 GO
 
 -- Core Cryptographic Functions
@@ -467,45 +442,6 @@ RETURNS nvarchar(max)
 AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].HashPasswordWithWorkFactor;
 GO
 
--- Metadata-Enhanced Encryption Functions
-CREATE FUNCTION dbo.EncryptTableWithMetadata(
-    @tableName nvarchar(max), 
-    @password nvarchar(max))
-RETURNS nvarchar(max)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptTableWithMetadata;
-GO
-
-CREATE FUNCTION dbo.EncryptTableWithMetadataIterations(
-    @tableName nvarchar(max), 
-    @password nvarchar(max),
-    @iterations int)
-RETURNS nvarchar(max)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptTableWithMetadataIterations;
-GO
-
-CREATE FUNCTION dbo.EncryptXmlWithMetadata(
-    @xmlData xml, 
-    @password nvarchar(max))
-RETURNS nvarchar(max)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptXmlWithMetadata;
-GO
-
-CREATE FUNCTION dbo.EncryptXmlWithMetadataIterations(
-    @xmlData xml, 
-    @password nvarchar(max),
-    @iterations int)
-RETURNS nvarchar(max)
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].EncryptXmlWithMetadataIterations;
-GO
-
--- Universal procedure to decrypt and restore any table
--- This procedure handles stored procedure result sets and can be used with INSERT INTO ... EXEC
-CREATE PROCEDURE dbo.DecryptTableWithMetadata(
-    @encryptedData nvarchar(max), 
-    @password nvarchar(max))
-AS EXTERNAL NAME [SecureLibrary-SQL].[SecureLibrary.SQL.SqlCLRCrypting].DecryptTableWithMetadata;
-GO
-
 PRINT 'All functions and procedures created successfully!';
 
 -- =============================================
@@ -518,13 +454,6 @@ SELECT
     o.create_date AS CreateDate
 FROM sys.objects o
 WHERE o.name IN (
-    'EncryptXmlWithPassword', 
-    'EncryptXmlWithPasswordIterations',
-    'EncryptXmlWithMetadata',
-    'EncryptXmlWithMetadataIterations',
-    'EncryptTableWithMetadata',
-    'EncryptTableWithMetadataIterations',
-    'RestoreEncryptedTable',
     'GenerateAESKey',
     'EncryptAesGcm',
     'DecryptAesGcm',
@@ -552,15 +481,11 @@ PRINT '=== INSTALLATION COMPLETED SUCCESSFULLY ===';
 PRINT 'Database: ' + DB_NAME();
 PRINT '';
 PRINT 'Available Functions:';
-PRINT '✓ Password-Based Table Encryption: EncryptXmlWithPassword, RestoreEncryptedTable';
-PRINT '✓ Metadata-Enhanced Encryption: EncryptTableWithMetadata, EncryptXmlWithMetadata';
 PRINT '✓ Core AES-GCM Encryption: EncryptAesGcm, DecryptAesGcm, EncryptAesGcmWithPassword';
 PRINT '✓ Advanced Password Encryption: EncryptAesGcmWithPasswordAndSalt, DeriveKeyFromPassword';
 PRINT '✓ Derived Key Encryption: EncryptAesGcmWithDerivedKey, DecryptAesGcmWithDerivedKey';
 PRINT '✓ Password Hashing: HashPasswordDefault, HashPasswordWithWorkFactor, VerifyPassword';
 PRINT '✓ Salt Generation: GenerateSalt, GenerateSaltWithLength';
-PRINT '✓ Key Exchange: GenerateDiffieHellmanKeys, DeriveSharedKey';
-PRINT '✓ Universal Decryption: RestoreEncryptedTable (supports stored procedure result sets)';
 PRINT '';
 PRINT 'Next: Run example.sql to see usage examples of all features.';
 PRINT '      For practical, developer-focused examples addressing dynamic table';
