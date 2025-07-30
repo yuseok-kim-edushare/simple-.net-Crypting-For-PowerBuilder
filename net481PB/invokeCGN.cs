@@ -109,6 +109,7 @@ namespace SecureLibrary
             if (key.Length != 32) throw new ArgumentException("Key must be 32 bytes", "base64Key");
             if (nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", "base64Nonce");
 
+            // Bypass memory protection for BCrypt operations as it causes access violations
             IntPtr hAlg = IntPtr.Zero;
             IntPtr hKey = IntPtr.Zero;
             byte[] plainBytes = null;
@@ -180,13 +181,6 @@ namespace SecureLibrary
             {
                 if (hKey != IntPtr.Zero) BCryptDestroyKey(hKey);
                 if (hAlg != IntPtr.Zero) BCryptCloseAlgorithmProvider(hAlg, 0);
-                
-                // Clear sensitive data
-                if (key != null) Array.Clear(key, 0, key.Length);
-                if (nonce != null) Array.Clear(nonce, 0, nonce.Length);
-                if (plainBytes != null) Array.Clear(plainBytes, 0, plainBytes.Length);
-                if (tagBuffer != null) Array.Clear(tagBuffer, 0, tagBuffer.Length);
-                if (cipherText != null) Array.Clear(cipherText, 0, cipherText.Length);
             }
         }
 
@@ -208,6 +202,7 @@ namespace SecureLibrary
             if (cipherText.Length < tagLength)
                 throw new ArgumentException("Encrypted data too short", "base64CipherText");
 
+            // Bypass memory protection for BCrypt operations as it causes access violations
             IntPtr hAlg = IntPtr.Zero;
             IntPtr hKey = IntPtr.Zero;
             byte[] encryptedData = null;
@@ -274,14 +269,6 @@ namespace SecureLibrary
             {
                 if (hKey != IntPtr.Zero) BCryptDestroyKey(hKey);
                 if (hAlg != IntPtr.Zero) BCryptCloseAlgorithmProvider(hAlg, 0);
-
-                // Clear sensitive data
-                if (key != null) Array.Clear(key, 0, key.Length);
-                if (nonce != null) Array.Clear(nonce, 0, nonce.Length);
-                if (cipherText != null) Array.Clear(cipherText, 0, cipherText.Length);
-                if (encryptedData != null) Array.Clear(encryptedData, 0, encryptedData.Length);
-                if (tag != null) Array.Clear(tag, 0, tag.Length);
-                if (plainText != null) Array.Clear(plainText, 0, plainText.Length);
             }
         }
 

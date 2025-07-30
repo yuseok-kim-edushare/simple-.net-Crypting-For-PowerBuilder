@@ -10,7 +10,7 @@
     <ExcludeTests Condition="'$(Configuration)'=='Release'">true</ExcludeTests>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>..\Simple-Crypt4PB.snk</AssemblyOriginatorKeyFile>
-    <DelaySign>true</DelaySign>
+    <DelaySign>false</DelaySign>
     
     <!-- Assembly Information -->
     <AssemblyTitle>simple-.NET-Crypting-For-PowerBuilder-NET8</AssemblyTitle>
@@ -26,6 +26,7 @@
   <PropertyGroup Condition="'$(Configuration)'=='Release' and '$(ExcludeTests)'=='true'">
     <DefineConstants>TRACE;RELEASE;RELEASE_WITHOUT_TESTS</DefineConstants>
     <IsTestProject>false</IsTestProject>
+    <DelaySign>true</DelaySign>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,6 +39,7 @@
     <PackageReference Include="MSTest.TestAdapter" Version="3.10.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.7" />
   </ItemGroup>
 
 </Project>

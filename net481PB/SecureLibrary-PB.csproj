@@ -12,7 +12,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>..\Simple-Crypt4PB.snk</AssemblyOriginatorKeyFile>
-    <DelaySign>true</DelaySign>
+    <DelaySign>false</DelaySign>
     
     <!-- Assembly Information -->
     <AssemblyTitle>simple-.NET-Crypting-For-PowerBuilder</AssemblyTitle>
@@ -27,6 +27,7 @@
   <PropertyGroup Condition="'$(Configuration)'=='Release' and '$(ExcludeTests)'=='true'">
     <DefineConstants>TRACE;RELEASE;RELEASE_WITHOUT_TESTS</DefineConstants>
     <IsTestProject>false</IsTestProject>
+    <DelaySign>true</DelaySign>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='ReleaseWithoutTests'">
@@ -40,6 +41,7 @@
     <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.6.1" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.7" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)'!='Release'">
@@ -49,6 +51,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="ProtectedMemoryHelper.cs" />
     <Compile Include="draft.cs" />
     <Compile Include="invokeCGN.cs" />
   </ItemGroup>

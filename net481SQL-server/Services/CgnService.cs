@@ -228,6 +228,7 @@ namespace SecureLibrary.SQL.Services
             if (key.Length != 32) throw new ArgumentException("Key must be 32 bytes", nameof(key));
             if (nonce.Length != 12) throw new ArgumentException("Nonce must be 12 bytes", nameof(nonce));
 
+            // Bypass memory protection for BCrypt operations as it causes access violations
             lock (_lockObject)
             {
                 IntPtr hAlg = IntPtr.Zero;
@@ -287,10 +288,6 @@ namespace SecureLibrary.SQL.Services
                         Buffer.BlockCopy(cipherText, 0, result, 0, bytesWritten);
                         Buffer.BlockCopy(tagBuffer, 0, result, bytesWritten, tagLength);
 
-                        // Clear sensitive data
-                        Array.Clear(cipherText, 0, cipherText.Length);
-                        Array.Clear(tagBuffer, 0, tagBuffer.Length);
-
                         return result;
                     }
                     finally
@@ -331,6 +328,7 @@ namespace SecureLibrary.SQL.Services
             if (cipherData.Length < tagLength)
                 throw new ArgumentException("Encrypted data too short", nameof(cipherData));
 
+            // Bypass memory protection for BCrypt operations as it causes access violations
             lock (_lockObject)
             {
                 IntPtr hAlg = IntPtr.Zero;
@@ -389,13 +387,9 @@ namespace SecureLibrary.SQL.Services
                         if (status != STATUS_SUCCESS) 
                             throw new CryptographicException($"BCryptDecrypt failed with status {status}");
 
+                        // Return the actual decrypted data (trim to actual size)
                         byte[] result = new byte[bytesWritten];
                         Buffer.BlockCopy(plainText, 0, result, 0, bytesWritten);
-
-                        // Clear sensitive data
-                        Array.Clear(encryptedData, 0, encryptedData.Length);
-                        Array.Clear(tag, 0, tag.Length);
-                        Array.Clear(plainText, 0, plainText.Length);
 
                         return result;
                     }

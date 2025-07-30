@@ -107,7 +107,7 @@ namespace SecureLibrary.SQL.Tests
             var metadata = CreateValidEncryptionMetadata();
 
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => _encryptionEngine.EncryptRow(row, metadata));
+            Assert.ThrowsExactly<ArgumentNullException>(() => _encryptionEngine.EncryptRow(row, metadata));
         }
 
         [TestMethod]
@@ -122,7 +122,7 @@ namespace SecureLibrary.SQL.Tests
             EncryptionMetadata metadata = null;
 
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => _encryptionEngine.EncryptRow(row, metadata));
+            Assert.ThrowsExactly<ArgumentNullException>(() => _encryptionEngine.EncryptRow(row, metadata));
         }
 
         [TestMethod]
@@ -140,7 +140,7 @@ namespace SecureLibrary.SQL.Tests
             var metadata = CreateValidEncryptionMetadata();
 
             // Act & Assert
-            Assert.ThrowsException<ArgumentException>(() => _encryptionEngine.EncryptRow(row, metadata));
+            Assert.ThrowsExactly<ArgumentException>(() => _encryptionEngine.EncryptRow(row, metadata));
         }
 
         [TestMethod]
