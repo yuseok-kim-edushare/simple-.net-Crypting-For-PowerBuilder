@@ -1290,25 +1290,75 @@ namespace SecureLibrary.SQL.Services
                 var column = dataTable.Columns[columnName];
                 var isNull = element.Attribute(XName.Get("nil", "http://www.w3.org/2001/XMLSchema-instance"))?.Value == "true";
 
-                // Only convert to DBNull if explicitly null or truly empty (not whitespace-only)
-                if (isNull || (element.Value == null || element.Value.Length == 0))
+                // CRITICAL FIX: Only convert to DBNull if explicitly marked as null with xsi:nil="true"
+                // DO NOT convert whitespace-only or empty content to null
+                if (isNull)
                 {
                     dataRow[columnName] = DBNull.Value;
                 }
                 else
                 {
+                    // Preserve the original content, including whitespace-only strings
+                    // Get the raw content to handle whitespace preservation
+                    string rawValue = GetPreservedElementContent(element);
+                    
                     try
                     {
-                        var convertedValue = ConvertStringToValue(element.Value, column.DataType);
+                        var convertedValue = ConvertStringToValue(rawValue, column.DataType);
                         dataRow[columnName] = convertedValue;
                     }
                     catch
                     {
-                        // If conversion fails, store as string
-                        dataRow[columnName] = element.Value;
+                        // If conversion fails, store as string (preserving whitespace)
+                        dataRow[columnName] = rawValue;
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets element content while preserving whitespace (for CHAR columns with spaces)
+        /// </summary>
+        /// <param name="element">XML element</param>
+        /// <returns>Content with preserved whitespace</returns>
+        private string GetPreservedElementContent(XElement element)
+        {
+            // For elements that should preserve whitespace, we need to reconstruct the content
+            // from the original XML string to bypass .NET's automatic whitespace trimming
+            
+            // Get the element as a string and extract content between tags
+            string elementString = element.ToString();
+            string elementName = element.Name.LocalName;
+            
+            // Handle namespaced elements
+            string startTag, endTag;
+            if (element.Name.Namespace != XNamespace.None)
+            {
+                // For namespaced elements, we need to be more careful
+                int firstGT = elementString.IndexOf('>');
+                int lastLT = elementString.LastIndexOf('<');
+                
+                if (firstGT >= 0 && lastLT > firstGT)
+                {
+                    return elementString.Substring(firstGT + 1, lastLT - firstGT - 1);
+                }
+            }
+            else
+            {
+                startTag = $"<{elementName}>";
+                endTag = $"</{elementName}>";
+                
+                int startIndex = elementString.IndexOf(startTag);
+                int endIndex = elementString.IndexOf(endTag);
+                
+                if (startIndex >= 0 && endIndex > startIndex)
+                {
+                    return elementString.Substring(startIndex + startTag.Length, endIndex - startIndex - startTag.Length);
+                }
+            }
+            
+            // Fallback to XElement.Value if parsing fails
+            return element.Value;
         }
 
         #endregion
