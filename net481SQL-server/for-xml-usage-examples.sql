@@ -132,8 +132,8 @@ SET @sensitiveRowXml = (
             salary
         FROM dbo.tb_test_cust 
         WHERE cust_id = 16424 
-        FOR XML RAW('SensitiveRow'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
-    ) AS 'RowData'
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE, Root('Rows')
+    ) AS 'RowsData'
     FOR XML PATH('root'), TYPE
 );
 
@@ -201,10 +201,12 @@ DECLARE @iterations INT = 10000;
 
 -- Get complex row as XML (single row only)
 SET @complexRowXml = (
-    SELECT TOP 1 * 
+    select (SELECT TOP 1 * 
     FROM dbo.tb_complex_data 
     WHERE id = 1 
-    FOR XML RAW('ComplexRow'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE, Root('Rows')
+    ) as 'RowsData'
+    FOR XML PATH('root'), TYPE
 );
 
 -- Encrypt the complex row
