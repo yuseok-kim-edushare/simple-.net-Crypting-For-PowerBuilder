@@ -171,7 +171,17 @@ namespace SecureLibrary.SQL.Services
                     }
                     else
                     {
-                        element.Value = ConvertValueToString(value, column.DataType);
+                        var stringValue = ConvertValueToString(value, column.DataType);
+                        
+                        // Preserve whitespace-only strings by using CDATA
+                        if (column.DataType == typeof(string) && !string.IsNullOrEmpty(stringValue) && string.IsNullOrWhiteSpace(stringValue))
+                        {
+                            element.Add(new XCData(stringValue));
+                        }
+                        else
+                        {
+                            element.Value = stringValue;
+                        }
                     }
                 }
 
@@ -209,7 +219,18 @@ namespace SecureLibrary.SQL.Services
 
                 var isNull = column.Attribute("IsNull")?.Value == "true";
                 var isXml = column.Attribute("IsXml")?.Value == "true";
-                var value = column.Value;
+                
+                // Handle CDATA sections for whitespace preservation
+                string value;
+                var cdataNode = column.FirstNode as XCData;
+                if (cdataNode != null)
+                {
+                    value = cdataNode.Value;
+                }
+                else
+                {
+                    value = column.Value;
+                }
                 var dataColumn = table.Columns[columnName];
                 
 
@@ -260,35 +281,27 @@ namespace SecureLibrary.SQL.Services
                 }
                 else
                 {
-                    // Handle empty strings for non-nullable columns - only convert truly empty strings
-                    if (value == null || value.Length == 0)
+                                    // Handle empty strings - preserve them as empty strings, not convert to DBNull
+                if (value == null || value.Length == 0)
+                {
+                    // Always preserve empty strings as empty strings, regardless of nullability
+                    var emptyValue = string.Empty;
+                    
+                    // Check if this is a char/nchar column that needs padding
+                    var sqlDbTypeString = column.Attribute("SqlDbType")?.Value;
+                    var maxLengthString = column.Attribute("MaxLength")?.Value;
+                    
+                    if (!string.IsNullOrEmpty(sqlDbTypeString) && !string.IsNullOrEmpty(maxLengthString))
                     {
-                        if (!dataColumn.AllowDBNull)
+                        if (Enum.TryParse<SqlDbType>(sqlDbTypeString, out SqlDbType sqlDbType) &&
+                            int.TryParse(maxLengthString, out int maxLength))
                         {
-                            // For non-nullable columns, preserve empty string but apply char padding if needed
-                            var emptyValue = string.Empty;
-                            
-                            // Check if this is a char/nchar column that needs padding
-                            var sqlDbTypeString = column.Attribute("SqlDbType")?.Value;
-                            var maxLengthString = column.Attribute("MaxLength")?.Value;
-                            
-                            if (!string.IsNullOrEmpty(sqlDbTypeString) && !string.IsNullOrEmpty(maxLengthString))
-                            {
-                                if (Enum.TryParse<SqlDbType>(sqlDbTypeString, out SqlDbType sqlDbType) &&
-                                    int.TryParse(maxLengthString, out int maxLength))
-                                {
-                                    emptyValue = ApplyCharPadding(emptyValue, sqlDbType, maxLength);
-                                }
-                            }
-                            
-                            row[columnName] = emptyValue;
-                        }
-                        else
-                        {
-                            // For nullable columns, set to DBNull
-                            row[columnName] = DBNull.Value;
+                            emptyValue = ApplyCharPadding(emptyValue, sqlDbType, maxLength);
                         }
                     }
+                    
+                    row[columnName] = emptyValue;
+                }
                     else
                     {
                         try
