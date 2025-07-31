@@ -265,8 +265,23 @@ namespace SecureLibrary.SQL.Services
                     {
                         if (!dataColumn.AllowDBNull)
                         {
-                            // For non-nullable columns, preserve empty string
-                            row[columnName] = string.Empty;
+                            // For non-nullable columns, preserve empty string but apply char padding if needed
+                            var emptyValue = string.Empty;
+                            
+                            // Check if this is a char/nchar column that needs padding
+                            var sqlDbTypeString = column.Attribute("SqlDbType")?.Value;
+                            var maxLengthString = column.Attribute("MaxLength")?.Value;
+                            
+                            if (!string.IsNullOrEmpty(sqlDbTypeString) && !string.IsNullOrEmpty(maxLengthString))
+                            {
+                                if (Enum.TryParse<SqlDbType>(sqlDbTypeString, out SqlDbType sqlDbType) &&
+                                    int.TryParse(maxLengthString, out int maxLength))
+                                {
+                                    emptyValue = ApplyCharPadding(emptyValue, sqlDbType, maxLength);
+                                }
+                            }
+                            
+                            row[columnName] = emptyValue;
                         }
                         else
                         {
@@ -279,6 +294,23 @@ namespace SecureLibrary.SQL.Services
                         try
                         {
                             var convertedValue = ConvertStringToValue(value, dataColumn.DataType);
+                            
+                            // Apply space padding for char and nchar types
+                            if (convertedValue is string stringValue)
+                            {
+                                var sqlDbTypeString = column.Attribute("SqlDbType")?.Value;
+                                var maxLengthString = column.Attribute("MaxLength")?.Value;
+                                
+                                if (!string.IsNullOrEmpty(sqlDbTypeString) && !string.IsNullOrEmpty(maxLengthString))
+                                {
+                                    if (Enum.TryParse<SqlDbType>(sqlDbTypeString, out SqlDbType sqlDbType) &&
+                                        int.TryParse(maxLengthString, out int maxLength))
+                                    {
+                                        convertedValue = ApplyCharPadding(stringValue, sqlDbType, maxLength);
+                                    }
+                                }
+                            }
+                            
                             row[columnName] = convertedValue;
                         }
                         catch
@@ -1538,6 +1570,35 @@ namespace SecureLibrary.SQL.Services
         private object GetDefaultValueForColumn(DataColumn column)
         {
             return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetDefaultValueForColumn(column);
+        }
+
+        /// <summary>
+        /// Applies space padding to string values for char and nchar SQL types
+        /// </summary>
+        /// <param name="value">The string value to pad</param>
+        /// <param name="sqlDbType">The SQL data type</param>
+        /// <param name="maxLength">The maximum length for the column</param>
+        /// <returns>The padded string value</returns>
+        private string ApplyCharPadding(string value, SqlDbType sqlDbType, int maxLength)
+        {
+            // Only apply padding for char and nchar types
+            if (sqlDbType != SqlDbType.Char && sqlDbType != SqlDbType.NChar)
+                return value;
+
+            // If maxLength is not positive, return the original value
+            if (maxLength <= 0)
+                return value;
+
+            // If the value is null, return empty string padded to maxLength
+            if (value == null)
+                return new string(' ', maxLength);
+
+            // If the value is already at or exceeds maxLength, return as is
+            if (value.Length >= maxLength)
+                return value;
+
+            // Pad the value with spaces to reach maxLength
+            return value.PadRight(maxLength, ' ');
         }
     }
 } 
