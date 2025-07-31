@@ -876,20 +876,23 @@ namespace SecureLibrary.SQL.Services
                 var column = new DataColumn(name, dataType);
                 column.AllowDBNull = nillable;
 
-                // Extract max length for string types
-                var simpleTypeForLength = element.Element(XName.Get("simpleType", xsdNamespace));
-                if (simpleTypeForLength != null)
+                // Extract max length only for string types (not for varbinary/binary types)
+                if (dataType == typeof(string))
                 {
-                    var restriction = simpleTypeForLength.Element(XName.Get("restriction", xsdNamespace));
-                    if (restriction != null)
+                    var simpleTypeForLength = element.Element(XName.Get("simpleType", xsdNamespace));
+                    if (simpleTypeForLength != null)
                     {
-                        var maxLength = restriction.Element(XName.Get("maxLength", xsdNamespace));
-                        if (maxLength != null)
+                        var restriction = simpleTypeForLength.Element(XName.Get("restriction", xsdNamespace));
+                        if (restriction != null)
                         {
-                            var lengthValue = maxLength.Attribute("value")?.Value;
-                            if (int.TryParse(lengthValue, out int maxLen))
+                            var maxLength = restriction.Element(XName.Get("maxLength", xsdNamespace));
+                            if (maxLength != null)
                             {
-                                column.MaxLength = maxLen;
+                                var lengthValue = maxLength.Attribute("value")?.Value;
+                                if (int.TryParse(lengthValue, out int maxLen))
+                                {
+                                    column.MaxLength = maxLen;
+                                }
                             }
                         }
                     }
@@ -959,13 +962,19 @@ namespace SecureLibrary.SQL.Services
                 column.DataType == typeof(short) || column.DataType == typeof(byte) ||
                 column.DataType == typeof(bool) || column.DataType == typeof(DateTime) ||
                 column.DataType == typeof(decimal) || column.DataType == typeof(double) ||
-                column.DataType == typeof(float))
+                column.DataType == typeof(float) || column.DataType == typeof(TimeSpan) ||
+                column.DataType == typeof(DateTimeOffset) || column.DataType == typeof(Guid))
             {
+                element.Add(new XAttribute("type", sqlServerType));
+            }
+            else if (column.DataType == typeof(byte[]))
+            {
+                // For binary types, use direct type attribute without maxLength restriction
                 element.Add(new XAttribute("type", sqlServerType));
             }
             else
             {
-                // For string types, create simpleType with restriction
+                // For string types only, create simpleType with restriction and maxLength
                 element.Add(new XElement(xsdNamespace + "simpleType",
                     new XElement(xsdNamespace + "restriction",
                         new XAttribute("base", sqlServerType),
