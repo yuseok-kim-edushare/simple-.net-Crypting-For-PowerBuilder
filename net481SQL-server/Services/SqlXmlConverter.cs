@@ -97,7 +97,8 @@ namespace SecureLibrary.SQL.Services
                 var isNull = column.Attribute("IsNull")?.Value == "true";
                 var value = column.Value;
 
-                if (isNull || string.IsNullOrEmpty(value))
+                // Only convert to DBNull if explicitly null or truly empty (not whitespace-only)
+                if (isNull || (value == null || value.Length == 0))
                 {
                     record.SetDBNull(i);
                 }
@@ -216,7 +217,8 @@ namespace SecureLibrary.SQL.Services
                 // Special handling for XML types first
                 if (isXml)
                 {
-                    if (isNull || string.IsNullOrEmpty(value))
+                    // Only convert to DBNull if explicitly null or truly empty (not whitespace-only)
+                    if (isNull || (value == null || value.Length == 0))
                     {
                         // If the column allows DBNull and the value is null/empty, return DBNull.Value
                         // This preserves the original DBNull.Value that was serialized
@@ -258,8 +260,8 @@ namespace SecureLibrary.SQL.Services
                 }
                 else
                 {
-                    // Handle empty strings for non-nullable columns
-                    if (string.IsNullOrEmpty(value))
+                    // Handle empty strings for non-nullable columns - only convert truly empty strings
+                    if (value == null || value.Length == 0)
                     {
                         if (!dataColumn.AllowDBNull)
                         {
@@ -421,7 +423,8 @@ namespace SecureLibrary.SQL.Services
                         var isNull = columnElement.Attribute("IsNull")?.Value == "true";
                         var value = columnElement.Value;
 
-                        if (isNull || string.IsNullOrEmpty(value))
+                        // Only convert to DBNull if explicitly null or truly empty (not whitespace-only)
+                        if (isNull || (value == null || value.Length == 0))
                         {
                             row[columnName] = DBNull.Value;
                         }
@@ -1174,7 +1177,8 @@ namespace SecureLibrary.SQL.Services
                 var column = dataTable.Columns[columnName];
                 var isNull = element.Attribute(XName.Get("nil", "http://www.w3.org/2001/XMLSchema-instance"))?.Value == "true";
 
-                if (isNull || string.IsNullOrEmpty(element.Value))
+                // Only convert to DBNull if explicitly null or truly empty (not whitespace-only)
+                if (isNull || (element.Value == null || element.Value.Length == 0))
                 {
                     dataRow[columnName] = DBNull.Value;
                 }
@@ -1269,7 +1273,8 @@ namespace SecureLibrary.SQL.Services
         /// <returns>Converted value</returns>
         public object ConvertStringToValue(string value, Type dataType)
         {
-            if (string.IsNullOrEmpty(value))
+            // Only convert to DBNull if truly empty (null or zero length), preserve whitespace-only strings
+            if (value == null || value.Length == 0)
                 return DBNull.Value;
 
             // Special handling for XML types
@@ -1325,7 +1330,8 @@ namespace SecureLibrary.SQL.Services
 
         private object ConvertStringToValue(string value, SqlDbType sqlType)
         {
-            if (string.IsNullOrEmpty(value))
+            // Only convert to DBNull if truly empty (null or zero length), preserve whitespace-only strings
+            if (value == null || value.Length == 0)
                 return DBNull.Value;
 
             switch (sqlType)
