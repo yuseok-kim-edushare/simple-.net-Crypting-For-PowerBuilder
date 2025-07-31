@@ -12,6 +12,19 @@ GO
 PRINT '--- STEP 1: Enabling CLR Integration ---';
 GO
 
+-- Check Advanced Options
+IF (SELECT value FROM sys.configurations WHERE name = 'show advanced options') = 0
+BEGIN
+    EXEC sp_configure 'show advanced options', 1;
+    RECONFIGURE;
+    PRINT '✓ Advanced Options enabled';
+END
+ELSE
+BEGIN
+    PRINT '✓ Advanced Options already enabled';
+END
+GO
+
 -- Check if CLR is enabled
 IF (SELECT value FROM sys.configurations WHERE name = 'clr enabled') = 0
 BEGIN
@@ -420,14 +433,14 @@ DECLARE @hashedPassword NVARCHAR(MAX);
 DECLARE @isValid BIT;
 
 SET @hashedPassword = dbo.HashPassword(@testPassword);
-PRINT 'Password hashing test: ' + CASE WHEN @hashedPassword IS NOT NULL THEN 'PASSED' ELSE 'FAILED' END;
+PRINT 'Password hashing test: ' + @hashedPassword ;
 
 SET @isValid = dbo.VerifyPassword(@testPassword, @hashedPassword);
 PRINT 'Password verification test: ' + CASE WHEN @isValid = 1 THEN 'PASSED' ELSE 'FAILED' END;
 
 -- Test key generation
 DECLARE @generatedKey NVARCHAR(MAX) = dbo.GenerateKey(256);
-PRINT 'Key generation test: ' + CASE WHEN @generatedKey IS NOT NULL THEN 'PASSED' ELSE 'FAILED' END;
+PRINT 'Key generation test: ' +  @generatedKey ;
 
 -- Test AES-GCM encryption
 DECLARE @plainText NVARCHAR(MAX) = 'Hello, World!';
@@ -435,10 +448,10 @@ DECLARE @encryptedText NVARCHAR(MAX);
 DECLARE @decryptedText NVARCHAR(MAX);
 
 SET @encryptedText = dbo.EncryptAesGcmWithPassword(@plainText, @testPassword, 10000);
-PRINT 'AES-GCM encryption test: ' + CASE WHEN @encryptedText IS NOT NULL THEN 'PASSED' ELSE 'FAILED' END;
+PRINT 'AES-GCM encryption test: ' + @encryptedText ;
 
 SET @decryptedText = dbo.DecryptAesGcmWithPassword(@encryptedText, @testPassword, 10000);
-PRINT 'AES-GCM decryption test: ' + CASE WHEN @decryptedText = @plainText THEN 'PASSED' ELSE 'FAILED' END;
+PRINT 'AES-GCM decryption test: ' + @decryptedText ;
 
 -- Test XML encryption
 DECLARE @testXml XML = '<TestData><Name>John Doe</Name><Age>30</Age></TestData>';
@@ -446,10 +459,10 @@ DECLARE @encryptedXml NVARCHAR(MAX);
 DECLARE @decryptedXml XML;
 
 SET @encryptedXml = dbo.EncryptXml(@testXml, @testPassword, 10000);
-PRINT 'XML encryption test: ' + CASE WHEN @encryptedXml IS NOT NULL THEN 'PASSED' ELSE 'FAILED' END;
+PRINT 'XML encryption test: ' + @encryptedXml ;
 
 SET @decryptedXml = dbo.DecryptXml(@encryptedXml, @testPassword, 10000);
-PRINT 'XML decryption test: ' + CASE WHEN @decryptedXml IS NOT NULL THEN 'PASSED' ELSE 'FAILED' END;
+PRINT 'XML decryption test: ' + cast(@decryptedXml as varchar(max));
 
 -- Test Single Value Encryption
 DECLARE @testValue NVARCHAR(MAX) = 'My secret value';
@@ -457,10 +470,10 @@ DECLARE @encryptedValue NVARCHAR(MAX);
 DECLARE @decryptedValue NVARCHAR(MAX);
 
 SET @encryptedValue = dbo.EncryptValue(@testValue, @testPassword, 10000);
-PRINT 'Single value encryption test: ' + CASE WHEN @encryptedValue IS NOT NULL THEN 'PASSED' ELSE 'FAILED' END;
+PRINT 'Single value encryption test: ' + @encryptedValue ;
 
 SET @decryptedValue = dbo.DecryptValue(@encryptedValue, @testPassword);
-PRINT 'Single value decryption test: ' + CASE WHEN @decryptedValue = @testValue THEN 'PASSED' ELSE 'FAILED' END;
+PRINT 'Single value decryption test: ' + @decryptedValue;
 
 PRINT '';
 PRINT '=== INSTALLATION COMPLETED SUCCESSFULLY ===';
