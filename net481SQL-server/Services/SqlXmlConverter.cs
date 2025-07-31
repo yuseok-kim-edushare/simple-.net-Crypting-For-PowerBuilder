@@ -7,6 +7,7 @@ using System.Text;
 using System.Xml.Linq;
 using Microsoft.SqlServer.Server;
 using SecureLibrary.SQL.Interfaces;
+using SecureLibrary.SQL.Services;
 
 namespace SecureLibrary.SQL.Services
 {
@@ -111,10 +112,10 @@ namespace SecureLibrary.SQL.Services
         }
 
         /// <summary>
-        /// Converts a DataRow to XML representation
+        /// Converts a DataRow to XML representation with enhanced SQL Server type information
         /// </summary>
         /// <param name="row">DataRow to convert</param>
-        /// <returns>XDocument containing the row data</returns>
+        /// <returns>XDocument containing the row data with SQL Server schema</returns>
         /// <exception cref="ArgumentNullException">Thrown when row is null</exception>
         public XDocument ToXml(DataRow row)
         {
@@ -128,10 +129,17 @@ namespace SecureLibrary.SQL.Services
             foreach (DataColumn column in row.Table.Columns)
             {
                 var value = row[column];
+                var sqlDbType = GetSqlDbTypeFromClrType(column.DataType);
+                var sqlTypeName = GetSqlTypeName(column.DataType, column.MaxLength);
+                
                 var element = new XElement("Column",
                     new XAttribute("Name", column.ColumnName),
                     new XAttribute("Type", column.DataType.Name),
-                    new XAttribute("MaxLength", column.MaxLength)
+                    new XAttribute("SqlDbType", sqlDbType.ToString()),
+                    new XAttribute("SqlTypeName", sqlTypeName),
+                    new XAttribute("MaxLength", column.MaxLength),
+                    new XAttribute("IsNullable", column.AllowDBNull),
+                    new XAttribute("Ordinal", column.Ordinal)
                 );
 
                 if (value == DBNull.Value || value == null)
@@ -141,7 +149,29 @@ namespace SecureLibrary.SQL.Services
                 else
                 {
                     element.Add(new XAttribute("IsNull", "false"));
-                    element.Value = ConvertValueToString(value, column.DataType);
+                    
+                    // Special handling for XML types
+                    if (value is SqlXml sqlXml)
+                    {
+                        // Check if SqlXml is null before accessing Value property
+                        if (sqlXml.IsNull)
+                        {
+                            element.Value = string.Empty;
+                            element.Add(new XAttribute("IsXml", "true"));
+                            // Remove the existing IsNull="false" attribute and add IsNull="true"
+                            element.Attribute("IsNull")?.Remove();
+                            element.Add(new XAttribute("IsNull", "true"));
+                        }
+                        else
+                        {
+                            element.Value = sqlXml.Value;
+                            element.Add(new XAttribute("IsXml", "true"));
+                        }
+                    }
+                    else
+                    {
+                        element.Value = ConvertValueToString(value, column.DataType);
+                    }
                 }
 
                 root.Add(element);
@@ -151,11 +181,11 @@ namespace SecureLibrary.SQL.Services
         }
 
         /// <summary>
-        /// Converts XML back to a DataRow with proper type casting
+        /// Converts XML back to a DataRow with proper SQL Server type casting and nullable handling
         /// </summary>
         /// <param name="xml">XDocument containing the row data</param>
         /// <param name="table">DataTable defining the expected schema</param>
-        /// <returns>DataRow with properly typed values</returns>
+        /// <returns>DataRow with properly typed values and nullable handling</returns>
         /// <exception cref="ArgumentNullException">Thrown when xml or table is null</exception>
         public DataRow FromXml(XDocument xml, DataTable table)
         {
@@ -177,17 +207,93 @@ namespace SecureLibrary.SQL.Services
                     continue;
 
                 var isNull = column.Attribute("IsNull")?.Value == "true";
+                var isXml = column.Attribute("IsXml")?.Value == "true";
                 var value = column.Value;
+                var dataColumn = table.Columns[columnName];
+                
 
-                if (isNull || string.IsNullOrEmpty(value))
+
+                // Special handling for XML types first
+                if (isXml)
                 {
-                    row[columnName] = DBNull.Value;
+                    if (isNull || string.IsNullOrEmpty(value))
+                    {
+                        // If the column allows DBNull and the value is null/empty, return DBNull.Value
+                        // This preserves the original DBNull.Value that was serialized
+                        row[columnName] = DBNull.Value;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var sqlXml = new SqlXml(XDocument.Parse(value).CreateReader());
+                            row[columnName] = sqlXml;
+                        }
+                        catch
+                        {
+                            // If XML parsing fails, return DBNull.Value for nullable columns
+                            if (dataColumn.AllowDBNull)
+                            {
+                                row[columnName] = DBNull.Value;
+                            }
+                            else
+                            {
+                                row[columnName] = SqlXml.Null;
+                            }
+                        }
+                    }
+                }
+                else if (isNull)
+                {
+                    // Check if the column allows null values
+                    if (dataColumn.AllowDBNull)
+                    {
+                        row[columnName] = DBNull.Value;
+                    }
+                    else
+                    {
+                        // For non-nullable columns, use appropriate default value
+                        row[columnName] = GetDefaultValueForColumn(dataColumn);
+                    }
                 }
                 else
                 {
-                    var dataColumn = table.Columns[columnName];
-                    var convertedValue = ConvertStringToValue(value, dataColumn.DataType);
-                    row[columnName] = convertedValue;
+                    // Handle empty strings for non-nullable columns
+                    if (string.IsNullOrEmpty(value))
+                    {
+                        if (!dataColumn.AllowDBNull)
+                        {
+                            // For non-nullable columns, preserve empty string
+                            row[columnName] = string.Empty;
+                        }
+                        else
+                        {
+                            // For nullable columns, set to DBNull
+                            row[columnName] = DBNull.Value;
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var convertedValue = ConvertStringToValue(value, dataColumn.DataType);
+                            row[columnName] = convertedValue;
+                        }
+                        catch
+                        {
+                            // If conversion fails, handle based on column nullability
+                            if (!dataColumn.AllowDBNull)
+                            {
+                                // For non-nullable columns, preserve the original value as string
+                                row[columnName] = value;
+                            }
+                            else
+                            {
+                                // For nullable columns, set to DBNull on conversion failure
+                                row[columnName] = DBNull.Value;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -997,62 +1103,7 @@ namespace SecureLibrary.SQL.Services
         /// <returns>CLR type</returns>
         private Type GetClrTypeFromSqlServerType(string sqlServerType)
         {
-            if (string.IsNullOrEmpty(sqlServerType))
-                return typeof(string);
-
-            // Remove namespace prefix if present
-            var typeName = sqlServerType;
-            if (sqlServerType.Contains(":"))
-            {
-                typeName = sqlServerType.Split(':').Last();
-            }
-
-            switch (typeName.ToLower())
-            {
-                case "int":
-                    return typeof(int);
-                case "bigint":
-                    return typeof(long);
-                case "smallint":
-                    return typeof(short);
-                case "tinyint":
-                    return typeof(byte);
-                case "decimal":
-                case "money":
-                case "smallmoney":
-                    return typeof(decimal);
-                case "float":
-                    return typeof(double);
-                case "real":
-                    return typeof(float);
-                case "bit":
-                    return typeof(bool);
-                case "datetime":
-                case "datetime2":
-                case "smalldatetime":
-                    return typeof(DateTime);
-                case "date":
-                    return typeof(DateTime);
-                case "time":
-                    return typeof(TimeSpan);
-                case "datetimeoffset":
-                    return typeof(DateTimeOffset);
-                case "uniqueidentifier":
-                    return typeof(Guid);
-                case "binary":
-                case "varbinary":
-                case "image":
-                    return typeof(byte[]);
-                case "char":
-                case "varchar":
-                case "text":
-                case "nchar":
-                case "nvarchar":
-                case "ntext":
-                case "xml":
-                default:
-                    return typeof(string);
-            }
+            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetClrTypeFromSqlServerType(sqlServerType);
         }
 
         /// <summary>
@@ -1076,8 +1127,30 @@ namespace SecureLibrary.SQL.Services
             if (clrType == typeof(Guid)) return "sqltypes:uniqueidentifier";
             if (clrType == typeof(byte[])) return "sqltypes:varbinary";
             if (clrType == typeof(string)) return "sqltypes:nvarchar";
+            if (clrType == typeof(SqlXml)) return "sqltypes:xml";
             
             return "sqltypes:nvarchar";
+        }
+
+        /// <summary>
+        /// Converts CLR type to SqlDbType
+        /// </summary>
+        /// <param name="clrType">CLR type</param>
+        /// <returns>SqlDbType value</returns>
+        private SqlDbType GetSqlDbTypeFromClrType(Type clrType)
+        {
+            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetSqlDbTypeFromClrType(clrType);
+        }
+
+        /// <summary>
+        /// Gets the full SQL type name with length/precision/scale
+        /// </summary>
+        /// <param name="clrType">CLR type</param>
+        /// <param name="maxLength">Maximum length</param>
+        /// <returns>Full SQL type name</returns>
+        private string GetSqlTypeName(Type clrType, int maxLength)
+        {
+            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetSqlTypeName(clrType, maxLength);
         }
 
         /// <summary>
@@ -1135,6 +1208,9 @@ namespace SecureLibrary.SQL.Services
             if (value == null || value == DBNull.Value)
                 return string.Empty;
 
+            // Special handling for XML types
+            if (value is SqlXml sqlXml)
+                return sqlXml.Value;
             if (dataType == typeof(byte[]))
                 return Convert.ToBase64String((byte[])value);
             if (dataType == typeof(DateTime))
@@ -1195,6 +1271,20 @@ namespace SecureLibrary.SQL.Services
         {
             if (string.IsNullOrEmpty(value))
                 return DBNull.Value;
+
+            // Special handling for XML types
+            if (dataType == typeof(SqlXml))
+            {
+                try
+                {
+                    return new SqlXml(XDocument.Parse(value).CreateReader());
+                }
+                catch
+                {
+                    // If XML parsing fails, return as string
+                    return value;
+                }
+            }
 
             if (dataType == typeof(bool))
             {
@@ -1432,6 +1522,16 @@ namespace SecureLibrary.SQL.Services
                     ValidateRowStructure(row, result);
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets an appropriate default value for a non-nullable column based on its data type
+        /// </summary>
+        /// <param name="column">The DataColumn to get default value for</param>
+        /// <returns>Default value appropriate for the column's data type</returns>
+        private object GetDefaultValueForColumn(DataColumn column)
+        {
+            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetDefaultValueForColumn(column);
         }
     }
 } 

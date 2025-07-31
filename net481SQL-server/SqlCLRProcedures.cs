@@ -237,14 +237,20 @@ namespace SecureLibrary.SQL
 
                 var encryptedRowData = _encryptionEngine.EncryptRow(dataRow, metadata);
 
-                // Serialize the encrypted row data
+                // Serialize the encrypted row data with enhanced schema information
                 var resultXml = new XElement("EncryptedRow",
                     new XElement("Schema",
-                        encryptedRowData.Schema.Columns.Cast<DataColumn>().Select(col =>
+                        encryptedRowData.SqlServerSchema.Select(col =>
                             new XElement("Column",
-                                new XAttribute("Name", col.ColumnName),
-                                new XAttribute("Type", col.DataType.Name),
-                                new XAttribute("MaxLength", col.MaxLength)
+                                new XAttribute("Name", col.Name),
+                                new XAttribute("Type", GetClrTypeName(col.SqlDbType)),
+                                new XAttribute("SqlDbType", col.SqlDbType.ToString()),
+                                new XAttribute("SqlTypeName", col.SqlTypeName),
+                                new XAttribute("MaxLength", col.MaxLength),
+                                new XAttribute("IsNullable", col.IsNullable),
+                                new XAttribute("Ordinal", col.OrdinalPosition),
+                                col.Precision.HasValue ? new XAttribute("Precision", col.Precision.Value) : null,
+                                col.Scale.HasValue ? new XAttribute("Scale", col.Scale.Value) : null
                             )
                         )
                     ),
@@ -294,10 +300,10 @@ namespace SecureLibrary.SQL
                 if (schemaElement == null || metadataElement == null || encryptedDataElement == null)
                     throw new ArgumentException("Invalid encrypted row format");
 
-                // Reconstruct the encrypted row data
+                // Reconstruct the encrypted row data with enhanced schema
                 var encryptedRowData = new EncryptedRowData
                 {
-                    Schema = ReconstructDataTable(schemaElement),
+                    Schema = ReconstructDataTableFromEnhancedSchema(schemaElement),
                     Metadata = new EncryptionMetadata
                     {
                         Algorithm = metadataElement.Element("Algorithm")?.Value ?? "AES-GCM",
@@ -315,11 +321,32 @@ namespace SecureLibrary.SQL
                     }
                 };
 
+                // Reconstruct SQL Server schema information
+                foreach (var columnElement in schemaElement.Elements("Column"))
+                {
+                    var sqlServerColumn = new SqlServerColumnSchema
+                    {
+                        Name = columnElement.Attribute("Name")?.Value,
+                        SqlDbType = ParseSqlDbType(columnElement.Attribute("SqlDbType")?.Value),
+                        SqlTypeName = columnElement.Attribute("SqlTypeName")?.Value,
+                        MaxLength = int.TryParse(columnElement.Attribute("MaxLength")?.Value, out int maxLen) ? maxLen : -1,
+                        IsNullable = columnElement.Attribute("IsNullable")?.Value == "true",
+                        OrdinalPosition = int.TryParse(columnElement.Attribute("Ordinal")?.Value, out int ordinal) ? ordinal : 0
+                    };
+
+                    if (byte.TryParse(columnElement.Attribute("Precision")?.Value, out byte precision))
+                        sqlServerColumn.Precision = precision;
+                    if (byte.TryParse(columnElement.Attribute("Scale")?.Value, out byte scale))
+                        sqlServerColumn.Scale = scale;
+
+                    encryptedRowData.SqlServerSchema.Add(sqlServerColumn);
+                }
+
                 // Decrypt the row
                 var decryptedRowData = _encryptionEngine.DecryptRow(encryptedRowData, encryptedRowData.Metadata);
 
-                // Return the decrypted row as a result set
-                ReturnDecryptedRowAsResultSet(decryptedRowData);
+                // Return the decrypted row as a result set using enhanced schema
+                ReturnDecryptedRowAsResultSetWithEnhancedSchema(decryptedRowData, encryptedRowData.SqlServerSchema);
             }
             catch (Exception ex)
             {
@@ -724,6 +751,32 @@ namespace SecureLibrary.SQL
             return table;
         }
 
+        private static DataTable ReconstructDataTableFromEnhancedSchema(XElement schemaElement)
+        {
+            var table = new DataTable();
+            
+            foreach (var columnElement in schemaElement.Elements("Column"))
+            {
+                var name = columnElement.Attribute("Name")?.Value;
+                var typeName = columnElement.Attribute("Type")?.Value;
+                var maxLength = columnElement.Attribute("MaxLength")?.Value;
+
+                if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(typeName))
+                {
+                    // Handle type reconstruction properly
+                    Type dataType = GetTypeFromName(typeName);
+                    var column = new DataColumn(name, dataType);
+
+                    if (!string.IsNullOrEmpty(maxLength) && int.TryParse(maxLength, out int maxLen))
+                        column.MaxLength = maxLen;
+
+                    table.Columns.Add(column);
+                }
+            }
+
+            return table;
+        }
+
         private static Type GetTypeFromName(string typeName)
         {
             // Handle common type names that might not have full assembly qualification
@@ -778,6 +831,16 @@ namespace SecureLibrary.SQL
             }
         }
 
+        private static string GetClrTypeName(SqlDbType sqlDbType)
+        {
+            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetClrTypeName(sqlDbType);
+        }
+
+        private static SqlDbType ParseSqlDbType(string sqlDbTypeString)
+        {
+            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.ParseSqlDbType(sqlDbTypeString);
+        }
+
         private static string GetSqlType(Type dataType)
         {
             if (dataType == typeof(int)) return "INT";
@@ -816,6 +879,59 @@ namespace SecureLibrary.SQL
             if (dataType == typeof(string)) return SqlDbType.NVarChar;
             
             return SqlDbType.NVarChar;
+        }
+
+        private static void ReturnDecryptedRowAsResultSetWithEnhancedSchema(DataRow decryptedRow, List<SqlServerColumnSchema> schema)
+        {
+            // Create SqlDataRecord with the enhanced schema
+            var metadata = new List<SqlMetaData>();
+            foreach (var sqlServerColumn in schema)
+            {
+                var sqlType = sqlServerColumn.SqlDbType;
+                
+                // Handle string types that require length specification
+                if (sqlType == SqlDbType.NVarChar || sqlType == SqlDbType.VarChar || 
+                    sqlType == SqlDbType.NChar || sqlType == SqlDbType.Char)
+                {
+                    var maxLength = sqlServerColumn.MaxLength > 0 ? sqlServerColumn.MaxLength : -1; // -1 for MAX
+                    metadata.Add(new SqlMetaData(sqlServerColumn.Name, sqlType, maxLength));
+                }
+                else if (sqlType == SqlDbType.VarBinary || sqlType == SqlDbType.Binary)
+                {
+                    var maxLength = sqlServerColumn.MaxLength > 0 ? sqlServerColumn.MaxLength : -1; // -1 for MAX
+                    metadata.Add(new SqlMetaData(sqlServerColumn.Name, sqlType, maxLength));
+                }
+                else if (sqlType == SqlDbType.Decimal)
+                {
+                    // For decimal types, use precision and scale from schema
+                    var precision = sqlServerColumn.Precision ?? 18;
+                    var scale = sqlServerColumn.Scale ?? 2;
+                    metadata.Add(new SqlMetaData(sqlServerColumn.Name, sqlType, precision, scale));
+                }
+                else
+                {
+                    metadata.Add(new SqlMetaData(sqlServerColumn.Name, sqlType));
+                }
+            }
+
+            var record = new SqlDataRecord(metadata.ToArray());
+
+            // Set values in the record
+            for (int i = 0; i < decryptedRow.Table.Columns.Count; i++)
+            {
+                var value = decryptedRow[i];
+                if (value == DBNull.Value)
+                {
+                    record.SetDBNull(i);
+                }
+                else
+                {
+                    SetRecordValue(record, i, value, metadata[i].SqlDbType);
+                }
+            }
+
+            // Send the record to the client
+            SqlContext.Pipe.Send(record);
         }
 
         #endregion

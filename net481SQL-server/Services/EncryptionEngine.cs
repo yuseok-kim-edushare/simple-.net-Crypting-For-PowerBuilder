@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlTypes;
 using System.Linq;
 using System.Security;
 using System.Text;
@@ -116,7 +117,7 @@ namespace SecureLibrary.SQL.Services
                 // Encrypt the XML data
                 var encryptedXmlBytes = _cgnService.EncryptAesGcm(Encoding.UTF8.GetBytes(xmlString), key, metadata.Nonce);
 
-                // Create encrypted row data
+                // Create encrypted row data with enhanced schema preservation
                 var encryptedData = new EncryptedRowData
                 {
                     Schema = row.Table.Copy(), // Copy schema without data
@@ -124,6 +125,32 @@ namespace SecureLibrary.SQL.Services
                     EncryptedAt = DateTime.UtcNow,
                     FormatVersion = 1
                 };
+
+                // Build SQL Server specific schema information
+                foreach (DataColumn column in row.Table.Columns)
+                {
+                    var sqlDbType = GetSqlDbTypeFromClrType(column.DataType);
+                    var sqlTypeName = GetSqlTypeName(column.DataType, column.MaxLength);
+                    
+                    var sqlServerColumn = new SqlServerColumnSchema
+                    {
+                        Name = column.ColumnName,
+                        SqlDbType = sqlDbType,
+                        SqlTypeName = sqlTypeName,
+                        MaxLength = column.MaxLength,
+                        IsNullable = column.AllowDBNull,
+                        OrdinalPosition = column.Ordinal
+                    };
+
+                    // Add precision and scale for decimal types
+                    if (column.DataType == typeof(decimal))
+                    {
+                        sqlServerColumn.Precision = 18;
+                        sqlServerColumn.Scale = 2;
+                    }
+
+                    encryptedData.SqlServerSchema.Add(sqlServerColumn);
+                }
 
                 // Store encrypted data by column name for easy access
                 encryptedData.EncryptedColumns["RowData"] = encryptedXmlBytes;
@@ -211,7 +238,7 @@ namespace SecureLibrary.SQL.Services
                 var decryptedXmlBytes = _cgnService.DecryptAesGcm(encryptedXmlBytes, key, nonce);
                 var xmlString = Encoding.UTF8.GetString(decryptedXmlBytes);
 
-                // Parse XML and restore row
+                // Parse XML and restore row with enhanced schema handling
                 var xmlDoc = XDocument.Parse(xmlString);
                 var decryptedRow = _xmlConverter.FromXml(xmlDoc, encryptedData.Schema);
 
@@ -554,6 +581,27 @@ namespace SecureLibrary.SQL.Services
                 _logger?.LogError($"Value decryption failed: {ex.Message}");
                 throw new CryptographicException($"Value decryption failed: {ex.Message}", ex);
             }
+        }
+
+        /// <summary>
+        /// Converts CLR type to SqlDbType
+        /// </summary>
+        /// <param name="clrType">CLR type</param>
+        /// <returns>SqlDbType value</returns>
+        private SqlDbType GetSqlDbTypeFromClrType(Type clrType)
+        {
+            return SqlTypeConversionHelper.GetSqlDbTypeFromClrType(clrType);
+        }
+
+        /// <summary>
+        /// Gets the full SQL type name with length/precision/scale
+        /// </summary>
+        /// <param name="clrType">CLR type</param>
+        /// <param name="maxLength">Maximum length</param>
+        /// <returns>Full SQL type name</returns>
+        private string GetSqlTypeName(Type clrType, int maxLength)
+        {
+            return SqlTypeConversionHelper.GetSqlTypeName(clrType, maxLength);
         }
     }
 

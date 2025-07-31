@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlTypes;
 using System.Linq;
 using System.Xml.Linq;
 
 namespace SecureLibrary.SQL
 {
     /// <summary>
-    /// Information about a database column
+    /// Information about a database column with full SQL Server type information
     /// </summary>
     public class ColumnInfo
     {
@@ -19,6 +20,8 @@ namespace SecureLibrary.SQL
         public int OrdinalPosition { get; set; }
         public byte? Precision { get; set; } // Added for backward compatibility
         public byte? Scale { get; set; } // Added for backward compatibility
+        public SqlDbType SqlDbType { get; set; } // SQL Server specific type
+        public string SqlTypeName { get; set; } // Full SQL type name (e.g., NVARCHAR(50))
     }
 
     /// <summary>
@@ -33,6 +36,10 @@ namespace SecureLibrary.SQL
         public bool IsEncrypted { get; set; }
         public string EncryptionAlgorithm { get; set; }
         public string EncryptionKey { get; set; }
+        public SqlDbType SqlDbType { get; set; }
+        public string SqlTypeName { get; set; }
+        public byte? Precision { get; set; }
+        public byte? Scale { get; set; }
     }
 
     /// <summary>
@@ -55,6 +62,9 @@ namespace SecureLibrary.SQL
     {
         public byte[] EncryptedValue { get; set; }
         public string DataType { get; set; }
+        public SqlDbType SqlDbType { get; set; } // SQL Server specific type
+        public string SqlTypeName { get; set; } // Full SQL type name
+        public bool IsNullable { get; set; }
         public EncryptionMetadata Metadata { get; set; }
 
         public DateTime EncryptedAt { get; set; }
@@ -62,11 +72,27 @@ namespace SecureLibrary.SQL
     }
 
     /// <summary>
-    /// Encrypted row data structure
+    /// Enhanced schema information for SQL Server columns
+    /// </summary>
+    public class SqlServerColumnSchema
+    {
+        public string Name { get; set; }
+        public SqlDbType SqlDbType { get; set; }
+        public string SqlTypeName { get; set; }
+        public int MaxLength { get; set; }
+        public bool IsNullable { get; set; }
+        public byte? Precision { get; set; }
+        public byte? Scale { get; set; }
+        public int OrdinalPosition { get; set; }
+    }
+
+    /// <summary>
+    /// Encrypted row data structure with enhanced SQL Server schema preservation
     /// </summary>
     public class EncryptedRowData
     {
         public DataTable Schema { get; set; }
+        public List<SqlServerColumnSchema> SqlServerSchema { get; set; } = new List<SqlServerColumnSchema>();
         public EncryptionMetadata Metadata { get; set; }
         public DateTime EncryptedAt { get; set; }
         public int FormatVersion { get; set; } = 1;
@@ -122,7 +148,9 @@ namespace SecureLibrary.SQL
                         TypeName = element.Attribute("Type")?.Value ?? "", // For backward compatibility
                         MaxLength = int.TryParse(element.Attribute("MaxLength")?.Value, out int maxLen) ? maxLen : -1,
                         IsNullable = element.Attribute("IsNullable")?.Value == "true",
-                        OrdinalPosition = int.TryParse(element.Attribute("Ordinal")?.Value, out int ordinal) ? ordinal : 0
+                        OrdinalPosition = int.TryParse(element.Attribute("Ordinal")?.Value, out int ordinal) ? ordinal : 0,
+                        SqlDbType = ParseSqlDbType(element.Attribute("SqlDbType")?.Value),
+                        SqlTypeName = element.Attribute("SqlTypeName")?.Value ?? ""
                     };
                     
                     columns.Add(column);
@@ -135,6 +163,22 @@ namespace SecureLibrary.SQL
             }
             
             return columns;
+        }
+
+        /// <summary>
+        /// Parses SqlDbType from string representation
+        /// </summary>
+        /// <param name="sqlDbTypeString">String representation of SqlDbType</param>
+        /// <returns>SqlDbType value</returns>
+        private static SqlDbType ParseSqlDbType(string sqlDbTypeString)
+        {
+            if (string.IsNullOrEmpty(sqlDbTypeString))
+                return SqlDbType.NVarChar;
+
+            if (Enum.TryParse<SqlDbType>(sqlDbTypeString, out SqlDbType result))
+                return result;
+
+            return SqlDbType.NVarChar; // Default fallback
         }
 
         /// <summary>
@@ -160,6 +204,7 @@ namespace SecureLibrary.SQL
             if (netType == typeof(Guid)) return "UNIQUEIDENTIFIER";
             if (netType == typeof(byte[])) return "VARBINARY(MAX)";
             if (netType == typeof(string)) return "NVARCHAR(MAX)";
+            if (netType == typeof(SqlXml)) return "XML";
             
             return "NVARCHAR(MAX)"; // Default fallback
         }
