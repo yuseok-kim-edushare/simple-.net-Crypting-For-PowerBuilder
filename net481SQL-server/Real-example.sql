@@ -187,3 +187,32 @@ GO
 -- 5) clean up
 DROP TABLE #tmp;
 GO
+
+-- =============================================
+-- CLEANUP: Remove Created Objects
+-- =============================================
+PRINT '';
+PRINT '=== CLEANUP: Removing Created Objects ===';
+GO
+
+-- Drop tables
+IF OBJECT_ID('dbo.EncryptedTable', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.EncryptedTable;
+    PRINT '✓ Dropped table: dbo.EncryptedTable';
+END
+GO
+
+IF OBJECT_ID('dbo.PlainDataTable', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.PlainDataTable;
+    PRINT '✓ Dropped table: dbo.PlainDataTable';
+END
+GO
+
+PRINT '';
+PRINT '=== CLEANUP COMPLETED ===';
+PRINT 'All example objects have been removed.';
+PRINT 'Note: In real scenarios, you would keep your actual data tables.';
+PRINT 'These cleanup statements are only for example purposes.';
+GO

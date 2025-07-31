@@ -326,3 +326,38 @@ PRINT '  - Row-by-row validation';
 PRINT '  - Interactive user interfaces';
 PRINT '  - Cursor-based processing';
 GO 
+
+-- =============================================
+-- CLEANUP: Remove Created Objects
+-- =============================================
+PRINT '';
+PRINT '=== CLEANUP: Removing Created Objects ===';
+GO
+
+-- Drop procedures
+IF OBJECT_ID('dbo.ProcessCustomerRow', 'P') IS NOT NULL
+BEGIN
+    DROP PROCEDURE dbo.ProcessCustomerRow;
+    PRINT '✓ Dropped procedure: dbo.ProcessCustomerRow';
+END
+GO
+
+-- Drop tables
+IF OBJECT_ID('dbo.EncryptedCustomers', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.EncryptedCustomers;
+    PRINT '✓ Dropped table: dbo.EncryptedCustomers';
+END
+GO
+
+IF OBJECT_ID('dbo.Customers', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.Customers;
+    PRINT '✓ Dropped table: dbo.Customers';
+END
+GO
+
+PRINT '';
+PRINT '=== CLEANUP COMPLETED ===';
+PRINT 'All example objects have been removed.';
+GO 

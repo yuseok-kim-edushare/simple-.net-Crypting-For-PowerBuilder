@@ -484,3 +484,45 @@ PRINT '      FOR XML RAW(''Row''), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TY
 PRINT '  ) AS ''RowData''';
 PRINT '  FOR XML PATH(''root''), TYPE';
 GO 
+
+-- =============================================
+-- CLEANUP: Remove Created Objects
+-- =============================================
+PRINT '';
+PRINT '=== CLEANUP: Removing Created Objects ===';
+GO
+
+-- Drop procedures
+IF OBJECT_ID('dbo.EncryptRowForPowerBuilder', 'P') IS NOT NULL
+BEGIN
+    DROP PROCEDURE dbo.EncryptRowForPowerBuilder;
+    PRINT '✓ Dropped procedure: dbo.EncryptRowForPowerBuilder';
+END
+GO
+
+-- Drop tables
+IF OBJECT_ID('dbo.tb_performance_test', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.tb_performance_test;
+    PRINT '✓ Dropped table: dbo.tb_performance_test';
+END
+GO
+
+IF OBJECT_ID('dbo.tb_complex_data', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.tb_complex_data;
+    PRINT '✓ Dropped table: dbo.tb_complex_data';
+END
+GO
+
+IF OBJECT_ID('dbo.tb_test_cust', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.tb_test_cust;
+    PRINT '✓ Dropped table: dbo.tb_test_cust';
+END
+GO
+
+PRINT '';
+PRINT '=== CLEANUP COMPLETED ===';
+PRINT 'All example objects have been removed.';
+GO 
