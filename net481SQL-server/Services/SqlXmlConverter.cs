@@ -130,8 +130,23 @@ namespace SecureLibrary.SQL.Services
             foreach (DataColumn column in row.Table.Columns)
             {
                 var value = row[column];
-                var sqlDbType = GetSqlDbTypeFromClrType(column.DataType);
-                var sqlTypeName = GetSqlTypeName(column.DataType, column.MaxLength);
+                
+                // Check if we have the original SQL type stored
+                SqlDbType sqlDbType;
+                string sqlTypeName;
+                
+                if (column.ExtendedProperties.ContainsKey("OriginalSqlType"))
+                {
+                    var originalSqlType = column.ExtendedProperties["OriginalSqlType"] as string;
+                    sqlDbType = GetSqlDbTypeFromOriginalType(originalSqlType);
+                    sqlTypeName = GetSqlTypeNameFromOriginalType(originalSqlType, column.MaxLength);
+                }
+                else
+                {
+                    // Fallback to CLR type mapping
+                    sqlDbType = GetSqlDbTypeFromClrType(column.DataType);
+                    sqlTypeName = GetSqlTypeName(column.DataType, column.MaxLength);
+                }
                 
                 var element = new XElement("Column",
                     new XAttribute("Name", column.ColumnName),
@@ -233,7 +248,18 @@ namespace SecureLibrary.SQL.Services
                 }
                 var dataColumn = table.Columns[columnName];
                 
-
+                // Restore original SQL type information to ExtendedProperties if available
+                var sqlDbTypeAttr = column.Attribute("SqlDbType")?.Value;
+                if (!string.IsNullOrEmpty(sqlDbTypeAttr))
+                {
+                    // Store the original SQL type for future use
+                    if (Enum.TryParse<SqlDbType>(sqlDbTypeAttr, out SqlDbType parsedSqlDbType))
+                    {
+                        // Map SqlDbType back to original SQL type name
+                        string originalSqlType = parsedSqlDbType.ToString().ToLowerInvariant();
+                        dataColumn.ExtendedProperties["OriginalSqlType"] = originalSqlType;
+                    }
+                }
 
                 // Special handling for XML types first
                 if (isXml)
@@ -281,27 +307,52 @@ namespace SecureLibrary.SQL.Services
                 }
                 else
                 {
-                                    // Handle empty strings - preserve them as empty strings, not convert to DBNull
-                if (value == null || value.Length == 0)
-                {
-                    // Always preserve empty strings as empty strings, regardless of nullability
-                    var emptyValue = string.Empty;
-                    
-                    // Check if this is a char/nchar column that needs padding
-                    var sqlDbTypeString = column.Attribute("SqlDbType")?.Value;
-                    var maxLengthString = column.Attribute("MaxLength")?.Value;
-                    
-                    if (!string.IsNullOrEmpty(sqlDbTypeString) && !string.IsNullOrEmpty(maxLengthString))
+                    // Handle empty strings and whitespace-only strings - preserve them, not convert to DBNull
+                    if (value == null || value.Length == 0)
                     {
-                        if (Enum.TryParse<SqlDbType>(sqlDbTypeString, out SqlDbType sqlDbType) &&
-                            int.TryParse(maxLengthString, out int maxLength))
+                        // Always preserve empty strings as empty strings, regardless of nullability
+                        var emptyValue = string.Empty;
+                        
+                        // Check if this is a char/nchar column that needs padding
+                        var sqlDbTypeString = column.Attribute("SqlDbType")?.Value;
+                        var maxLengthString = column.Attribute("MaxLength")?.Value;
+                        
+                        if (!string.IsNullOrEmpty(sqlDbTypeString) && !string.IsNullOrEmpty(maxLengthString))
                         {
-                            emptyValue = ApplyCharPadding(emptyValue, sqlDbType, maxLength);
+                            if (Enum.TryParse<SqlDbType>(sqlDbTypeString, out SqlDbType sqlDbType) &&
+                                int.TryParse(maxLengthString, out int maxLength))
+                            {
+                                emptyValue = ApplyCharPadding(emptyValue, sqlDbType, maxLength);
+                            }
+                        }
+                        
+                        row[columnName] = emptyValue;
+                    }
+                    else if (value.Trim().Length == 0)
+                    {
+                        // Handle whitespace-only strings - preserve the original whitespace
+                        // Check if this is a char/nchar column that needs padding
+                        var sqlDbTypeString = column.Attribute("SqlDbType")?.Value;
+                        var maxLengthString = column.Attribute("MaxLength")?.Value;
+                        
+                        if (!string.IsNullOrEmpty(sqlDbTypeString) && !string.IsNullOrEmpty(maxLengthString))
+                        {
+                            if (Enum.TryParse<SqlDbType>(sqlDbTypeString, out SqlDbType sqlDbType) &&
+                                int.TryParse(maxLengthString, out int maxLength))
+                            {
+                                var paddedValue = ApplyCharPadding(value, sqlDbType, maxLength);
+                                row[columnName] = paddedValue;
+                            }
+                            else
+                            {
+                                row[columnName] = value;
+                            }
+                        }
+                        else
+                        {
+                            row[columnName] = value;
                         }
                     }
-                    
-                    row[columnName] = emptyValue;
-                }
                     else
                     {
                         try
@@ -1003,10 +1054,12 @@ namespace SecureLibrary.SQL.Services
                 if (string.IsNullOrEmpty(name)) continue;
 
                 Type dataType = typeof(string); // Default to string
+                string originalSqlType = null;
 
                 // Check if there's a direct type attribute
                 if (!string.IsNullOrEmpty(type))
                 {
+                    originalSqlType = type;
                     dataType = GetClrTypeFromSqlServerType(type);
                 }
                 else
@@ -1021,6 +1074,7 @@ namespace SecureLibrary.SQL.Services
                             var baseType = restriction.Attribute("base")?.Value;
                             if (!string.IsNullOrEmpty(baseType))
                             {
+                                originalSqlType = baseType;
                                 dataType = GetClrTypeFromSqlServerType(baseType);
                             }
                         }
@@ -1029,6 +1083,16 @@ namespace SecureLibrary.SQL.Services
 
                 var column = new DataColumn(name, dataType);
                 column.AllowDBNull = nillable;
+
+                // Store the original SQL Server type in ExtendedProperties
+                if (!string.IsNullOrEmpty(originalSqlType))
+                {
+                    // Extract the actual type name (e.g., "sqltypes:char" -> "char")
+                    var sqlTypeName = originalSqlType.Contains(":") 
+                        ? originalSqlType.Substring(originalSqlType.IndexOf(':') + 1) 
+                        : originalSqlType;
+                    column.ExtendedProperties["OriginalSqlType"] = sqlTypeName;
+                }
 
                 // Extract max length only for string types (not for varbinary/binary types)
                 if (dataType == typeof(string))
@@ -1108,8 +1172,18 @@ namespace SecureLibrary.SQL.Services
                 new XAttribute("nillable", column.AllowDBNull ? "1" : "0")
             );
 
-            // Map CLR types to SQL Server types
-            var sqlServerType = GetSqlServerTypeFromClrType(column.DataType);
+            // Check if we have the original SQL type stored in ExtendedProperties
+            string sqlServerType;
+            if (column.ExtendedProperties.ContainsKey("OriginalSqlType"))
+            {
+                var originalSqlType = column.ExtendedProperties["OriginalSqlType"] as string;
+                sqlServerType = GetSqlServerTypeFromOriginalType(originalSqlType);
+            }
+            else
+            {
+                // Fall back to mapping CLR types to SQL Server types
+                sqlServerType = GetSqlServerTypeFromClrType(column.DataType);
+            }
             
             // For simple types like int, use direct type attribute
             if (column.DataType == typeof(int) || column.DataType == typeof(long) || 
@@ -1151,7 +1225,17 @@ namespace SecureLibrary.SQL.Services
         /// <returns>CLR type</returns>
         private Type GetClrTypeFromSqlServerType(string sqlServerType)
         {
-            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetClrTypeFromSqlServerType(sqlServerType);
+            return SqlTypeConversionHelper.GetClrTypeFromSqlServerType(sqlServerType);
+        }
+
+        /// <summary>
+        /// Converts original SQL type string to SQL Server type namespace format
+        /// </summary>
+        /// <param name="originalSqlType">Original SQL type (e.g., "char", "varchar", "nvarchar")</param>
+        /// <returns>SQL Server type string with namespace</returns>
+        private string GetSqlServerTypeFromOriginalType(string originalSqlType)
+        {
+            return SqlTypeConversionHelper.GetSqlServerTypeFromOriginalType(originalSqlType);
         }
 
         /// <summary>
@@ -1161,23 +1245,7 @@ namespace SecureLibrary.SQL.Services
         /// <returns>SQL Server type string</returns>
         private string GetSqlServerTypeFromClrType(Type clrType)
         {
-            if (clrType == typeof(int)) return "sqltypes:int";
-            if (clrType == typeof(long)) return "sqltypes:bigint";
-            if (clrType == typeof(short)) return "sqltypes:smallint";
-            if (clrType == typeof(byte)) return "sqltypes:tinyint";
-            if (clrType == typeof(decimal)) return "sqltypes:decimal";
-            if (clrType == typeof(double)) return "sqltypes:float";
-            if (clrType == typeof(float)) return "sqltypes:real";
-            if (clrType == typeof(bool)) return "sqltypes:bit";
-            if (clrType == typeof(DateTime)) return "sqltypes:datetime2";
-            if (clrType == typeof(TimeSpan)) return "sqltypes:time";
-            if (clrType == typeof(DateTimeOffset)) return "sqltypes:datetimeoffset";
-            if (clrType == typeof(Guid)) return "sqltypes:uniqueidentifier";
-            if (clrType == typeof(byte[])) return "sqltypes:varbinary";
-            if (clrType == typeof(string)) return "sqltypes:nvarchar";
-            if (clrType == typeof(SqlXml)) return "sqltypes:xml";
-            
-            return "sqltypes:nvarchar";
+            return SqlTypeConversionHelper.GetSqlServerTypeFromClrType(clrType);
         }
 
         /// <summary>
@@ -1187,7 +1255,7 @@ namespace SecureLibrary.SQL.Services
         /// <returns>SqlDbType value</returns>
         private SqlDbType GetSqlDbTypeFromClrType(Type clrType)
         {
-            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetSqlDbTypeFromClrType(clrType);
+            return SqlTypeConversionHelper.GetSqlDbTypeFromClrType(clrType);
         }
 
         /// <summary>
@@ -1198,7 +1266,7 @@ namespace SecureLibrary.SQL.Services
         /// <returns>Full SQL type name</returns>
         private string GetSqlTypeName(Type clrType, int maxLength)
         {
-            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetSqlTypeName(clrType, maxLength);
+            return SqlTypeConversionHelper.GetSqlTypeName(clrType, maxLength);
         }
 
         /// <summary>
@@ -1254,60 +1322,12 @@ namespace SecureLibrary.SQL.Services
         /// <returns>String representation of the value</returns>
         public string ConvertValueToString(object value, Type dataType)
         {
-            if (value == null || value == DBNull.Value)
-                return string.Empty;
-
-            // Special handling for XML types
-            if (value is SqlXml sqlXml)
-                return sqlXml.Value;
-            if (dataType == typeof(byte[]))
-                return Convert.ToBase64String((byte[])value);
-            if (dataType == typeof(DateTime))
-                return ((DateTime)value).ToString("O", CultureInfo.InvariantCulture);
-            if (dataType == typeof(DateTimeOffset))
-                return ((DateTimeOffset)value).ToString("O", CultureInfo.InvariantCulture);
-            if (dataType == typeof(TimeSpan))
-                return ((TimeSpan)value).ToString("c", CultureInfo.InvariantCulture);
-            if (dataType == typeof(Guid))
-                return ((Guid)value).ToString("D", CultureInfo.InvariantCulture);
-
-            return value.ToString();
+            return SqlTypeConversionHelper.ConvertValueToString(value);
         }
 
         private string ConvertValueToString(object value, SqlDbType sqlType)
         {
-            if (value == null || value == DBNull.Value)
-                return string.Empty;
-
-            switch (sqlType)
-            {
-                case SqlDbType.Binary:
-                case SqlDbType.VarBinary:
-                case SqlDbType.Image:
-                    if (value is byte[] bytes)
-                        return Convert.ToBase64String(bytes);
-                    break;
-                case SqlDbType.DateTime:
-                case SqlDbType.DateTime2:
-                case SqlDbType.SmallDateTime:
-                    if (value is DateTime dt)
-                        return dt.ToString("O", CultureInfo.InvariantCulture);
-                    break;
-                case SqlDbType.DateTimeOffset:
-                    if (value is DateTimeOffset dto)
-                        return dto.ToString("O", CultureInfo.InvariantCulture);
-                    break;
-                case SqlDbType.Time:
-                    if (value is TimeSpan ts)
-                        return ts.ToString("c", CultureInfo.InvariantCulture);
-                    break;
-                case SqlDbType.UniqueIdentifier:
-                    if (value is Guid guid)
-                        return guid.ToString("D", CultureInfo.InvariantCulture);
-                    break;
-            }
-
-            return value.ToString();
+            return SqlTypeConversionHelper.ConvertValueToString(value, sqlType);
         }
 
         /// <summary>
@@ -1318,117 +1338,12 @@ namespace SecureLibrary.SQL.Services
         /// <returns>Converted value</returns>
         public object ConvertStringToValue(string value, Type dataType)
         {
-            // Only convert to DBNull if truly null, preserve empty strings
-            if (value == null)
-                return DBNull.Value;
-
-            // Special handling for XML types
-            if (dataType == typeof(SqlXml))
-            {
-                try
-                {
-                    return new SqlXml(XDocument.Parse(value).CreateReader());
-                }
-                catch
-                {
-                    // If XML parsing fails, return as string
-                    return value;
-                }
-            }
-
-            if (dataType == typeof(bool))
-            {
-                // Handle SQL Server boolean format (1/0) as well as true/false
-                if (value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase))
-                    return true;
-                if (value == "0" || value.Equals("false", StringComparison.OrdinalIgnoreCase))
-                    return false;
-                return bool.Parse(value);
-            }
-            if (dataType == typeof(byte))
-                return byte.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(short))
-                return short.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(int))
-                return int.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(long))
-                return long.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(decimal))
-                return decimal.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(double))
-                return double.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(float))
-                return float.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(DateTime))
-                return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-            if (dataType == typeof(TimeSpan))
-                return TimeSpan.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(DateTimeOffset))
-                return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
-            if (dataType == typeof(Guid))
-                return Guid.Parse(value);
-            if (dataType == typeof(byte[]))
-                return Convert.FromBase64String(value);
-
-            return value;
+            return SqlTypeConversionHelper.ConvertStringToValue(value, dataType);
         }
 
         private object ConvertStringToValue(string value, SqlDbType sqlType)
         {
-            // Only convert to DBNull if truly null, preserve empty strings
-            if (value == null)
-                return DBNull.Value;
-
-            switch (sqlType)
-            {
-                case SqlDbType.Bit:
-                    // Handle SQL Server boolean format (1/0) as well as true/false
-                    if (value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase))
-                        return true;
-                    if (value == "0" || value.Equals("false", StringComparison.OrdinalIgnoreCase))
-                        return false;
-                    return bool.Parse(value);
-                case SqlDbType.TinyInt:
-                    return byte.Parse(value, CultureInfo.InvariantCulture);
-                case SqlDbType.SmallInt:
-                    return short.Parse(value, CultureInfo.InvariantCulture);
-                case SqlDbType.Int:
-                    return int.Parse(value, CultureInfo.InvariantCulture);
-                case SqlDbType.BigInt:
-                    return long.Parse(value, CultureInfo.InvariantCulture);
-                case SqlDbType.Decimal:
-                case SqlDbType.Money:
-                case SqlDbType.SmallMoney:
-                    return decimal.Parse(value, CultureInfo.InvariantCulture);
-                case SqlDbType.Float:
-                    return double.Parse(value, CultureInfo.InvariantCulture);
-                case SqlDbType.Real:
-                    return float.Parse(value, CultureInfo.InvariantCulture);
-                case SqlDbType.Date:
-                case SqlDbType.DateTime:
-                case SqlDbType.DateTime2:
-                case SqlDbType.SmallDateTime:
-                    return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-                case SqlDbType.Time:
-                    return TimeSpan.Parse(value, CultureInfo.InvariantCulture);
-                case SqlDbType.DateTimeOffset:
-                    return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
-                case SqlDbType.UniqueIdentifier:
-                    return Guid.Parse(value);
-                case SqlDbType.Binary:
-                case SqlDbType.VarBinary:
-                case SqlDbType.Image:
-                    return Convert.FromBase64String(value);
-                case SqlDbType.Char:
-                case SqlDbType.VarChar:
-                case SqlDbType.Text:
-                case SqlDbType.NChar:
-                case SqlDbType.NVarChar:
-                case SqlDbType.NText:
-                case SqlDbType.Xml:
-                default:
-                    return value;
-            }
+            return SqlTypeConversionHelper.ConvertStringToValue(value, sqlType);
         }
 
         private void SetRecordValue(SqlDataRecord record, int ordinal, object value, SqlDbType sqlType)
@@ -1582,7 +1497,7 @@ namespace SecureLibrary.SQL.Services
         /// <returns>Default value appropriate for the column's data type</returns>
         private object GetDefaultValueForColumn(DataColumn column)
         {
-            return SecureLibrary.SQL.Services.SqlTypeConversionHelper.GetDefaultValueForColumn(column);
+            return SqlTypeConversionHelper.GetDefaultValueForColumn(column);
         }
 
         /// <summary>
@@ -1612,6 +1527,27 @@ namespace SecureLibrary.SQL.Services
 
             // Pad the value with spaces to reach maxLength
             return value.PadRight(maxLength, ' ');
+        }
+
+        /// <summary>
+        /// Converts original SQL type string to SqlDbType
+        /// </summary>
+        /// <param name="originalSqlType">Original SQL type (e.g., "char", "varchar", "nvarchar")</param>
+        /// <returns>SqlDbType enum value</returns>
+        private SqlDbType GetSqlDbTypeFromOriginalType(string originalSqlType)
+        {
+            return SqlTypeConversionHelper.GetSqlDbTypeFromOriginalType(originalSqlType);
+        }
+
+        /// <summary>
+        /// Gets the full SQL type name from original type with length/precision/scale
+        /// </summary>
+        /// <param name="originalSqlType">Original SQL type</param>
+        /// <param name="maxLength">Maximum length</param>
+        /// <returns>Full SQL type name string</returns>
+        private string GetSqlTypeNameFromOriginalType(string originalSqlType, int maxLength)
+        {
+            return SqlTypeConversionHelper.GetSqlTypeNameFromOriginalType(originalSqlType, maxLength);
         }
     }
 } 

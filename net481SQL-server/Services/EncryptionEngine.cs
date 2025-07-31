@@ -129,8 +129,22 @@ namespace SecureLibrary.SQL.Services
                 // Build SQL Server specific schema information
                 foreach (DataColumn column in row.Table.Columns)
                 {
-                    var sqlDbType = GetSqlDbTypeFromClrType(column.DataType);
-                    var sqlTypeName = GetSqlTypeName(column.DataType, column.MaxLength);
+                    SqlDbType sqlDbType;
+                    string sqlTypeName;
+                    
+                    // Check if we have the original SQL type stored
+                    if (column.ExtendedProperties.ContainsKey("OriginalSqlType"))
+                    {
+                        var originalSqlType = column.ExtendedProperties["OriginalSqlType"] as string;
+                        sqlDbType = GetSqlDbTypeFromOriginalType(originalSqlType);
+                        sqlTypeName = GetSqlTypeNameFromOriginalType(originalSqlType, column.MaxLength);
+                    }
+                    else
+                    {
+                        // Fallback to CLR type mapping
+                        sqlDbType = GetSqlDbTypeFromClrType(column.DataType);
+                        sqlTypeName = GetSqlTypeName(column.DataType, column.MaxLength);
+                    }
                     
                     var sqlServerColumn = new SqlServerColumnSchema
                     {
@@ -602,6 +616,27 @@ namespace SecureLibrary.SQL.Services
         private string GetSqlTypeName(Type clrType, int maxLength)
         {
             return SqlTypeConversionHelper.GetSqlTypeName(clrType, maxLength);
+        }
+
+        /// <summary>
+        /// Converts original SQL type string to SqlDbType
+        /// </summary>
+        /// <param name="originalSqlType">Original SQL type (e.g., "char", "varchar", "nvarchar")</param>
+        /// <returns>SqlDbType enum value</returns>
+        private SqlDbType GetSqlDbTypeFromOriginalType(string originalSqlType)
+        {
+            return SqlTypeConversionHelper.GetSqlDbTypeFromOriginalType(originalSqlType);
+        }
+
+        /// <summary>
+        /// Gets the full SQL type name from original type with length/precision/scale
+        /// </summary>
+        /// <param name="originalSqlType">Original SQL type</param>
+        /// <param name="maxLength">Maximum length</param>
+        /// <returns>Full SQL type name string</returns>
+        private string GetSqlTypeNameFromOriginalType(string originalSqlType, int maxLength)
+        {
+            return SqlTypeConversionHelper.GetSqlTypeNameFromOriginalType(originalSqlType, maxLength);
         }
     }
 
