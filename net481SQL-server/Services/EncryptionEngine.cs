@@ -531,14 +531,23 @@ namespace SecureLibrary.SQL.Services
                 {
                     throw new CryptographicException($"Could not find type {encryptedData.DataType}");
                 }
-                var decryptedValue = _xmlConverter.ConvertStringToValue(stringValue, dataType);
 
                 // Clear sensitive data
                 Array.Clear(key, 0, key.Length);
                 Array.Clear(decryptedBytes, 0, decryptedBytes.Length);
 
                 _logger?.LogInformation($"Successfully decrypted single value of type {encryptedData.DataType}");
-                return decryptedValue;
+                // Convert base64 encoded binary to original type
+                if (encryptedData.DataType.Contains("Byte[]") || encryptedData.DataType.Contains("Binary"))
+                {
+                    var decryptedValue = Convert.FromBase64String(stringValue);
+                    return decryptedValue;
+                }
+                else
+                {
+                    var decryptedValue = _xmlConverter.ConvertStringToValue(stringValue, dataType);
+                    return decryptedValue;
+                }
             }
             catch (Exception ex)
             {
