@@ -710,7 +710,8 @@ namespace SecureLibrary.SQL
 
                 if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(typeName))
                 {
-                    var dataType = Type.GetType(typeName) ?? typeof(string);
+                    // Handle type reconstruction properly
+                    Type dataType = GetTypeFromName(typeName);
                     var column = new DataColumn(name, dataType);
 
                     if (!string.IsNullOrEmpty(maxLength) && int.TryParse(maxLength, out int maxLen))
@@ -721,6 +722,60 @@ namespace SecureLibrary.SQL
             }
 
             return table;
+        }
+
+        private static Type GetTypeFromName(string typeName)
+        {
+            // Handle common type names that might not have full assembly qualification
+            switch (typeName)
+            {
+                case "Int32":
+                case "int":
+                    return typeof(int);
+                case "Int64":
+                case "long":
+                    return typeof(long);
+                case "Int16":
+                case "short":
+                    return typeof(short);
+                case "Byte":
+                case "byte":
+                    return typeof(byte);
+                case "Decimal":
+                case "decimal":
+                    return typeof(decimal);
+                case "Double":
+                case "double":
+                    return typeof(double);
+                case "Single":
+                case "float":
+                    return typeof(float);
+                case "Boolean":
+                case "bool":
+                    return typeof(bool);
+                case "DateTime":
+                    return typeof(DateTime);
+                case "DateTimeOffset":
+                    return typeof(DateTimeOffset);
+                case "TimeSpan":
+                    return typeof(TimeSpan);
+                case "Guid":
+                    return typeof(Guid);
+                case "Byte[]":
+                case "byte[]":
+                    return typeof(byte[]);
+                case "String":
+                case "string":
+                    return typeof(string);
+                default:
+                    // Try to get the type using Type.GetType
+                    var dataType = Type.GetType(typeName);
+                    if (dataType != null)
+                        return dataType;
+                    
+                    // If all else fails, default to string
+                    return typeof(string);
+            }
         }
 
         private static string GetSqlType(Type dataType)
