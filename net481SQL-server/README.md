@@ -100,7 +100,7 @@ dotnet build --configuration Release
 
 ## 📖 Usage Examples
 
-### Single Value Encryption/Decryption
+### Single Value Encryption/Decryption as String
 
 ```sql
 -- Encrypt a single value
@@ -109,6 +109,17 @@ SELECT @encryptedValue AS EncryptedValue;
 
 -- Decrypt a single value
 SELECT dbo.DecryptValue(@encryptedValue, 'YourPassword123!') AS DecryptedValue;
+```
+
+### Single Value Encryption/Decryption as Binary
+
+```sql
+-- Encrypt a single value
+DECLARE @encryptedValue NVARCHAR(MAX) = dbo.EncryptValue('My secret data', 'YourPassword123!', 10000);
+SELECT @encryptedValue AS EncryptedValue;
+
+-- Decrypt a single value
+SELECT dbo.DecryptBinaryValue(@encryptedValue, 'YourPassword123!') AS DecryptedValue;
 ```
 
 ### Single Row Encryption/Decryption

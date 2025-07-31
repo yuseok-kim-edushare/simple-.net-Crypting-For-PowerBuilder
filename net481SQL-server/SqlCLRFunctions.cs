@@ -648,11 +648,81 @@ namespace SecureLibrary.SQL
 
                 var decryptedValue = _encryptionEngine.DecryptValue(encryptedData, metadata);
                 
-                return new SqlString(decryptedValue.ToString());
+                // Handle binary data specially - return as base64 string for compatibility
+                if (decryptedValue is byte[] binaryData)
+                {
+                    return new SqlString(Convert.ToBase64String(binaryData));
+                }
+                else
+                {
+                    return new SqlString(decryptedValue.ToString());
+                }
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Value decryption failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Decrypts a single binary value with password-based key derivation
+        /// </summary>
+        /// <param name="encryptedValue">Base64 encoded encrypted value data</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <returns>Decrypted binary value as SqlBytes</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlBytes DecryptBinaryValue(SqlString encryptedValue, SqlString password)
+        {
+            if (encryptedValue.IsNull || password.IsNull)
+                return SqlBytes.Null;
+
+            try
+            {
+                // Parse the encrypted value XML
+                var xmlDoc = XDocument.Parse(encryptedValue.Value);
+                var root = xmlDoc.Root;
+
+                var dataType = root.Element("DataType").Value;
+                var encryptedDataBytes = Convert.FromBase64String(root.Element("EncryptedData").Value);
+                var metadataElement = root.Element("Metadata");
+
+                var metadata = new EncryptionMetadata
+                {
+                    Algorithm = metadataElement.Element("Algorithm").Value,
+                    Key = password.Value,
+                    Salt = Convert.FromBase64String(metadataElement.Element("Salt").Value),
+                    Nonce = Convert.FromBase64String(metadataElement.Element("Nonce").Value),
+                    Iterations = int.Parse(metadataElement.Element("Iterations").Value),
+                    AutoGenerateNonce = false
+                };
+
+                var encryptedData = new EncryptedValueData
+                {
+                    EncryptedValue = encryptedDataBytes,
+                    DataType = dataType,
+                    Metadata = metadata
+                };
+
+                var decryptedValue = _encryptionEngine.DecryptValue(encryptedData, metadata);
+                
+                // Ensure we return binary data
+                if (decryptedValue is byte[] binaryData)
+                {
+                    return new SqlBytes(binaryData);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Expected binary data but got {decryptedValue?.GetType().Name}");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Binary value decryption failed: {ex.Message}");
             }
         }
 

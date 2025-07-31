@@ -183,6 +183,12 @@ BEGIN
         PRINT '✓ Dropped DecryptValue';
     END
     
+    IF EXISTS (SELECT * FROM sys.objects WHERE name = 'DecryptBinaryValue' AND type = 'FS')
+    BEGIN
+        DROP FUNCTION dbo.DecryptBinaryValue;
+        PRINT '✓ Dropped DecryptBinaryValue';
+    END
+    
     IF EXISTS (SELECT * FROM sys.objects WHERE name = 'ValidateEncryptionMetadata' AND type = 'FS')
     BEGIN
         DROP FUNCTION dbo.ValidateEncryptionMetadata;
@@ -311,6 +317,11 @@ RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptValue;
 GO
 
+CREATE FUNCTION dbo.DecryptBinaryValue(@encryptedValue NVARCHAR(MAX), @password NVARCHAR(MAX))
+RETURNS VARBINARY(MAX)
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptBinaryValue;
+GO
+
 -- Utility Functions
 CREATE FUNCTION dbo.ValidateEncryptionMetadata(@metadataXml XML)
 RETURNS XML
@@ -402,7 +413,7 @@ WHERE o.type = 'FS' AND o.name IN (
     'EncryptAesGcm', 'DecryptAesGcm', 'EncryptAesGcmWithPassword', 'DecryptAesGcmWithPassword',
     'GenerateKey', 'GenerateNonce', 'DeriveKeyFromPassword',
     'EncryptXml', 'DecryptXml', 'ValidateEncryptionMetadata',
-    'EncryptValue', 'DecryptValue'
+    'EncryptValue', 'DecryptValue', 'DecryptBinaryValue'
 )
 ORDER BY o.name;
 GO
@@ -475,6 +486,19 @@ PRINT 'Single value encryption test: ' + @encryptedValue ;
 SET @decryptedValue = dbo.DecryptValue(@encryptedValue, @testPassword);
 PRINT 'Single value decryption test: ' + @decryptedValue;
 
+-- Test Binary Value Encryption/Decryption
+DECLARE @testBinaryValue VARBINARY(MAX) = 0x0102030405060708;
+DECLARE @encryptedBinaryValue NVARCHAR(MAX);
+DECLARE @decryptedBinaryValue VARBINARY(MAX);
+
+-- Note: For binary data, we need to convert to string first for encryption
+SET @encryptedBinaryValue = dbo.EncryptValue(CONVERT(NVARCHAR(MAX), @testBinaryValue, 1), @testPassword, 10000);
+PRINT 'Binary value encryption test: ' + @encryptedBinaryValue ;
+
+-- Test the new DecryptBinaryValue function
+SET @decryptedBinaryValue = dbo.DecryptBinaryValue(@encryptedBinaryValue, @testPassword);
+PRINT 'Binary value decryption test: ' + CONVERT(NVARCHAR(MAX), @decryptedBinaryValue, 1);
+
 PRINT '';
 PRINT '=== INSTALLATION COMPLETED SUCCESSFULLY ===';
 PRINT '';
@@ -484,7 +508,7 @@ PRINT '  - AES-GCM Encryption: EncryptAesGcm, DecryptAesGcm, EncryptAesGcmWithPa
 PRINT '  - Key Generation: GenerateKey, GenerateNonce, DeriveKeyFromPassword';
 PRINT '  - XML Encryption: EncryptXml, DecryptXml';
 PRINT '  - Utilities: ValidateEncryptionMetadata';
-PRINT '  - Single Value Encryption: EncryptValue, DecryptValue';
+PRINT '  - Single Value Encryption: EncryptValue, DecryptValue, DecryptBinaryValue';
 PRINT '';
 PRINT 'Available Stored Procedures:';
 PRINT '  - Table Operations: EncryptTableWithMetadata, DecryptTableWithMetadata, WrapDecryptProcedure';
@@ -501,6 +525,10 @@ PRINT '';
 
 PRINT '  -- Encrypt a single value';
 PRINT '  SELECT dbo.EncryptValue(''My secret value'', ''MyPassword'', 10000)';
+PRINT '';
+
+PRINT '  -- Decrypt binary data (returns VARBINARY)';
+PRINT '  SELECT dbo.DecryptBinaryValue(@encryptedData, ''MyPassword'')';
 PRINT '';
 
 PRINT '  -- Encrypt XML data';
