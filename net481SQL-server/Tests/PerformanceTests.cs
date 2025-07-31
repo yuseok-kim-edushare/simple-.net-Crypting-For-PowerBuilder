@@ -273,7 +273,6 @@ namespace SecureLibrary.SQL.Tests
         public void ConcurrentEncryption_ThreadSafetyTest()
         {
             // Arrange
-            var table = CreateLargeTable(100);
             var metadata = CreateValidEncryptionMetadata();
             var results = new List<EncryptedRowData>();
             var lockObject = new object();
@@ -284,6 +283,8 @@ namespace SecureLibrary.SQL.Tests
             {
                 return System.Threading.Tasks.Task.Run(() =>
                 {
+                    // Create a separate table for each thread to avoid concurrent modification issues
+                    var table = CreateLargeTable(100);
                     var row = table.NewRow();
                     PopulateRowWithTestData(row);
                     table.Rows.Add(row);

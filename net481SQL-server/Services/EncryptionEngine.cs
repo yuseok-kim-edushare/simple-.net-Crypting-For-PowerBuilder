@@ -118,16 +118,24 @@ namespace SecureLibrary.SQL.Services
                 var encryptedXmlBytes = _cgnService.EncryptAesGcm(Encoding.UTF8.GetBytes(xmlString), key, metadata.Nonce);
 
                 // Create encrypted row data with enhanced schema preservation
+                // Create a thread-safe copy of the table schema to avoid concurrent modification issues
+                DataTable schemaCopy;
+                lock (row.Table)
+                {
+                    schemaCopy = row.Table.Copy();
+                }
+                
                 var encryptedData = new EncryptedRowData
                 {
-                    Schema = row.Table.Copy(), // Copy schema without data
+                    Schema = schemaCopy,
                     Metadata = metadata,
                     EncryptedAt = DateTime.UtcNow,
                     FormatVersion = 1
                 };
 
                 // Build SQL Server specific schema information
-                foreach (DataColumn column in row.Table.Columns)
+                // Use the copied schema to avoid concurrent modification issues
+                foreach (DataColumn column in schemaCopy.Columns)
                 {
                     SqlDbType sqlDbType;
                     string sqlTypeName;
