@@ -421,8 +421,7 @@ GO
 
 CREATE PROCEDURE dbo.DecryptMultiRows
     @encryptedRowsXml NVARCHAR(MAX),
-    @password NVARCHAR(MAX),
-    @decryptedRowsXml XML OUTPUT
+    @password NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].DecryptMultiRows;
 GO
 
@@ -529,7 +528,7 @@ PRINT 'Single value encryption test: ' + @encryptedValue ;
 SET @decryptedValue = dbo.DecryptValue(@encryptedValue, @testPassword);
 PRINT 'Single value decryption test: ' + @decryptedValue;
 
--- Test Multi-Row XML Encryption
+-- Test Multi-Row XML Encryption (Function)
 DECLARE @testMultiRowXml XML = '<root><Row><id>1</id><name>John</name></Row><Row><id>2</id><name>Jane</name></Row></root>';
 DECLARE @encryptedMultiRowXml NVARCHAR(MAX);
 DECLARE @decryptedMultiRowXml XML;
@@ -539,6 +538,14 @@ PRINT 'Multi-row XML encryption test: ' + @encryptedMultiRowXml ;
 
 SET @decryptedMultiRowXml = dbo.DecryptMultiRowXml(@encryptedMultiRowXml, @testPassword, 10000);
 PRINT 'Multi-row XML decryption test: ' + cast(@decryptedMultiRowXml as varchar(max));
+
+-- Test Multi-Row Encryption Procedure (returns result set, not XML)
+DECLARE @encryptedMultiRowXmlProc NVARCHAR(MAX);
+EXEC dbo.EncryptMultiRows @rowsXml = @testMultiRowXml, @password = @testPassword, @iterations = 10000, @encryptedRowsXml = @encryptedMultiRowXmlProc OUTPUT;
+PRINT 'Multi-row encryption procedure test: ' + @encryptedMultiRowXmlProc;
+
+-- Note: DecryptMultiRows procedure now returns result set directly
+-- Usage: INSERT INTO #temp EXEC dbo.DecryptMultiRows @encryptedRowsXml = @encryptedMultiRowXmlProc, @password = @testPassword;
 
 -- Test Binary Value Encryption/Decryption
 DECLARE @testBinaryValue VARBINARY(MAX) = 0x0102030405060708;
@@ -591,4 +598,9 @@ PRINT '  -- Use stored procedure for multi-row encryption';
 PRINT '  DECLARE @encrypted NVARCHAR(MAX);';
 PRINT '  EXEC dbo.EncryptMultiRows @rowsXml = ''<root><Row><id>1</id></Row></root>'', @password = ''MyPassword'', @iterations = 10000, @encryptedRowsXml = @encrypted OUTPUT;';
 PRINT '  SELECT @encrypted;';
+PRINT '';
+PRINT '  -- Use stored procedure for multi-row decryption (returns result set)';
+PRINT '  CREATE TABLE #temp (id INT, name NVARCHAR(100));';
+PRINT '  INSERT INTO #temp EXEC dbo.DecryptMultiRows @encryptedRowsXml = @encrypted, @password = ''MyPassword'';';
+PRINT '  SELECT * FROM #temp;';
 GO 
