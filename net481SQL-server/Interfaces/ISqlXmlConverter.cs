@@ -52,6 +52,16 @@ namespace SecureLibrary.SQL.Interfaces
         /// <exception cref="ArgumentNullException">Thrown when row is null</exception>
         string ToForXmlFormat(DataRow row, string rowName = "Row", bool includeSchema = true);
 
+        /// <summary>
+        /// Converts DataRow to clean FOR XML compatible format without SqlRowSet namespaces
+        /// </summary>
+        /// <param name="row">DataRow to convert</param>
+        /// <param name="rowName">Row element name (default: "Row")</param>
+        /// <param name="includeSchema">Whether to include XML schema</param>
+        /// <returns>XML string in clean FOR XML format without SqlRowSet namespaces</returns>
+        /// <exception cref="ArgumentNullException">Thrown when row is null</exception>
+        string ToCleanForXmlFormat(DataRow row, string rowName = "Row", bool includeSchema = true);
+
         #endregion
 
         #region Standard XML Conversion Methods

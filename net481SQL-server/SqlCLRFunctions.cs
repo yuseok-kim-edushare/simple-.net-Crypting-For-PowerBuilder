@@ -582,16 +582,11 @@ namespace SecureLibrary.SQL
 
                 var encryptedData = _encryptionEngine.EncryptValue(value.Value, metadata);
 
-                // Serialize the encrypted value data to XML
-                var resultXml = new XElement("EncryptedValue",
-                    new XElement("DataType", encryptedData.DataType),
-                    new XElement("EncryptedData", Convert.ToBase64String(encryptedData.EncryptedValue)),
-                    new XElement("Metadata",
-                        new XElement("Algorithm", metadata.Algorithm),
-                        new XElement("Iterations", metadata.Iterations),
-                        new XElement("Salt", Convert.ToBase64String(metadata.Salt)),
-                        new XElement("Nonce", Convert.ToBase64String(metadata.Nonce))
-                    )
+                // Serialize the encrypted value data to XML using unified schema
+                var resultXml = EncryptionXmlSchema.CreateSingleValueXml(
+                    encryptedData.DataType,
+                    Convert.ToBase64String(encryptedData.EncryptedValue),
+                    metadata
                 );
 
                 return new SqlString(resultXml.ToString());
@@ -786,10 +781,11 @@ namespace SecureLibrary.SQL
                 var xmlDoc = XDocument.Parse(metadataXml.Value);
                 
                 // Create a simple metadata object for validation
+                // NEVER store or read keys from XML!
                 var metadata = new EncryptionMetadata
                 {
                     Algorithm = xmlDoc.Root?.Element("Algorithm")?.Value ?? "AES-GCM",
-                    Key = xmlDoc.Root?.Element("Key")?.Value,
+                    Key = null, // Key should never be stored in XML
                     Iterations = int.TryParse(xmlDoc.Root?.Element("Iterations")?.Value, out int iter) ? iter : 10000,
                     AutoGenerateNonce = true
                 };
@@ -811,6 +807,123 @@ namespace SecureLibrary.SQL
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Metadata validation failed: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Multi-Row XML Functions
+
+        /// <summary>
+        /// Simple function to encrypt multi-row XML from FOR XML output
+        /// Returns encrypted data as a single XML string - perfect for SQL Server integration
+        /// </summary>
+        /// <param name="multiRowXml">XML from SELECT ... FOR XML RAW, ELEMENTS</param>
+        /// <param name="password">Password for encryption</param>
+        /// <param name="iterations">Key derivation iterations</param>
+        /// <returns>Encrypted XML as string</returns>
+        [SqlFunction(
+            IsDeterministic = false,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptMultiRowXml(SqlXml multiRowXml, SqlString password, SqlInt32 iterations)
+        {
+            if (multiRowXml.IsNull || password.IsNull || iterations.IsNull)
+                return SqlString.Null;
+
+            try
+            {
+                // Parse the multi-row XML
+                var dataTable = _xmlConverter.ParseForXmlOutput(multiRowXml.Value);
+
+                // Create encryption metadata
+                var metadata = new EncryptionMetadata
+                {
+                    Algorithm = "AES-GCM",
+                    Key = password.Value,
+                    Salt = _cgnService.GenerateNonce(32),
+                    Iterations = iterations.Value,
+                    AutoGenerateNonce = true
+                };
+
+                // Encrypt each row
+                var encryptedRows = new List<EncryptedRowData>();
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    var encryptedRow = _encryptionEngine.EncryptRow(row, metadata);
+                    encryptedRows.Add(encryptedRow);
+                }
+
+                // Create XML result using unified schema
+                var resultXml = EncryptionXmlSchema.CreateMultiRowXml(metadata, encryptedRows, _xmlConverter);
+
+                return new SqlString(resultXml.ToString());
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Multi-row XML encryption failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Simple function to decrypt multi-row XML
+        /// Returns decrypted data as XML - perfect for SQL Server integration
+        /// </summary>
+        /// <param name="encryptedXml">Encrypted XML string</param>
+        /// <param name="password">Password for decryption</param>
+        /// <param name="iterations">Key derivation iterations</param>
+        /// <returns>Decrypted XML</returns>
+        [SqlFunction(
+            IsDeterministic = true,
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlXml DecryptMultiRowXml(SqlString encryptedXml, SqlString password, SqlInt32 iterations)
+        {
+            if (encryptedXml.IsNull || password.IsNull || iterations.IsNull)
+                return SqlXml.Null;
+
+            try
+            {
+                // Parse the encrypted XML using unified schema
+                var xmlDoc = XDocument.Parse(encryptedXml.Value);
+                var root = xmlDoc.Root;
+
+                var (batchMetadata, encryptedRows) = EncryptionXmlSchema.ParseMultiRowXml(root, password.Value, _xmlConverter);
+
+                // Derive the key once for all rows (performance optimization)
+                byte[] derivedKey = _cgnService.DeriveKeyFromPassword(
+                    batchMetadata.Key, 
+                    batchMetadata.Salt, 
+                    batchMetadata.Iterations, 
+                    32
+                );
+
+                // Decrypt rows using the pre-derived key
+                // Note: Each encrypted row already has its own metadata with the correct nonce
+                var decryptedRows = _encryptionEngine.DecryptRows(encryptedRows, encryptedRows.FirstOrDefault()?.Metadata);
+
+                // Clear the derived key from memory
+                Array.Clear(derivedKey, 0, derivedKey.Length);
+
+                // Return as XML in the same format as input (root wrapper with Row children)
+                var resultXml = new XElement("root",
+                    decryptedRows.Select(dr => 
+                    {
+                        var forXmlString = _xmlConverter.ToCleanForXmlFormat(dr, "Row", false);
+                        var forXmlDoc = XDocument.Parse(forXmlString);
+                        return forXmlDoc.Root.Element("Row");
+                    })
+                );
+
+                return new SqlXml(resultXml.CreateReader());
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Multi-row XML decryption failed: {ex.Message}");
             }
         }
 

@@ -50,6 +50,7 @@
     <Compile Include="Services\EncryptionEngine.cs" />
     <Compile Include="Services\BcryptPasswordHashingService.cs" />
     <Compile Include="Services\SqlTypeConversionHelper.cs" />
+    <Compile Include="Services\EncryptionXmlSchema.cs" />
     <!-- SQL Server CLR Functions and Procedures -->
     <Compile Include="SqlCLRFunctions.cs" />
     <Compile Include="SqlCLRProcedures.cs" />

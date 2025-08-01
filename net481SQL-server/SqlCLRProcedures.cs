@@ -364,13 +364,15 @@ namespace SecureLibrary.SQL
         /// <param name="batchId">Batch identifier for grouping encrypted rows</param>
         [SqlProcedure]
         [SecuritySafeCritical]
-        public static void EncryptRowsBatch(
+        public static void EncryptMultiRows(
             SqlXml rowsXml, 
             SqlString password, 
             SqlInt32 iterations, 
-            SqlString batchId)
+            out SqlString encryptedRowsXml)
         {
-            if (rowsXml.IsNull || password.IsNull || iterations.IsNull || batchId.IsNull)
+            encryptedRowsXml = SqlString.Null;
+            
+            if (rowsXml.IsNull || password.IsNull || iterations.IsNull)
                 return;
 
             try
@@ -378,27 +380,32 @@ namespace SecureLibrary.SQL
                 // Parse the FOR XML output using the converter
                 var dataTable = _xmlConverter.ParseForXmlOutput(rowsXml.Value);
 
-                // Encrypt each row
-                foreach (DataRow dataRow in dataTable.Rows)
+                // Create metadata for encryption
+                var metadata = new EncryptionMetadata
                 {
-                    var metadata = new EncryptionMetadata
-                    {
-                        Algorithm = "AES-GCM",
-                        Key = password.Value,
-                        Salt = _cgnService.GenerateNonce(32),
-                        Iterations = iterations.Value,
-                        AutoGenerateNonce = true
-                    };
+                    Algorithm = "AES-GCM",
+                    Key = password.Value,
+                    Salt = _cgnService.GenerateNonce(32),
+                    Iterations = iterations.Value,
+                    AutoGenerateNonce = true
+                };
 
-                    var encryptedRowData = _encryptionEngine.EncryptRow(dataRow, metadata);
-
-                    // Store encrypted row in a temporary table or return as result set
-                    StoreEncryptedRowInBatch(encryptedRowData, batchId.Value);
+                // Encrypt each row and collect results
+                var encryptedRows = new List<EncryptedRowData>();
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    var encryptedRow = _encryptionEngine.EncryptRow(row, metadata);
+                    encryptedRows.Add(encryptedRow);
                 }
+
+                // Convert encrypted rows to XML format using unified schema
+                var resultXml = EncryptionXmlSchema.CreateMultiRowXml(metadata, encryptedRows, _xmlConverter);
+
+                encryptedRowsXml = new SqlString(resultXml.ToString());
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Batch row encryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Multi-row encryption failed: {ex.Message}");
             }
         }
 
@@ -410,30 +417,58 @@ namespace SecureLibrary.SQL
         /// <param name="password">Password for key derivation</param>
         [SqlProcedure]
         [SecuritySafeCritical]
-        public static void DecryptRowsBatch(
-            SqlString batchId, 
-            SqlString password)
+        public static void DecryptMultiRows(
+            SqlString encryptedRowsXml, 
+            SqlString password,
+            out SqlXml decryptedRowsXml)
         {
-            if (batchId.IsNull || password.IsNull)
+            decryptedRowsXml = SqlXml.Null;
+            
+            if (encryptedRowsXml.IsNull || password.IsNull)
                 return;
 
             try
             {
-                // Retrieve encrypted rows for the batch
-                var encryptedRows = RetrieveEncryptedRowsFromBatch(batchId.Value);
+                // Parse the encrypted rows XML using unified schema
+                var xmlDoc = XDocument.Parse(encryptedRowsXml.Value);
+                var root = xmlDoc.Root;
 
-                // Decrypt each row and return as result set
-                foreach (var encryptedRow in encryptedRows)
-                {
-                    var decryptedRow = _encryptionEngine.DecryptRow(encryptedRow, encryptedRow.Metadata);
-                    ReturnDecryptedRowAsResultSet(decryptedRow);
-                }
+                var (metadata, encryptedRows) = EncryptionXmlSchema.ParseMultiRowXml(root, password.Value, _xmlConverter);
+
+                // Derive the key once for all rows (performance optimization)
+                byte[] derivedKey = _cgnService.DeriveKeyFromPassword(
+                    metadata.Key, 
+                    metadata.Salt, 
+                    metadata.Iterations, 
+                    32
+                );
+
+                // Decrypt all rows using the pre-derived key
+                // Note: Each encrypted row already has its own metadata with the correct nonce
+                var decryptedRows = _encryptionEngine.DecryptRows(encryptedRows, encryptedRows.FirstOrDefault()?.Metadata);
+
+                // Clear the derived key from memory
+                Array.Clear(derivedKey, 0, derivedKey.Length);
+
+                // Convert decrypted rows back to XML format in the same format as input (root wrapper with Row children)
+                var resultXml = new XElement("root",
+                    decryptedRows.Select(dr => 
+                    {
+                        var forXmlString = _xmlConverter.ToCleanForXmlFormat(dr, "Row", false);
+                        var forXmlDoc = XDocument.Parse(forXmlString);
+                        return forXmlDoc.Root.Element("Row");
+                    })
+                );
+
+                decryptedRowsXml = new SqlXml(resultXml.CreateReader());
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Batch row decryption failed: {ex.Message}");
+                throw new InvalidOperationException($"Multi-row decryption failed: {ex.Message}");
             }
         }
+
+
 
         #endregion
 

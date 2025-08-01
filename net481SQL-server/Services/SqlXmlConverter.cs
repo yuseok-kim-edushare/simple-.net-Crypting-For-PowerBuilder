@@ -1022,6 +1022,53 @@ namespace SecureLibrary.SQL.Services
             return root.ToString();
         }
 
+        /// <summary>
+        /// Converts DataRow to clean FOR XML compatible format without SqlRowSet namespaces
+        /// </summary>
+        /// <param name="row">DataRow to convert</param>
+        /// <param name="rowName">Row element name (default: "Row")</param>
+        /// <param name="includeSchema">Whether to include XML schema</param>
+        /// <returns>XML string in clean FOR XML format without SqlRowSet namespaces</returns>
+        /// <exception cref="ArgumentNullException">Thrown when row is null</exception>
+        public string ToCleanForXmlFormat(DataRow row, string rowName = "Row", bool includeSchema = true)
+        {
+            if (row == null)
+                throw new ArgumentNullException(nameof(row));
+
+            var xsiNamespace = XNamespace.Get("http://www.w3.org/2001/XMLSchema-instance");
+            
+            var root = new XElement("rows");
+            root.Add(new XAttribute(XNamespace.Xmlns + "xsi", xsiNamespace));
+
+            if (includeSchema)
+            {
+                var schemaElement = CreateSqlServerXmlSchema(row.Table);
+                root.Add(schemaElement);
+            }
+
+            var rowElement = new XElement(rowName);
+
+            foreach (DataColumn column in row.Table.Columns)
+            {
+                var value = row[column];
+                var columnElement = new XElement(column.ColumnName);
+
+                if (value == DBNull.Value || value == null)
+                {
+                    columnElement.Add(new XAttribute(xsiNamespace + "nil", "true"));
+                }
+                else
+                {
+                    columnElement.Value = ConvertValueToString(value, column.DataType);
+                }
+
+                rowElement.Add(columnElement);
+            }
+
+            root.Add(rowElement);
+            return root.ToString();
+        }
+
         #endregion
 
         #region SQL Server XML Schema Methods

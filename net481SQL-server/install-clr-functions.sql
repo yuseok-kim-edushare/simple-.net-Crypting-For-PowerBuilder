@@ -92,6 +92,18 @@ BEGIN
         PRINT '✓ Dropped DecryptRowsBatch';
     END
     
+    IF EXISTS (SELECT * FROM sys.objects WHERE name = 'EncryptMultiRows' AND type = 'PC')
+    BEGIN
+        DROP PROCEDURE dbo.EncryptMultiRows;
+        PRINT '✓ Dropped EncryptMultiRows';
+    END
+    
+    IF EXISTS (SELECT * FROM sys.objects WHERE name = 'DecryptMultiRows' AND type = 'PC')
+    BEGIN
+        DROP PROCEDURE dbo.DecryptMultiRows;
+        PRINT '✓ Dropped DecryptMultiRows';
+    END
+    
     -- Drop functions
     IF EXISTS (SELECT * FROM sys.objects WHERE name = 'HashPassword' AND type = 'FS')
     BEGIN
@@ -195,6 +207,24 @@ BEGIN
         PRINT '✓ Dropped ValidateEncryptionMetadata';
     END
     
+    IF EXISTS (SELECT * FROM sys.objects WHERE name = 'EncryptTable' AND type = 'FS')
+    BEGIN
+        DROP FUNCTION dbo.EncryptTable;
+        PRINT '✓ Dropped EncryptTable';
+    END
+    
+    IF EXISTS (SELECT * FROM sys.objects WHERE name = 'EncryptMultiRowXml' AND type = 'FS')
+    BEGIN
+        DROP FUNCTION dbo.EncryptMultiRowXml;
+        PRINT '✓ Dropped EncryptMultiRowXml';
+    END
+    
+    IF EXISTS (SELECT * FROM sys.objects WHERE name = 'DecryptMultiRowXml' AND type = 'FS')
+    BEGIN
+        DROP FUNCTION dbo.DecryptMultiRowXml;
+        PRINT '✓ Dropped DecryptMultiRowXml';
+    END
+    
     -- Now drop the assembly
     DROP ASSEMBLY [SecureLibrary.SQL];
     PRINT '✓ Dropped existing assembly';
@@ -256,8 +286,6 @@ RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].GenerateSalt;
 GO
 
-
-
 -- AES-GCM Encryption Functions
 CREATE FUNCTION dbo.EncryptAesGcm(@plainText NVARCHAR(MAX), @base64Key NVARCHAR(MAX))
 RETURNS NVARCHAR(MAX)
@@ -317,6 +345,28 @@ RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptValue;
 GO
 
+CREATE FUNCTION dbo.DecryptBinaryValue(@encryptedValue NVARCHAR(MAX), @password NVARCHAR(MAX))
+RETURNS VARBINARY(MAX)
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptBinaryValue;
+GO
+
+-- Table Encryption Functions
+CREATE FUNCTION dbo.EncryptTable(@tableName NVARCHAR(MAX), @password NVARCHAR(MAX), @iterations INT)
+RETURNS NVARCHAR(MAX)
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].EncryptTable;
+GO
+
+-- Multi-Row XML Encryption Functions
+CREATE FUNCTION dbo.EncryptMultiRowXml(@multiRowXml XML, @password NVARCHAR(MAX), @iterations INT)
+RETURNS NVARCHAR(MAX)
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].EncryptMultiRowXml;
+GO
+
+CREATE FUNCTION dbo.DecryptMultiRowXml(@encryptedXml NVARCHAR(MAX), @password NVARCHAR(MAX), @iterations INT)
+RETURNS XML
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptMultiRowXml;
+GO
+
 -- Utility Functions
 CREATE FUNCTION dbo.ValidateEncryptionMetadata(@metadataXml XML)
 RETURNS XML
@@ -345,13 +395,7 @@ CREATE PROCEDURE dbo.DecryptTableWithMetadata
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].DecryptTableWithMetadata;
 GO
 
-CREATE PROCEDURE dbo.WrapDecryptProcedure
-    @encryptedData NVARCHAR(MAX),
-    @password NVARCHAR(MAX)
-AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].WrapDecryptProcedure;
-GO
-
--- Enhanced Row-Level Encryption Procedures
+-- Row-Level Encryption Procedures
 CREATE PROCEDURE dbo.EncryptRowWithMetadata
     @rowXml XML, -- XML from FOR XML RAW, ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
     @password NVARCHAR(MAX),
@@ -366,18 +410,20 @@ CREATE PROCEDURE dbo.DecryptRowWithMetadata
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].DecryptRowWithMetadata;
 GO
 
-CREATE PROCEDURE dbo.EncryptRowsBatch
+-- Multi-Row Encryption Procedures
+CREATE PROCEDURE dbo.EncryptMultiRows
     @rowsXml XML, -- XML from FOR XML RAW, ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
     @password NVARCHAR(MAX),
     @iterations INT,
-    @batchId NVARCHAR(50)
-AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].EncryptRowsBatch;
+    @encryptedRowsXml NVARCHAR(MAX) OUTPUT
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].EncryptMultiRows;
 GO
 
-CREATE PROCEDURE dbo.DecryptRowsBatch
-    @batchId NVARCHAR(50),
-    @password NVARCHAR(MAX)
-AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].DecryptRowsBatch;
+CREATE PROCEDURE dbo.DecryptMultiRows
+    @encryptedRowsXml NVARCHAR(MAX),
+    @password NVARCHAR(MAX),
+    @decryptedRowsXml XML OUTPUT
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].DecryptMultiRows;
 GO
 
 -- =============================================
@@ -408,7 +454,8 @@ WHERE o.type = 'FS' AND o.name IN (
     'EncryptAesGcm', 'DecryptAesGcm', 'EncryptAesGcmWithPassword', 'DecryptAesGcmWithPassword',
     'GenerateKey', 'GenerateNonce', 'DeriveKeyFromPassword',
     'EncryptXml', 'DecryptXml', 'ValidateEncryptionMetadata',
-    'EncryptValue', 'DecryptValue'
+    'EncryptValue', 'DecryptValue', 'DecryptBinaryValue',
+    'EncryptTable', 'EncryptMultiRowXml', 'DecryptMultiRowXml'
 )
 ORDER BY o.name;
 GO
@@ -421,8 +468,9 @@ SELECT
     o.create_date AS CreateDate
 FROM sys.objects o
 WHERE o.type = 'PC' AND o.name IN (
-    'EncryptTableWithMetadata', 'DecryptTableWithMetadata', 'WrapDecryptProcedure',
-    'EncryptRowWithMetadata', 'DecryptRowWithMetadata', 'EncryptRowsBatch', 'DecryptRowsBatch'
+    'EncryptTableWithMetadata', 'DecryptTableWithMetadata',
+    'EncryptRowWithMetadata', 'DecryptRowWithMetadata',
+    'EncryptMultiRows', 'DecryptMultiRows'
 )
 ORDER BY o.name;
 GO
@@ -481,6 +529,17 @@ PRINT 'Single value encryption test: ' + @encryptedValue ;
 SET @decryptedValue = dbo.DecryptValue(@encryptedValue, @testPassword);
 PRINT 'Single value decryption test: ' + @decryptedValue;
 
+-- Test Multi-Row XML Encryption
+DECLARE @testMultiRowXml XML = '<root><Row><id>1</id><name>John</name></Row><Row><id>2</id><name>Jane</name></Row></root>';
+DECLARE @encryptedMultiRowXml NVARCHAR(MAX);
+DECLARE @decryptedMultiRowXml XML;
+
+SET @encryptedMultiRowXml = dbo.EncryptMultiRowXml(@testMultiRowXml, @testPassword, 10000);
+PRINT 'Multi-row XML encryption test: ' + @encryptedMultiRowXml ;
+
+SET @decryptedMultiRowXml = dbo.DecryptMultiRowXml(@encryptedMultiRowXml, @testPassword, 10000);
+PRINT 'Multi-row XML decryption test: ' + cast(@decryptedMultiRowXml as varchar(max));
+
 -- Test Binary Value Encryption/Decryption
 DECLARE @testBinaryValue VARBINARY(MAX) = 0x0102030405060708;
 DECLARE @encryptedBinaryValue NVARCHAR(MAX);
@@ -494,16 +553,18 @@ PRINT '';
 PRINT '=== INSTALLATION COMPLETED SUCCESSFULLY ===';
 PRINT '';
 PRINT 'Available Functions:';
-PRINT '  - Password Hashing: HashPassword, HashPasswordWithWorkFactor, VerifyPassword, GenerateSalt, GetHashInfo';
+PRINT '  - Password Hashing: HashPassword, HashPasswordWithWorkFactor, VerifyPassword, GenerateSalt';
 PRINT '  - AES-GCM Encryption: EncryptAesGcm, DecryptAesGcm, EncryptAesGcmWithPassword, DecryptAesGcmWithPassword';
 PRINT '  - Key Generation: GenerateKey, GenerateNonce, DeriveKeyFromPassword';
-PRINT '  - XML Encryption: EncryptXml, DecryptXml';
+PRINT '  - XML Encryption: EncryptXml, DecryptXml, EncryptMultiRowXml, DecryptMultiRowXml';
+PRINT '  - Single Value Encryption: EncryptValue, DecryptValue, DecryptBinaryValue';
+PRINT '  - Table Encryption: EncryptTable';
 PRINT '  - Utilities: ValidateEncryptionMetadata';
-PRINT '  - Single Value Encryption: EncryptValue, DecryptValue';
 PRINT '';
 PRINT 'Available Stored Procedures:';
-PRINT '  - Table Operations: EncryptTableWithMetadata, DecryptTableWithMetadata, WrapDecryptProcedure';
-PRINT '  - Row Operations: EncryptRowWithMetadata, DecryptRowWithMetadata, EncryptRowsBatch, DecryptRowsBatch';
+PRINT '  - Table Operations: EncryptTableWithMetadata, DecryptTableWithMetadata';
+PRINT '  - Row Operations: EncryptRowWithMetadata, DecryptRowWithMetadata';
+PRINT '  - Multi-Row Operations: EncryptMultiRows, DecryptMultiRows';
 PRINT '';
 PRINT 'Example Usage:';
 PRINT '  -- Hash a password';
@@ -520,4 +581,14 @@ PRINT '';
 
 PRINT '  -- Encrypt XML data';
 PRINT '  SELECT dbo.EncryptXml(''<Data>Secret</Data>'', ''MyPassword'', 10000)';
+PRINT '';
+
+PRINT '  -- Encrypt multi-row XML data';
+PRINT '  SELECT dbo.EncryptMultiRowXml(''<root><Row><id>1</id></Row></root>'', ''MyPassword'', 10000)';
+PRINT '';
+
+PRINT '  -- Use stored procedure for multi-row encryption';
+PRINT '  DECLARE @encrypted NVARCHAR(MAX);';
+PRINT '  EXEC dbo.EncryptMultiRows @rowsXml = ''<root><Row><id>1</id></Row></root>'', @password = ''MyPassword'', @iterations = 10000, @encryptedRowsXml = @encrypted OUTPUT;';
+PRINT '  SELECT @encrypted;';
 GO 

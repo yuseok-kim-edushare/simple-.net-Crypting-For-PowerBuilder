@@ -1,0 +1,34 @@
+<root>
+  <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:sqltypes="http://schemas.microsoft.com/sqlserver/2004/sqltypes" targetNamespace="urn:schemas-microsoft-com:sql:SqlRowSet1" elementFormDefault="qualified">
+    <xsd:import namespace="http://schemas.microsoft.com/sqlserver/2004/sqltypes" schemaLocation="http://schemas.microsoft.com/sqlserver/2004/sqltypes/sqltypes.xsd" />
+    <xsd:element name="Row">
+      <xsd:complexType>
+        <xsd:sequence>
+          <xsd:element name="id" type="sqltypes:int" nillable="1" />
+          <xsd:element name="name" nillable="1">
+            <xsd:simpleType>
+              <xsd:restriction base="sqltypes:varchar" sqltypes:localeId="1042" sqltypes:sqlCompareOptions="IgnoreCase IgnoreKanaType IgnoreWidth">
+                <xsd:maxLength value="120" />
+              </xsd:restriction>
+            </xsd:simpleType>
+          </xsd:element>
+          <xsd:element name="reason" nillable="1">
+            <xsd:simpleType>
+              <xsd:restriction base="sqltypes:varchar" sqltypes:localeId="1042" sqltypes:sqlCompareOptions="IgnoreCase IgnoreKanaType IgnoreWidth" />
+            </xsd:simpleType>
+          </xsd:element>
+        </xsd:sequence>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <Row xmlns="urn:schemas-microsoft-com:sql:SqlRowSet1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <id>24</id>
+    <name>도대체</name>
+    <reason>왜 문제가 생기는 걸까요?</reason>
+  </Row>
+  <Row xmlns="urn:schemas-microsoft-com:sql:SqlRowSet1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <id>98</id>
+    <name>XML Row가</name>
+    <reason>root - row 가 여럿 있어서 .net 기본 xml 파서가 메롱해져요.</reason>
+  </Row>
+</root>
