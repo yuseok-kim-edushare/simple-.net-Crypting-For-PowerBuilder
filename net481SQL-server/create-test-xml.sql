@@ -46,3 +46,9 @@ SELECT @EncryptedRow AS EncryptedXml;
 
 -- For manual testing, you can also use:
 -- SELECT * FROM @TestTable; -- To verify the test data 
+
+-- 복호화 검증용 쿼리
+-- 실제 SQL Server에서 데이터 검증을 위한 테스트
+CREATE TABLE #temp (id INT, name NVARCHAR(100), reason NVARCHAR(200));
+INSERT INTO #temp EXEC dbo.DecryptMultiRows @encryptedRowsXml, @password;
+SELECT * FROM #temp;

@@ -411,19 +411,16 @@ namespace SecureLibrary.SQL
 
         /// <summary>
         /// Decrypts multiple encrypted rows and returns them as a result set
-        /// This procedure can process a batch of encrypted rows
+        /// This procedure returns the decrypted rows directly as a result set
         /// </summary>
-        /// <param name="batchId">Batch identifier for the encrypted rows</param>
+        /// <param name="encryptedRowsXml">Encrypted rows XML data</param>
         /// <param name="password">Password for key derivation</param>
         [SqlProcedure]
         [SecuritySafeCritical]
         public static void DecryptMultiRows(
             SqlString encryptedRowsXml, 
-            SqlString password,
-            out SqlXml decryptedRowsXml)
+            SqlString password)
         {
-            decryptedRowsXml = SqlXml.Null;
-            
             if (encryptedRowsXml.IsNull || password.IsNull)
                 return;
 
@@ -450,17 +447,12 @@ namespace SecureLibrary.SQL
                 // Clear the derived key from memory
                 Array.Clear(derivedKey, 0, derivedKey.Length);
 
-                // Convert decrypted rows back to XML format in the same format as input (root wrapper with Row children)
-                var resultXml = new XElement("root",
-                    decryptedRows.Select(dr => 
-                    {
-                        var forXmlString = _xmlConverter.ToCleanForXmlFormat(dr, "Row", false);
-                        var forXmlDoc = XDocument.Parse(forXmlString);
-                        return forXmlDoc.Root.Element("Row");
-                    })
-                );
-
-                decryptedRowsXml = new SqlXml(resultXml.CreateReader());
+                // Return each decrypted row as a result set (similar to DecryptRowWithMetadata)
+                foreach (var decryptedRow in decryptedRows)
+                {
+                    // Use the same method as single row decryption to return result set
+                    ReturnDecryptedRowAsResultSet(decryptedRow);
+                }
             }
             catch (Exception ex)
             {

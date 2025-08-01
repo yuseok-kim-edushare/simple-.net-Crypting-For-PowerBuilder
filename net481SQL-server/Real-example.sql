@@ -189,10 +189,211 @@ DROP TABLE #tmp;
 GO
 
 -- =============================================
+-- STEP 4: Bulk Row Encryption and Decryption Example
+-- =============================================
+PRINT '';
+PRINT '=== STEP 4: Bulk Row Encryption and Decryption Example ===';
+GO
+
+-- Create bulk encrypted data table (대량 행 암호화된 데이터 저장 테이블)
+IF OBJECT_ID('dbo.BulkEncryptedTable', 'U') IS NOT NULL
+    DROP TABLE dbo.BulkEncryptedTable;
+GO
+
+CREATE TABLE dbo.BulkEncryptedTable (
+    BulkID NVARCHAR(50) PRIMARY KEY,
+    EncryptedRowsXml NVARCHAR(MAX) NOT NULL,
+    RowCount INT NOT NULL,
+    EncryptedAt DATETIME2 DEFAULT GETDATE(),
+    Password NVARCHAR(100) NOT NULL,
+    Iterations INT NOT NULL
+);
+GO
+
+-- Example 1: Encrypt multiple rows in a single bulk operation
+-- 예제 1: 여러 행을 하나의 대량 작업으로 암호화
+PRINT '--- Example 1: Bulk Row Encryption ---';
+GO
+
+DECLARE @bulkXml XML;
+DECLARE @encryptedBulkXml NVARCHAR(MAX);
+DECLARE @bulkPassword NVARCHAR(MAX) = 'MySecureBulkPassword123!';
+DECLARE @bulkIterations INT = 2000;
+DECLARE @bulkId NVARCHAR(50) = 'BULK_' + CAST(GETDATE() AS NVARCHAR(50));
+
+-- Get multiple rows as XML with schema (대량 처리를 위해 여러 행을 XML로 변환)
+SET @bulkXml = (
+    SELECT (
+        SELECT * 
+        FROM dbo.PlainDataTable 
+        WHERE ID IN (1, 2, 3, 4, 5)
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE, ROOT('Rows')
+    ) AS 'RowsData'
+    FOR XML PATH('root'), TYPE
+);
+
+-- Encrypt the bulk rows using CLR procedure
+-- 대량 행을 CLR 프로시저를 사용하여 암호화
+EXEC dbo.EncryptMultiRows 
+    @rowsXml = @bulkXml,
+    @password = @bulkPassword,
+    @iterations = @bulkIterations,
+    @encryptedRowsXml = @encryptedBulkXml OUTPUT;
+
+-- Store encrypted bulk rows
+-- 암호화된 대량 행을 저장
+INSERT INTO dbo.BulkEncryptedTable (BulkID, EncryptedRowsXml, RowCount, Password, Iterations)
+VALUES (@bulkId, @encryptedBulkXml, 5, @bulkPassword, @bulkIterations);
+
+PRINT '✓ Bulk encryption completed for ' + CAST(5 AS NVARCHAR(10)) + ' rows';
+GO
+
+-- Example 2: Decrypt and process bulk data
+-- 예제 2: 대량 데이터 복호화 및 처리
+PRINT '--- Example 2: Bulk Row Decryption ---';
+GO
+
+DECLARE @bulkId NVARCHAR(50) = 'BULK_' + CAST(GETDATE() AS NVARCHAR(50));
+DECLARE @decryptedBulkXml XML;
+DECLARE @bulkPassword NVARCHAR(MAX) = 'MySecureBulkPassword123!';
+
+-- Get the encrypted bulk data
+-- 암호화된 대량 데이터를 가져옴
+SELECT @encryptedBulkXml = EncryptedRowsXml
+FROM dbo.BulkEncryptedTable
+WHERE BulkID = @bulkId;
+
+-- Decrypt the bulk rows and get result set directly
+-- 대량 행을 복호화하고 결과 집합을 직접 반환
+EXEC dbo.DecryptMultiRows 
+    @encryptedRowsXml = @encryptedBulkXml,
+    @password = @bulkPassword;
+
+-- Alternative: Store decrypted data in temp table
+-- 대안: 복호화된 데이터를 임시 테이블에 저장
+-- CREATE TABLE #temp (ID INT, CustomerName NVARCHAR(100), Email NVARCHAR(100), Phone NVARCHAR(20), SSN NVARCHAR(11), CreditCard NVARCHAR(20), Salary DECIMAL(10,2), Address NVARCHAR(200), CreatedDate DATETIME2, SomeKeyColumn NVARCHAR(50));
+-- INSERT INTO #temp EXEC dbo.DecryptMultiRows @encryptedRowsXml = @encryptedBulkXml, @password = @bulkPassword;
+
+PRINT '✓ Bulk decryption and processing completed';
+GO
+
+-- Example 3: Conditional batch encryption based on criteria
+-- 예제 3: 조건에 따른 배치 암호화
+PRINT '--- Example 3: Conditional Batch Encryption ---';
+GO
+
+DECLARE @highSalaryBatchXml XML;
+DECLARE @highSalaryEncryptedXml NVARCHAR(MAX);
+DECLARE @highSalaryPassword NVARCHAR(MAX) = 'HighSalaryPassword456!';
+DECLARE @highSalaryIterations INT = 2500;
+DECLARE @highSalaryBatchId NVARCHAR(50) = 'HIGH_SALARY_BATCH_' + CAST(GETDATE() AS NVARCHAR(50));
+
+-- Encrypt only high salary employees (고급여 직원만 암호화)
+SET @highSalaryBatchXml = (
+    SELECT (
+        SELECT * 
+        FROM dbo.PlainDataTable 
+        WHERE Salary > 80000
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE, ROOT('Rows')
+    ) AS 'RowsData'
+    FOR XML PATH('root'), TYPE
+);
+
+-- Encrypt the high salary batch
+-- 고급여 배치를 암호화
+EXEC dbo.EncryptMultiRows 
+    @rowsXml = @highSalaryBatchXml,
+    @password = @highSalaryPassword,
+    @iterations = @highSalaryIterations,
+    @encryptedRowsXml = @highSalaryEncryptedXml OUTPUT;
+
+-- Store high salary encrypted bulk rows
+-- 고급여 암호화 대량 행을 저장
+INSERT INTO dbo.BulkEncryptedTable (BulkID, EncryptedRowsXml, RowCount, Password, Iterations)
+VALUES (@highSalaryBatchId, @highSalaryEncryptedXml, 
+        (SELECT COUNT(*) FROM dbo.PlainDataTable WHERE Salary > 80000), 
+        @highSalaryPassword, @highSalaryIterations);
+
+PRINT '✓ High salary batch encryption completed';
+GO
+
+-- Example 4: Performance comparison between single-row and batch encryption
+-- 예제 4: 단일 행 암호화와 배치 암호화 성능 비교
+PRINT '--- Example 4: Performance Comparison ---';
+GO
+
+-- Measure single-row encryption time
+-- 단일 행 암호화 시간 측정
+DECLARE @startTime DATETIME2 = GETDATE();
+DECLARE @singleRowXml XML;
+DECLARE @singleRowEncrypted NVARCHAR(MAX);
+DECLARE @singleRowPassword NVARCHAR(MAX) = 'SingleRowPassword789!';
+
+SET @singleRowXml = (
+    SELECT (
+        SELECT TOP 1 * 
+        FROM dbo.PlainDataTable 
+        WHERE ID = 1
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE
+    ) AS 'RowData'
+    FOR XML PATH('root'), TYPE
+);
+
+EXEC dbo.EncryptRowWithMetadata 
+    @rowXml = @singleRowXml,
+    @password = @singleRowPassword,
+    @iterations = 1000,
+    @encryptedRow = @singleRowEncrypted OUTPUT;
+
+DECLARE @singleRowTime INT = DATEDIFF(MILLISECOND, @startTime, GETDATE());
+
+-- Measure batch encryption time
+-- 배치 암호화 시간 측정
+SET @startTime = GETDATE();
+
+DECLARE @batchXml2 XML;
+DECLARE @batchEncrypted2 NVARCHAR(MAX);
+DECLARE @batchPassword2 NVARCHAR(MAX) = 'BatchPassword789!';
+
+SET @batchXml2 = (
+    SELECT (
+        SELECT TOP 5 * 
+        FROM dbo.PlainDataTable 
+        FOR XML RAW('Row'), ELEMENTS XSINIL, BINARY BASE64, XMLSCHEMA, TYPE, ROOT('Rows')
+    ) AS 'RowsData'
+    FOR XML PATH('root'), TYPE
+);
+
+EXEC dbo.EncryptMultiRows 
+    @rowsXml = @batchXml2,
+    @password = @batchPassword2,
+    @iterations = 1000,
+    @encryptedRowsXml = @batchEncrypted2 OUTPUT;
+
+DECLARE @batchTime INT = DATEDIFF(MILLISECOND, @startTime, GETDATE());
+
+-- Display performance results
+-- 성능 결과 표시
+PRINT 'Performance Comparison:';
+PRINT 'Single-row encryption (1 row): ' + CAST(@singleRowTime AS NVARCHAR(10)) + ' ms';
+PRINT 'Batch encryption (5 rows): ' + CAST(@batchTime AS NVARCHAR(10)) + ' ms';
+PRINT 'Average per row (batch): ' + CAST(@batchTime / 5 AS NVARCHAR(10)) + ' ms';
+PRINT 'Efficiency gain: ' + CAST((@singleRowTime * 5 - @batchTime) * 100.0 / (@singleRowTime * 5) AS NVARCHAR(10)) + '%';
+GO
+
+-- =============================================
 -- CLEANUP: Remove Created Objects
 -- =============================================
 PRINT '';
 PRINT '=== CLEANUP: Removing Created Objects ===';
+GO
+
+-- Drop bulk encrypted table
+IF OBJECT_ID('dbo.BulkEncryptedTable', 'U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.BulkEncryptedTable;
+    PRINT '✓ Dropped table: dbo.BulkEncryptedTable';
+END
 GO
 
 -- Drop tables
