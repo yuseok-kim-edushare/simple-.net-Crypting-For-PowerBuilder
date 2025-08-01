@@ -1,0 +1,15 @@
+﻿<EncryptedRow>
+  <Schema>
+    <Column Name="emp_id" Type="String" SqlDbType="Char" SqlTypeName="CHAR(5)" MaxLength="5" IsNullable="true" Ordinal="0" />
+    <Column Name="emp_nm" Type="String" SqlDbType="VarChar" SqlTypeName="VARCHAR(20)" MaxLength="20" IsNullable="true" Ordinal="1" />
+  </Schema>
+  <Metadata>
+    <Algorithm>AES-GCM</Algorithm>
+    <Iterations>1000</Iterations>
+    <Salt>y1Ba1GyhcP7XXDrMbstJAxXrpEkruUrZG4C7JXD9pNg=</Salt>
+    <Nonce>t4cACTSmSu4ccOkG</Nonce>
+    <EncryptedAt>2025-08-01T07:16:03.3858541Z</EncryptedAt>
+    <FormatVersion>1</FormatVersion>
+  </Metadata>
+  <EncryptedData>9WzF7OtE26rbMM5hQNR06Y+O69abRNtJbMIorXyTwU8xYqWU0OuZCGzPNZ6Rs7prR7OsF5vhDxKT8zoPS5ys6gWRAsq8OTlN1yWi46GGpZF6dh3ENsyP4ZRd8Mpw44nmU9cBdNG0EaE+/dy1JSc3q8oMUCXy2dYk497Xutw3uMcv8FLnxFBl1ufo4e2bQGNCpJZ4UHWXt3sJH2VJ788tEOupYtYmtzlF4/ry+zWRfpxQj0Prcgrd8qQRQYyzJ1XdIKznhmlwysptaDNWbMt6poRPITEEEceZEtAEsmxkf0eo90q9cirNKq7kHzyEt6kTcjoSM7Zq9r4Eh5HdBtNHeXoDktazaUpCKN7WOLVyMbuBruPmq/G0DgPwl+5PMnQD3X9wSK6hTDcrZ6Z7NM5Fsp52CZGiutSkoS8nKhv5CGrSAkzRc6qFlCYQXDqE34noNn2BRbASVV/hKqQ=</EncryptedData>
+</EncryptedRow>
