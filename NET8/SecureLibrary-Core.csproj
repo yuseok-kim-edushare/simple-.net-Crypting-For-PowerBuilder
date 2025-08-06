@@ -36,8 +36,8 @@
 
   <ItemGroup Condition="'$(Configuration)'!='Release'">
     <ProjectReference Include="..\net481SQL-server\SecureLibrary-SQL.csproj" />
-    <PackageReference Include="MSTest.TestFramework" Version="3.10.0" />
-    <PackageReference Include="MSTest.TestAdapter" Version="3.10.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.10.1" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.10.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.0" />
   </ItemGroup>
