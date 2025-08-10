@@ -4,8 +4,8 @@ theme: gaia
 size: 16:9
 paginate: true
 
-header: 'Automated Dependency Management & CI/CD'
-footer: '© 2025 GitHub Actions DevOps Pipeline'
+header: 'Github를 통한 의존성 관리 및 테스트 자동화(feat. dependabot & github actions)'
+footer: '© 2025 yuseok.kim@edushare.kr'
 ---
 
 <style>
@@ -128,7 +128,7 @@ updates:
 <div>
 
 **자동 병합 활성화**
-- GraphQL API 활용
+- REST API 활용 (actions/github-script)
 - MERGE 방식 사용
 - CI 성공 후 자동 실행
 
@@ -145,7 +145,7 @@ updates:
 - 목록이 보이는 게 아니니 검색어를 넣어봐야 함.
 
 ---
-![fit](repo_branch_protection.png)
+![w:800](repo_branch_protection.png)
 
 ---
 
@@ -168,18 +168,21 @@ updates:
 ### Repository Dispatch 이벤트 발송
 
 ```yaml
-- name: Trigger CD workflow for dependabot auto-merge
-  if: steps.check_dependabot.outputs.is_dependabot == 'true'
+- name: Trigger CD workflow
   uses: actions/github-script@v7
   with:
     script: |
+      const prNumber = ${{ steps.pr-info.outputs.pr-number }};
+      const mergeSha = '${{ steps.merge-sha }}';
       await github.rest.repos.createDispatchEvent({
         owner: context.repo.owner,
         repo: context.repo.repo,
-        event_type: 'dependabot-auto-merged',
+        event_type: 'PR-merged',
         client_payload: {
-          pr_number: context.payload.pull_request.number,
-          triggered_by: 'dependabot-auto-merge'
+          pr_number: prNumber,
+          merge_sha: mergeSha,
+          merged_by: 'github-actions[bot]',
+          merged_at: new Date().toISOString()
         }
       });
 ```
@@ -193,13 +196,9 @@ updates:
 ```yaml
 name: Continuous Deployment
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
   repository_dispatch:
-    types: 
-      - dependabot-auto-merged
-      - non-dependabot-auto-merged
+    types: [PR-merged]
 ```
 
 ---
@@ -211,14 +210,11 @@ on:
 ```yaml
 jobs:
   deploy:
-    if: |
-      github.event_name == 'push' || 
-      github.event_name == 'repository_dispatch' || 
-      github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch'
 ```
 
 **이벤트 타입별 처리:**
-- `push`: 일반 병합 시
+- `push`: 일반 병합 시 (현재 비활성화)
 - `repository_dispatch`: Auto-merge 시  
 - `workflow_dispatch`: 수동 실행 시
 
@@ -249,14 +245,24 @@ jobs:
 ```yaml
 name: CI tests
 on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - "**/*.md"
+      - "**/*.txt"
+      - "**/*.log"
+      - "**/*.json"
+      - "**/*.xml"
+      - ".ai/**"
   pull_request:
     branches: ["main"]
     paths-ignore:
       - "**/*.md"
-      - "**/*.txt" 
+      - "**/*.txt"
       - "**/*.log"
       - "**/*.json"
       - "**/*.xml"
+      - ".ai/**"
 ```
 
 **핵심 포인트:**
@@ -276,14 +282,26 @@ jobs:
     runs-on: windows-2022
     steps:
     - uses: actions/checkout@v4
+    - name: Get USERPROFILE and set CACHE_PATH
+      shell: pwsh
+      run: |
+        $userProfile = [System.Environment]::GetEnvironmentVariable("USERPROFILE")
+        $cachePath = Join-Path $userProfile ".nuget\packages"
+        echo "CACHE_PATH=$cachePath" >> $env:GITHUB_ENV
     - name: Cache NuGet packages
       uses: actions/cache@v4
       with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-    - run: dotnet restore
-    - run: dotnet test --configuration Debug
+        path: |
+          ~/.nuget/packages
+          ${{ env.CACHE_PATH }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+    - run: dotnet restore simple-.net-Crypting-For-PowerBuilder.slnx
+    - run: dotnet test simple-.net-Crypting-For-PowerBuilder.slnx --configuration Debug
 ```
+
+---
 
 **주요 최적화:**
 - NuGet 패키지 캐싱으로 속도 향상
@@ -297,9 +315,9 @@ jobs:
 ### 자동 배포 파이프라인
 
 **트리거 이벤트:**
-- main 브랜치 push
-- Repository dispatch 이벤트
-- 수동 워크플로우 실행
+- repository_dispatch: `PR-merged` 이벤트
+- workflow_dispatch: 수동 실행
+- (옵션) push: 필요 시 활성화 가능
 
 ---
 
@@ -309,14 +327,35 @@ jobs:
 
 ```yaml
 - name: Build solution for release
-  run: dotnet publish --configuration Release
+  run: dotnet publish simple-.net-Crypting-For-PowerBuilder.slnx --configuration Release
 
-- name: Merge DLLs with ILRepack
+- name: Install ILMerge and ILRepack
   run: |
-    ilrepack /out:SecureLibrary-PB.dll `
-             /keyfile:Simple-Crypt4PB.snk `
-             /internalize `
-             SecureLibrary.dll BCrypt.Net-Next.dll
+    nuget install ILMerge -Version 3.0.41 -OutputDirectory ${{ github.workspace }}\packages
+    dotnet tool install -g dotnet-ilrepack
+
+- name: Merge DLLs
+  run: |
+    # .NET Framework 4.8 (PowerBuilder)
+    ilrepack /out:release-files\SecureLibrary-PB.dll `
+            /union /copyattrs /internalize `
+            /keyfile:Simple-Crypt4PB.snk `
+            net481PB\bin\Release\net481\publish\SecureLibrary.dll `
+            net481PB\bin\Release\net481\publish\BCrypt.Net-Next.dll
+
+    # .NET Framework 4.8 (SQL Server) — ILMerge 사용
+    packages\ILMerge.3.0.41\tools\net452\ILMerge.exe `
+            /out:release-files\SecureLibrary-SQL.dll `
+            /keyfile:Simple-Crypt4PB.snk `
+            net481SQL-server\bin\Release\net481\publish\SecureLibrary.SQL.dll `
+            net481SQL-server\bin\Release\net481\publish\BCrypt.Net-Next.dll
+
+    # .NET 8 (Core)
+    ilrepack /out:release-files\SecureLibrary-Core.dll `
+            /union /internalize `
+            /keyfile:Simple-Crypt4PB.snk `
+            NET8\bin\Release\net8.0\publish\SecureLibrary-Core.dll `
+            NET8\bin\Release\net8.0\publish\BCrypt.Net-Next.dll
 ```
 
 **빌드 최적화:**
@@ -331,13 +370,19 @@ jobs:
 ### 버전 증가 및 릴리스 생성
 
 ```yaml
-- name: Auto-increment version
+- name: Get latest release version and Generate release notes
   run: |
-    $latest = (Invoke-RestMethod 
-      "https://api.github.com/repos/${{ github.repository }}/releases/latest").tag_name
-    $newVersion = [version]$latest
-    $newVersion = "$($newVersion.Major).$($newVersion.Minor).$($newVersion.Build + 1)"
-    echo "new_release=$newVersion" >> $env:GITHUB_ENV
+    $latest_release = (Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases/latest").tag_name
+    $versionParts = $latest_release.Split('.')
+    $versionParts[-1] = [int]$versionParts[-1] + 1
+    $newVersionString = $versionParts -join '.'
+    $latestCommitMessages = (git log HEAD ^$latest_release --pretty=%B)
+    foreach ($line in $latestCommitMessages) {
+      if ($line -match "Update Version To (\d+\.\d+\.\d+)") {
+        $newVersionString = $Matches[1]
+      }
+    }
+    echo "new_release=$newVersionString" >> $env:GITHUB_ENV
 
 - name: Create GitHub Release
   uses: softprops/action-gh-release@v2
@@ -371,11 +416,30 @@ jobs:
 
 ---
 
+## 🧭 워크플로우 파일 한눈에 보기
+
+**구성 파일 요약**
+
+- `.github/workflows/ci.yaml`
+  - Windows에서 테스트 실행, NuGet 캐시
+  - `push`/`pull_request` 트리거, 문서/리소스 변경은 무시
+  - 성공 시 repository dispatch로 `auto-merge-pr` 이벤트 발송
+
+- `.github/workflows/auto-merge.yaml`
+  - `repository_dispatch: auto-merge-pr` 수신 → PR 정보 조회 → 조건 검증 후 병합
+  - 병합 후 repository dispatch로 `PR-merged` 이벤트 발송 (CD 트리거)
+
+- `.github/workflows/cd.yaml`
+  - `repository_dispatch: PR-merged` 또는 `workflow_dispatch` 시 릴리스 빌드/병합/배포
+  - 아티팩트: PB/SQL/Core DLL 및 관련 파일, GitHub Release 업로드
+
+---
+
 ## 📊 워크플로우 연동도
 
 ### 자동화된 DevOps 파이프라인 흐름
 
-![fit](graph.png)
+![h:480](graph.png)
 
 ---
 
