@@ -2,7 +2,7 @@
 
 A robust SQL Server CLR assembly for PowerBuilder and .NET applications, providing secure cryptographic operations. This project currently supports:
 
-- **Single Value Encryption/Decryption** (AES-GCM, password-based and direct key)
+- **Single Value Encryption/Decryption** (AES-GCM, password-based and direct key, with dedicated binary support)
 - **Single Row Encryption/Decryption** (AES-GCM, password-based and direct key)
 - **Bcrypt Password Hashing**
 
@@ -30,6 +30,7 @@ A robust SQL Server CLR assembly for PowerBuilder and .NET applications, providi
 - **Single Value Encryption/Decryption**
   - Encrypt and decrypt individual values using AES-GCM.
   - Supports both password-based and direct key encryption.
+  - Dedicated binary encryption function (`EncryptBinaryValue`) for proper VARBINARY handling.
 - **Single Row Encryption/Decryption**
   - Encrypt and decrypt a single row (as XML) with schema preservation.
 - **Bcrypt Password Hashing**
@@ -114,12 +115,17 @@ SELECT dbo.DecryptValue(@encryptedValue, 'YourPassword123!') AS DecryptedValue;
 ### Single Value Encryption/Decryption as Binary
 
 ```sql
--- Encrypt a single value
-DECLARE @encryptedValue NVARCHAR(MAX) = dbo.EncryptValue('My secret data', 'YourPassword123!', 10000);
+-- Encrypt binary data using the dedicated binary encryption function
+DECLARE @binaryData VARBINARY(MAX) = CONVERT(VARBINARY(MAX), 'My secret binary data');
+DECLARE @encryptedValue NVARCHAR(MAX) = dbo.EncryptBinaryValue(@binaryData, 'YourPassword123!', 10000);
 SELECT @encryptedValue AS EncryptedValue;
 
--- Decrypt a single value
-SELECT dbo.DecryptBinaryValue(@encryptedValue, 'YourPassword123!') AS DecryptedValue;
+-- Decrypt binary data back to VARBINARY(MAX)
+SELECT dbo.DecryptBinaryValue(@encryptedValue, 'YourPassword123!') AS DecryptedBinaryValue;
+
+-- Alternative: Using generic EncryptValue (for compatibility)
+DECLARE @encryptedGeneric NVARCHAR(MAX) = dbo.EncryptValue('My secret data', 'YourPassword123!', 10000);
+SELECT dbo.DecryptBinaryValue(@encryptedGeneric, 'YourPassword123!') AS DecryptedValue;
 ```
 
 ### Single Row Encryption/Decryption

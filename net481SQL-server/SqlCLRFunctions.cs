@@ -660,6 +660,60 @@ namespace SecureLibrary.SQL
         }
 
         /// <summary>
+        /// Encrypts a single binary value with password-based key derivation
+        /// </summary>
+        /// <param name="binaryValue">Binary value to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">Number of iterations for key derivation</param>
+        /// <returns>Base64 encoded encrypted binary value data</returns>
+        [SqlFunction(
+            IsDeterministic = false, // Not deterministic due to random salt and nonce
+            IsPrecise = true,
+            DataAccess = DataAccessKind.None
+        )]
+        [SecuritySafeCritical]
+        public static SqlString EncryptBinaryValue(SqlBytes binaryValue, SqlString password, SqlInt32 iterations)
+        {
+            if (binaryValue.IsNull || password.IsNull || iterations.IsNull)
+                return SqlString.Null;
+
+            try
+            {
+                // Convert SqlBytes to byte array
+                byte[] valueBytes = binaryValue.Value;
+
+                var metadata = new EncryptionMetadata
+                {
+                    Algorithm = "AES-GCM",
+                    Key = password.Value,
+                    Salt = _cgnService.GenerateNonce(32),
+                    Iterations = iterations.Value,
+                    AutoGenerateNonce = true
+                };
+
+                // Use EncryptionEngine to encrypt the binary data
+                // Pass the byte array directly to ensure it's treated as binary
+                var encryptedData = _encryptionEngine.EncryptValue(valueBytes, metadata);
+
+                // Ensure the data type is explicitly marked as binary
+                encryptedData.DataType = typeof(byte[]).AssemblyQualifiedName;
+
+                // Serialize the encrypted value data to XML using unified schema
+                var resultXml = EncryptionXmlSchema.CreateSingleValueXml(
+                    encryptedData.DataType,
+                    Convert.ToBase64String(encryptedData.EncryptedValue),
+                    metadata
+                );
+
+                return new SqlString(resultXml.ToString());
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Binary value encryption failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Decrypts a single binary value with password-based key derivation
         /// </summary>
         /// <param name="encryptedValue">Base64 encoded encrypted value data</param>

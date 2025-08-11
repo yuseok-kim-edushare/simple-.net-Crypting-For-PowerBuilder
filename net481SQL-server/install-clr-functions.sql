@@ -195,6 +195,12 @@ BEGIN
         PRINT '✓ Dropped DecryptValue';
     END
     
+    IF EXISTS (SELECT * FROM sys.objects WHERE name = 'EncryptBinaryValue' AND type = 'FS')
+    BEGIN
+        DROP FUNCTION dbo.EncryptBinaryValue;
+        PRINT '✓ Dropped EncryptBinaryValue';
+    END
+    
     IF EXISTS (SELECT * FROM sys.objects WHERE name = 'DecryptBinaryValue' AND type = 'FS')
     BEGIN
         DROP FUNCTION dbo.DecryptBinaryValue;
@@ -345,6 +351,11 @@ RETURNS NVARCHAR(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptValue;
 GO
 
+CREATE FUNCTION dbo.EncryptBinaryValue(@binaryValue VARBINARY(MAX), @password NVARCHAR(MAX), @iterations INT)
+RETURNS NVARCHAR(MAX)
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].EncryptBinaryValue;
+GO
+
 CREATE FUNCTION dbo.DecryptBinaryValue(@encryptedValue NVARCHAR(MAX), @password NVARCHAR(MAX))
 RETURNS VARBINARY(MAX)
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRFunctions].DecryptBinaryValue;
@@ -453,7 +464,7 @@ WHERE o.type = 'FS' AND o.name IN (
     'EncryptAesGcm', 'DecryptAesGcm', 'EncryptAesGcmWithPassword', 'DecryptAesGcmWithPassword',
     'GenerateKey', 'GenerateNonce', 'DeriveKeyFromPassword',
     'EncryptXml', 'DecryptXml', 'ValidateEncryptionMetadata',
-    'EncryptValue', 'DecryptValue', 'DecryptBinaryValue',
+    'EncryptValue', 'DecryptValue', 'EncryptBinaryValue', 'DecryptBinaryValue',
     'EncryptTable', 'EncryptMultiRowXml', 'DecryptMultiRowXml'
 )
 ORDER BY o.name;
@@ -564,7 +575,7 @@ PRINT '  - Password Hashing: HashPassword, HashPasswordWithWorkFactor, VerifyPas
 PRINT '  - AES-GCM Encryption: EncryptAesGcm, DecryptAesGcm, EncryptAesGcmWithPassword, DecryptAesGcmWithPassword';
 PRINT '  - Key Generation: GenerateKey, GenerateNonce, DeriveKeyFromPassword';
 PRINT '  - XML Encryption: EncryptXml, DecryptXml, EncryptMultiRowXml, DecryptMultiRowXml';
-PRINT '  - Single Value Encryption: EncryptValue, DecryptValue, DecryptBinaryValue';
+PRINT '  - Single Value Encryption: EncryptValue, DecryptValue, EncryptBinaryValue, DecryptBinaryValue';
 PRINT '  - Table Encryption: EncryptTable';
 PRINT '  - Utilities: ValidateEncryptionMetadata';
 PRINT '';
