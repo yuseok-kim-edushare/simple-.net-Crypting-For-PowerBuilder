@@ -18,7 +18,7 @@ DECLARE @decryptedBinary VARBINARY(MAX);
 PRINT 'Test Case 1: Simple binary data';
 SET @originalBinary = CONVERT(VARBINARY(MAX), 'Hello, World! This is test binary data.');
 
-PRINT 'Original binary length: ' + CAST(LEN(@originalBinary) AS NVARCHAR(10));
+PRINT 'Original binary length: ' + CAST(DATALENGTH(@originalBinary) AS NVARCHAR(10));
 PRINT 'Original data as string: ' + CONVERT(NVARCHAR(MAX), @originalBinary);
 
 -- Encrypt binary value
