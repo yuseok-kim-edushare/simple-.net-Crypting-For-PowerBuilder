@@ -50,7 +50,7 @@ DECLARE @decryptedBinary2 VARBINARY(MAX);
 -- Create larger test data (simulating image/file data)
 SET @largeBinary = CONVERT(VARBINARY(MAX), REPLICATE('TestData123!@#', 100));
 
-PRINT 'Original large binary length: ' + CAST(LEN(@largeBinary) AS NVARCHAR(10));
+PRINT 'Original large binary length: ' + CAST(DATALENGTH(@largeBinary) AS NVARCHAR(10));
 
 -- Encrypt large binary value
 SET @encryptedData2 = dbo.EncryptBinaryValue(@largeBinary, @password2, @iterations2);
