@@ -27,7 +27,7 @@ PRINT 'Encryption completed. Encrypted data length: ' + CAST(LEN(@encryptedData)
 
 -- Decrypt binary value
 SET @decryptedBinary = dbo.DecryptBinaryValue(@encryptedData, @password);
-PRINT 'Decryption completed. Decrypted binary length: ' + CAST(LEN(@decryptedBinary) AS NVARCHAR(10));
+PRINT 'Decryption completed. Decrypted binary length: ' + CAST(DATALENGTH(@decryptedBinary) AS NVARCHAR(10));
 PRINT 'Decrypted data as string: ' + CONVERT(NVARCHAR(MAX), @decryptedBinary);
 
 -- Verify data integrity
