@@ -58,7 +58,7 @@ PRINT 'Large data encryption completed. Encrypted data length: ' + CAST(LEN(@enc
 
 -- Decrypt large binary value
 SET @decryptedBinary2 = dbo.DecryptBinaryValue(@encryptedData2, @password2);
-PRINT 'Large data decryption completed. Decrypted binary length: ' + CAST(LEN(@decryptedBinary2) AS NVARCHAR(10));
+PRINT 'Large data decryption completed. Decrypted binary length: ' + CAST(DATALENGTH(@decryptedBinary2) AS NVARCHAR(10));
 
 -- Verify large data integrity
 IF @largeBinary = @decryptedBinary2
