@@ -432,6 +432,14 @@ namespace SecureLibrary.SQL
 
                 var (metadata, encryptedRows) = EncryptionXmlSchema.ParseMultiRowXml(root, password.Value, _xmlConverter);
 
+                if (!encryptedRows.Any())
+                {
+                    return; // No rows to process
+                }
+
+                // Get schema from the first encrypted row. Assume schema is consistent for all rows in the batch.
+                var schema = encryptedRows.First().SqlServerSchema;
+
                 // Derive the key once for all rows (performance optimization)
                 byte[] derivedKey = _cgnService.DeriveKeyFromPassword(
                     metadata.Key, 
@@ -441,17 +449,50 @@ namespace SecureLibrary.SQL
                 );
 
                 // Decrypt all rows using the pre-derived key
-                // Note: Each encrypted row already has its own metadata with the correct nonce
-                var decryptedRows = _encryptionEngine.DecryptRows(encryptedRows, encryptedRows.FirstOrDefault()?.Metadata);
+                var decryptedRows = _encryptionEngine.DecryptRows(encryptedRows, metadata);
 
                 // Clear the derived key from memory
                 Array.Clear(derivedKey, 0, derivedKey.Length);
 
-                // Return each decrypted row as a result set (similar to DecryptRowWithMetadata)
-                foreach (var decryptedRow in decryptedRows)
+                // Return each decrypted row as a result set
+                if (decryptedRows.Any())
                 {
-                    // Use the same method as single row decryption to return result set
-                    ReturnDecryptedRowAsResultSet(decryptedRow);
+                    // Create SqlDataRecord with the enhanced schema from the first row
+                    var sqlMetadata = schema.Select(col => {
+                        var sqlType = col.SqlDbType;
+                        if (sqlType == SqlDbType.NVarChar || sqlType == SqlDbType.VarChar || 
+                            sqlType == SqlDbType.NChar || sqlType == SqlDbType.Char ||
+                            sqlType == SqlDbType.VarBinary || sqlType == SqlDbType.Binary)
+                        {
+                            return new SqlMetaData(col.Name, sqlType, col.MaxLength > 0 ? col.MaxLength : -1);
+                        }
+                        if (sqlType == SqlDbType.Decimal)
+                        {
+                            return new SqlMetaData(col.Name, sqlType, col.Precision ?? 18, col.Scale ?? 2);
+                        }
+                        return new SqlMetaData(col.Name, sqlType);
+                    }).ToArray();
+
+                    var record = new SqlDataRecord(sqlMetadata);
+                    SqlContext.Pipe.SendResultsStart(record);
+
+                    foreach (var decryptedRow in decryptedRows)
+                    {
+                        for (int i = 0; i < decryptedRow.Table.Columns.Count; i++)
+                        {
+                            var value = decryptedRow[i];
+                            if (value == DBNull.Value)
+                            {
+                                record.SetDBNull(i);
+                            }
+                            else
+                            {
+                                SetRecordValue(record, i, value, sqlMetadata[i].SqlDbType);
+                            }
+                        }
+                        SqlContext.Pipe.SendResultsRow(record);
+                    }
+                    SqlContext.Pipe.SendResultsEnd();
                 }
             }
             catch (Exception ex)
@@ -460,7 +501,93 @@ namespace SecureLibrary.SQL
             }
         }
 
+        /// <summary>
+        /// Generates a T-SQL script to create a temporary table and populate it with decrypted row data.
+        /// This avoids the need to know the table schema in advance.
+        /// </summary>
+        [SqlProcedure]
+        public static void GenerateDecryptionScript(
+            [SqlFacet(MaxSize = -1)] SqlString encryptedRow,
+            [SqlFacet(MaxSize = 256)] SqlString password,
+            [SqlFacet(MaxSize = 128)] SqlString tempTableName,
+            [SqlFacet(MaxSize = -1)] out SqlString script)
+        {
+            if (encryptedRow.IsNull || password.IsNull || tempTableName.IsNull)
+            {
+                script = SqlString.Null;
+                return;
+            }
 
+            try
+            {
+                // Use XDocument to parse the XML robustly
+                var xmlDoc = XDocument.Parse(encryptedRow.Value);
+                var schemaElement = xmlDoc.Root.Element("Schema");
+                if (schemaElement == null)
+                {
+                    throw new InvalidOperationException("Schema information not found in the encrypted data.");
+                }
+
+                var columnDefinitions = new System.Text.StringBuilder();
+
+                // Extract column definitions from the enhanced schema
+                foreach (var columnElement in schemaElement.Elements("Column"))
+                {
+                    var name = columnElement.Attribute("Name")?.Value;
+                    var sqlTypeName = columnElement.Attribute("SqlTypeName")?.Value;
+                    var maxLength = columnElement.Attribute("MaxLength")?.Value;
+                    var precision = columnElement.Attribute("Precision")?.Value;
+                    var scale = columnElement.Attribute("Scale")?.Value;
+
+                    if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(sqlTypeName)) continue;
+
+                    if (columnDefinitions.Length > 0)
+                    {
+                        columnDefinitions.Append(", ");
+                    }
+
+                    columnDefinitions.Append($"[{name}] {sqlTypeName}");
+
+                    // Append size/precision/scale for relevant types
+                    if (sqlTypeName.IndexOf("char", StringComparison.OrdinalIgnoreCase) >= 0 || sqlTypeName.IndexOf("binary", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        if (!string.IsNullOrEmpty(maxLength))
+                        {
+                            columnDefinitions.Append($"({(maxLength == "-1" ? "MAX" : maxLength)})");
+                        }
+                    }
+                    else if (sqlTypeName.IndexOf("decimal", StringComparison.OrdinalIgnoreCase) >= 0 || sqlTypeName.IndexOf("numeric", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        if (!string.IsNullOrEmpty(precision) && !string.IsNullOrEmpty(scale))
+                        {
+                            columnDefinitions.Append($"({precision}, {scale})");
+                        }
+                    }
+                }
+
+                if (columnDefinitions.Length == 0)
+                {
+                    throw new InvalidOperationException("No valid columns found in the schema.");
+                }
+
+                // Build the T-SQL script
+                var scriptBuilder = new System.Text.StringBuilder();
+                scriptBuilder.AppendLine($"-- Script generated on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+                scriptBuilder.AppendLine($"IF OBJECT_ID('tempdb..{tempTableName.Value}') IS NOT NULL DROP TABLE {tempTableName.Value};");
+                scriptBuilder.AppendLine($"CREATE TABLE {tempTableName.Value} ({columnDefinitions});");
+                scriptBuilder.AppendLine();
+                scriptBuilder.AppendLine($"INSERT INTO {tempTableName.Value}");
+                scriptBuilder.AppendLine("EXEC dbo.DecryptRowWithMetadata @encryptedRow, @password;");
+
+                script = new SqlString(scriptBuilder.ToString());
+            }
+            catch (Exception ex)
+            {
+                // In a real-world scenario, log the exception
+                SqlContext.Pipe.Send($"Error generating decryption script: {ex.Message}");
+                script = SqlString.Null;
+            }
+        }
 
         #endregion
 
@@ -975,4 +1102,4 @@ namespace SecureLibrary.SQL
         public int FormatVersion { get; set; }
         public string EncryptedXml { get; set; }
     }
-} 
+}

@@ -104,6 +104,12 @@ BEGIN
         PRINT '✓ Dropped DecryptMultiRows';
     END
     
+    IF EXISTS (SELECT * FROM sys.objects WHERE name = 'GenerateDecryptionScript' AND type = 'PC')
+    BEGIN
+        DROP PROCEDURE dbo.GenerateDecryptionScript;
+        PRINT '✓ Dropped GenerateDecryptionScript';
+    END
+    
     -- Drop functions
     IF EXISTS (SELECT * FROM sys.objects WHERE name = 'HashPassword' AND type = 'FS')
     BEGIN
@@ -436,6 +442,14 @@ CREATE PROCEDURE dbo.DecryptMultiRows
 AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].DecryptMultiRows;
 GO
 
+CREATE PROCEDURE dbo.GenerateDecryptionScript
+    @encryptedRow NVARCHAR(MAX),
+    @password NVARCHAR(MAX),
+    @tempTableName NVARCHAR(128),
+    @script NVARCHAR(MAX) OUTPUT
+AS EXTERNAL NAME [SecureLibrary.SQL].[SecureLibrary.SQL.SqlCLRProcedures].GenerateDecryptionScript;
+GO
+
 -- =============================================
 -- STEP 6: VERIFICATION
 -- =============================================
@@ -480,7 +494,7 @@ FROM sys.objects o
 WHERE o.type = 'PC' AND o.name IN (
     'EncryptTableWithMetadata', 'DecryptTableWithMetadata',
     'EncryptRowWithMetadata', 'DecryptRowWithMetadata',
-    'EncryptMultiRows', 'DecryptMultiRows'
+    'EncryptMultiRows', 'DecryptMultiRows', 'GenerateDecryptionScript'
 )
 ORDER BY o.name;
 GO

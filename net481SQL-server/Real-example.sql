@@ -382,6 +382,55 @@ PRINT 'Efficiency gain: ' + CAST((@singleRowTime * 5 - @batchTime) * 100.0 / (@s
 GO
 
 -- =============================================
+-- STEP 5: Dynamic Decryption using a generated script
+-- =============================================
+PRINT '';
+PRINT '=== STEP 5: Dynamic Decryption using a generated script ===';
+GO
+
+-- This demonstrates how to decrypt a row without knowing its schema beforehand.
+
+-- Step 1: Assume we have an encrypted row in a variable.
+DECLARE @encryptedDataForScript NVARCHAR(MAX);
+-- Using the one from the single-row encryption example
+SELECT TOP 1 @encryptedDataForScript = EncryptedData FROM dbo.EncryptedTable WHERE ID = 1;
+DECLARE @passwordForScript NVARCHAR(MAX) = 'MySecurePassword123!';
+
+-- Step 2: Generate the decryption script dynamically.
+DECLARE @script NVARCHAR(MAX);
+EXEC dbo.GenerateDecryptionScript
+    @encryptedRow = @encryptedDataForScript,
+    @password = @passwordForScript,
+    @tempTableName = N'#DecryptedCustomer', -- Name of the temp table to create
+    @script = @script OUTPUT;
+
+-- Step 3: Execute the generated script.
+-- The script will create #DecryptedCustomer and populate it.
+-- Note: We pass the original encrypted data and password again for sp_executesql.
+IF @script IS NOT NULL
+BEGIN
+    PRINT '--- Generated Script ---';
+    PRINT @script;
+    PRINT '------------------------';
+
+    EXEC sp_executesql @script,
+        N'@encryptedRow NVARCHAR(MAX), @password NVARCHAR(256)',
+        @encryptedRow = @encryptedDataForScript,
+        @password = @passwordForScript;
+
+    -- Step 4: Verify the result.
+    SELECT * FROM #DecryptedCustomer;
+
+    DROP TABLE #DecryptedCustomer;
+END
+ELSE
+BEGIN
+    PRINT 'Failed to generate decryption script.';
+END
+GO
+
+
+-- =============================================
 -- CLEANUP: Remove Created Objects
 -- =============================================
 PRINT '';
