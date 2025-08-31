@@ -216,37 +216,16 @@ namespace SecureLibrary.SQL.Services
 
             try
             {
-                // Validate metadata
-                var validationResult = ValidateEncryptionMetadata(metadata);
+                // Validate metadata, but allow missing nonce as it should be in EncryptedRowData
+                var validationResult = ValidateEncryptionMetadata(metadata, true);
                 if (!validationResult.IsValid)
                 {
                     var errorMessage = string.Join("; ", validationResult.Errors);
                     throw new CryptographicException($"Invalid encryption metadata: {errorMessage}");
                 }
 
-                // Get encrypted data
-                if (!encryptedData.EncryptedColumns.TryGetValue("RowData", out byte[] encryptedXmlBytes))
-                {
-                    throw new CryptographicException("Encrypted row data not found");
-                }
-
-                // Get the nonce used during encryption (stored in encrypted data)
-                byte[] nonce = null;
-                if (encryptedData.EncryptedColumns.TryGetValue("Nonce", out byte[] storedNonce))
-                {
-                    nonce = storedNonce;
-                }
-                else if (metadata.Nonce != null)
-                {
-                    nonce = metadata.Nonce;
-                }
-                else
-                {
-                    throw new CryptographicException("Nonce not found in encrypted data or metadata");
-                }
-
                 // Derive key if password-based encryption
-                byte[] key = null;
+                byte[] key;
                 if (!string.IsNullOrEmpty(metadata.Key) && metadata.Salt != null)
                 {
                     key = _cgnService.DeriveKeyFromPassword(metadata.Key, metadata.Salt, metadata.Iterations, 32);
@@ -256,24 +235,19 @@ namespace SecureLibrary.SQL.Services
                     throw new CryptographicException("Either Key+Salt or direct key must be provided");
                 }
 
-                // Decrypt the XML data using the stored nonce
-                var decryptedXmlBytes = _cgnService.DecryptAesGcm(encryptedXmlBytes, key, nonce);
-                var xmlString = Encoding.UTF8.GetString(decryptedXmlBytes);
-
-                // Parse XML and restore row with enhanced schema handling
-                var xmlDoc = XDocument.Parse(xmlString);
-                var decryptedRow = _xmlConverter.FromXml(xmlDoc, encryptedData.Schema);
+                // Decrypt using the helper method
+                var decryptedRow = DecryptRowWithKey(encryptedData, key);
 
                 // Clear sensitive data
                 Array.Clear(key, 0, key.Length);
-                Array.Clear(decryptedXmlBytes, 0, decryptedXmlBytes.Length);
 
-                _logger?.LogInformation($"Successfully decrypted row with {encryptedData.Schema.Columns.Count} columns");
                 return decryptedRow;
             }
             catch (Exception ex)
             {
                 _logger?.LogError($"Decryption failed: {ex.Message}");
+                // Avoid wrapping CryptographicException in another one
+                if (ex is CryptographicException) throw;
                 throw new CryptographicException($"Row decryption failed: {ex.Message}", ex);
             }
         }
@@ -340,30 +314,58 @@ namespace SecureLibrary.SQL.Services
             var encryptedRowList = encryptedRows.ToList();
             _logger?.LogInformation($"Starting batch decryption of {encryptedRowList.Count} rows");
 
-            var results = new List<DataRow>();
-
-            // Process rows in batches for memory efficiency
-            for (int i = 0; i < encryptedRowList.Count; i += BATCH_SIZE)
+            // Validate metadata once, but allow missing nonce as it should be in each EncryptedRowData
+            var validationResult = ValidateEncryptionMetadata(metadata, true);
+            if (!validationResult.IsValid)
             {
-                var batch = encryptedRowList.Skip(i).Take(BATCH_SIZE);
-                var batchResults = new List<DataRow>();
+                var errorMessage = string.Join("; ", validationResult.Errors);
+                throw new CryptographicException($"Invalid encryption metadata for batch operation: {errorMessage}");
+            }
 
-                foreach (var encryptedRow in batch)
+            // Derive key once for the entire batch
+            byte[] key;
+            if (!string.IsNullOrEmpty(metadata.Key) && metadata.Salt != null)
+            {
+                key = _cgnService.DeriveKeyFromPassword(metadata.Key, metadata.Salt, metadata.Iterations, 32);
+            }
+            else
+            {
+                throw new CryptographicException("Either Key+Salt or direct key must be provided for batch decryption");
+            }
+
+            var results = new List<DataRow>();
+            try
+            {
+                // Process rows in batches for memory efficiency
+                for (int i = 0; i < encryptedRowList.Count; i += BATCH_SIZE)
                 {
-                    try
-                    {
-                        var decryptedRow = DecryptRow(encryptedRow, metadata);
-                        batchResults.Add(decryptedRow);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError($"Failed to decrypt row {i}: {ex.Message}");
-                        throw new CryptographicException($"Batch decryption failed at row {i}: {ex.Message}", ex);
-                    }
-                }
+                    var batch = encryptedRowList.Skip(i).Take(BATCH_SIZE);
+                    var batchResults = new List<DataRow>();
 
-                results.AddRange(batchResults);
-                _logger?.LogInformation($"Completed batch {i / BATCH_SIZE + 1}, processed {batchResults.Count} rows");
+                    foreach (var encryptedRow in batch)
+                    {
+                        try
+                        {
+                            // Decrypt each row using the pre-derived key
+                            var decryptedRow = DecryptRowWithKey(encryptedRow, key);
+                            batchResults.Add(decryptedRow);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogError($"Failed to decrypt row {i}: {ex.Message}");
+                            // Immediately re-throw to stop the batch operation on failure
+                            throw new CryptographicException($"Batch decryption failed at row {i}: {ex.Message}", ex);
+                        }
+                    }
+
+                    results.AddRange(batchResults);
+                    _logger?.LogInformation($"Completed batch {i / BATCH_SIZE + 1}, processed {batchResults.Count} rows");
+                }
+            }
+            finally
+            {
+                // Ensure the key is cleared even if an exception occurs
+                Array.Clear(key, 0, key.Length);
             }
 
             _logger?.LogInformation($"Successfully decrypted {results.Count} rows in batch");
@@ -371,11 +373,22 @@ namespace SecureLibrary.SQL.Services
         }
 
         /// <summary>
-        /// Validates encryption metadata for correctness and security
+        /// Validates encryption metadata for correctness and security. This overload calls the one with the ignoreNonce parameter.
         /// </summary>
         /// <param name="metadata">Encryption metadata to validate</param>
         /// <returns>Validation result with any error messages</returns>
         public ValidationResult ValidateEncryptionMetadata(EncryptionMetadata metadata)
+        {
+            return ValidateEncryptionMetadata(metadata, false);
+        }
+
+        /// <summary>
+        /// Validates encryption metadata for correctness and security
+        /// </summary>
+        /// <param name="metadata">Encryption metadata to validate</param>
+        /// <param name="ignoreNonce">If true, nonce validation is skipped</param>
+        /// <returns>Validation result with any error messages</returns>
+        public ValidationResult ValidateEncryptionMetadata(EncryptionMetadata metadata, bool ignoreNonce = false)
         {
             var result = new ValidationResult { IsValid = true };
 
@@ -422,17 +435,20 @@ namespace SecureLibrary.SQL.Services
                 result.Errors.Add($"Iterations must be between {MIN_ITERATIONS} and {MAX_ITERATIONS}");
             }
 
-            // Validate nonce
-            if (!metadata.AutoGenerateNonce && metadata.Nonce == null)
+            // Validate nonce unless ignored
+            if (!ignoreNonce)
             {
-                result.IsValid = false;
-                result.Errors.Add("Nonce must be provided when AutoGenerateNonce is false");
-            }
+                if (!metadata.AutoGenerateNonce && metadata.Nonce == null)
+                {
+                    result.IsValid = false;
+                    result.Errors.Add("Nonce must be provided when AutoGenerateNonce is false");
+                }
 
-            if (metadata.Nonce != null && metadata.Nonce.Length != 12)
-            {
-                result.IsValid = false;
-                result.Errors.Add("Nonce must be exactly 12 bytes for AES-GCM");
+                if (metadata.Nonce != null && metadata.Nonce.Length != 12)
+                {
+                    result.IsValid = false;
+                    result.Errors.Add("Nonce must be exactly 12 bytes for AES-GCM");
+                }
             }
 
             // Security warnings
@@ -606,6 +622,63 @@ namespace SecureLibrary.SQL.Services
         }
 
         /// <summary>
+        /// Decrypts a single encrypted row using a pre-derived key.
+        /// This is an internal helper to optimize batch decryption.
+        /// </summary>
+        private DataRow DecryptRowWithKey(EncryptedRowData encryptedData, byte[] key)
+        {
+            if (encryptedData == null)
+                throw new ArgumentNullException(nameof(encryptedData));
+            if (key == null || key.Length == 0)
+                throw new ArgumentNullException(nameof(key));
+
+            _logger?.LogInformation($"Starting decryption of row with {encryptedData.Schema.Columns.Count} columns using pre-derived key.");
+
+            try
+            {
+                // Get encrypted data
+                if (!encryptedData.EncryptedColumns.TryGetValue("RowData", out byte[] encryptedXmlBytes))
+                {
+                    throw new CryptographicException("Encrypted row data not found");
+                }
+
+                // Get the nonce used during encryption (stored in encrypted data)
+                byte[] nonce;
+                if (encryptedData.EncryptedColumns.TryGetValue("Nonce", out byte[] storedNonce))
+                {
+                    nonce = storedNonce;
+                }
+                else if (encryptedData.Metadata?.Nonce != null) // Fallback to metadata if available
+                {
+                    nonce = encryptedData.Metadata.Nonce;
+                }
+                else
+                {
+                    throw new CryptographicException("Nonce not found in encrypted data or its metadata");
+                }
+
+                // Decrypt the XML data using the provided key and stored nonce
+                var decryptedXmlBytes = _cgnService.DecryptAesGcm(encryptedXmlBytes, key, nonce);
+                var xmlString = Encoding.UTF8.GetString(decryptedXmlBytes);
+
+                // Parse XML and restore row with enhanced schema handling
+                var xmlDoc = XDocument.Parse(xmlString);
+                var decryptedRow = _xmlConverter.FromXml(xmlDoc, encryptedData.Schema);
+
+                // Clear sensitive data from memory
+                Array.Clear(decryptedXmlBytes, 0, decryptedXmlBytes.Length);
+
+                _logger?.LogInformation($"Successfully decrypted row with {encryptedData.Schema.Columns.Count} columns");
+                return decryptedRow;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError($"Decryption with key failed: {ex.Message}");
+                throw new CryptographicException($"Row decryption with pre-derived key failed: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
         /// Converts CLR type to SqlDbType
         /// </summary>
         /// <param name="clrType">CLR type</param>
@@ -681,4 +754,4 @@ namespace SecureLibrary.SQL.Services
         public void LogWarning(string message) { }
         public void LogError(string message) { }
     }
-} 
+}

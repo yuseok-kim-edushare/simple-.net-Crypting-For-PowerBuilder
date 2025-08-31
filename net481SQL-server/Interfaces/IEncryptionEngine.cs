@@ -52,8 +52,9 @@ namespace SecureLibrary.SQL.Interfaces
         /// Validates encryption metadata for correctness and security
         /// </summary>
         /// <param name="metadata">Encryption metadata to validate</param>
+        /// <param name="ignoreNonce">If true, nonce validation is skipped</param>
         /// <returns>Validation result with any error messages</returns>
-        ValidationResult ValidateEncryptionMetadata(EncryptionMetadata metadata);
+        ValidationResult ValidateEncryptionMetadata(EncryptionMetadata metadata, bool ignoreNonce = false);
 
         /// <summary>
         /// Gets the maximum number of columns supported by this encryption engine
