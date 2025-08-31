@@ -246,17 +246,36 @@ namespace SecureLibrary.Tests
         }
 
         [TestMethod]
+        public void DecryptAesGcmWithPasswordLegacy_ShouldDecryptSuccessfully()
+        {
+            // Arrange
+            string plainText = "This is a secret message in the old format!";
+            string password = "my-legacy-password";
+            int iterations = 2000;
+
+            // Act
+            // Encrypt using the LEGACY method to simulate old data
+            string encryptedLegacy = BcryptInterop.EncryptAesGcmWithPasswordLegacy(plainText, password, null, iterations);
+            
+            // Decrypt using the LEGACY method
+            string decryptedLegacy = BcryptInterop.DecryptAesGcmWithPasswordLegacy(encryptedLegacy, password, iterations);
+
+            // Assert
+            Assert.AreEqual(plainText, decryptedLegacy, "Legacy decryption should work correctly.");
+        }
+
+        [TestMethod]
         public void PasswordBasedEncryption_InvalidInputs_ShouldThrowException()
         {
             // Test null inputs
             Assert.ThrowsExactly<ArgumentNullException>(() => 
-                EncryptionHelper.EncryptAesGcmWithPassword(null, "password"));
+                BcryptInterop.EncryptAesGcmWithPassword(null, "password"));
             Assert.ThrowsExactly<ArgumentNullException>(() => 
-                EncryptionHelper.EncryptAesGcmWithPassword("text", null));
+                BcryptInterop.EncryptAesGcmWithPassword("text", null));
             Assert.ThrowsExactly<ArgumentNullException>(() => 
-                EncryptionHelper.DecryptAesGcmWithPassword(null, "password"));
+                BcryptInterop.DecryptAesGcmWithPassword(null, "password"));
             Assert.ThrowsExactly<ArgumentNullException>(() => 
-                EncryptionHelper.DecryptAesGcmWithPassword("data", null));
+                BcryptInterop.DecryptAesGcmWithPassword("data", null));
         }
 
         [TestMethod]

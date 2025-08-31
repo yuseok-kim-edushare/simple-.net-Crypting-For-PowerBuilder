@@ -211,7 +211,7 @@ namespace SecureLibrary
             if (iterations < 1000 || iterations > 100000)
                 throw new ArgumentException("Iteration count must be between 1000 and 100000", "iterations");
 
-            return BcryptInterop.EncryptAesGcmWithPassword(plainText, password, null, iterations);
+            return BcryptInterop.EncryptAesGcmWithPassword(plainText, password, iterations);
         }
 
         /// <summary>
@@ -278,7 +278,7 @@ namespace SecureLibrary
 
             try
             {
-                return BcryptInterop.EncryptAesGcmWithPassword(plainText, password, saltBytes, iterations);
+                return BcryptInterop.EncryptAesGcmWithPassword(plainText, password, iterations);
             }
             finally
             {

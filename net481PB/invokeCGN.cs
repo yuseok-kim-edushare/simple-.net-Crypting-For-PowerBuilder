@@ -272,22 +272,21 @@ namespace SecureLibrary
             }
         }
 
-        // Password-based AES-GCM encryption methods
+        // Password-based AES-GCM encryption methods - NEW STANDARD (SQL Server Compatible)
         /// <summary>
-        /// Encrypts string using AES-GCM with password-based key derivation
+        /// Encrypts string using AES-GCM with password-based key derivation (SQL Server Compatible)
         /// </summary>
         /// <param name="plainText">Text to encrypt</param>
         /// <param name="password">Password for key derivation</param>
-        /// <param name="salt">Salt for key derivation (optional, will generate if null)</param>
         /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
         /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
-        public static string EncryptAesGcmWithPassword(string plainText, string password, byte[] salt = null, int iterations = 2000)
+        public static string EncryptAesGcmWithPassword(string plainText, string password, int iterations = 2000)
         {
             if (plainText == null) throw new ArgumentNullException("plainText");
             if (password == null) throw new ArgumentNullException("password");
 
             byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-            byte[] encryptedBytes = EncryptAesGcmBytes(plainBytes, password, salt, iterations);
+            byte[] encryptedBytes = EncryptAesGcmBytes(plainBytes, password, null, iterations);
             
             // Clear sensitive data
             Array.Clear(plainBytes, 0, plainBytes.Length);
@@ -296,7 +295,7 @@ namespace SecureLibrary
         }
 
         /// <summary>
-        /// Decrypts string using AES-GCM with password-based key derivation
+        /// Decrypts string using AES-GCM with password-based key derivation (SQL Server Compatible)
         /// </summary>
         /// <param name="base64EncryptedData">Base64 encoded encrypted data</param>
         /// <param name="password">Password for key derivation</param>
@@ -320,6 +319,157 @@ namespace SecureLibrary
         }
 
         /// <summary>
+        /// Encrypts byte array using AES-GCM with password-based key derivation (SQL Server Compatible)
+        /// </summary>
+        /// <param name="plainData">Data to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="salt">Salt for key derivation (optional, will generate if null). Must be 32 bytes if provided.</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Encrypted data with salt, nonce, and tag</returns>
+        public static byte[] EncryptAesGcmBytes(byte[] plainData, string password, byte[] salt = null, int iterations = 2000)
+        {
+            if (plainData == null) throw new ArgumentNullException("plainData");
+            if (password == null) throw new ArgumentNullException("password");
+
+            // Generate 32-byte salt if not provided, matching SQL Server implementation
+            if (salt == null)
+            {
+                salt = new byte[32];
+                using (var rng = new RNGCryptoServiceProvider())
+                {
+                    rng.GetBytes(salt);
+                }
+            }
+            else if (salt.Length != 32)
+            {
+                throw new ArgumentException("Salt must be 32 bytes.", "salt");
+            }
+
+            // Derive 32-byte key from password
+            byte[] key;
+            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256))
+            {
+                key = pbkdf2.GetBytes(32);
+            }
+
+            // Generate 12-byte nonce
+            byte[] nonce = new byte[12];
+            using (var rng = new RNGCryptoServiceProvider())
+            {
+                rng.GetBytes(nonce);
+            }
+
+            byte[] encryptedData = EncryptAesGcmBytes(plainData, key, nonce);
+
+            // Combine salt + nonce + encrypted data for output
+            byte[] result = new byte[salt.Length + nonce.Length + encryptedData.Length];
+            Buffer.BlockCopy(salt, 0, result, 0, salt.Length);
+            Buffer.BlockCopy(nonce, 0, result, salt.Length, nonce.Length);
+            Buffer.BlockCopy(encryptedData, 0, result, salt.Length + nonce.Length, encryptedData.Length);
+
+            // Clear sensitive data
+            Array.Clear(key, 0, key.Length);
+            Array.Clear(nonce, 0, nonce.Length);
+            Array.Clear(encryptedData, 0, encryptedData.Length);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Decrypts byte array using AES-GCM with password-based key derivation (SQL Server Compatible)
+        /// </summary>
+        /// <param name="encryptedData">Encrypted data with salt, nonce, and tag</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Decrypted data</returns>
+        public static byte[] DecryptAesGcmBytes(byte[] encryptedData, string password, int iterations = 2000)
+        {
+            if (encryptedData == null) throw new ArgumentNullException("encryptedData");
+            if (password == null) throw new ArgumentNullException("password");
+
+            const int saltLength = 32;
+            const int nonceLength = 12;
+            const int tagLength = 16;
+
+            if (encryptedData.Length < saltLength + nonceLength + tagLength)
+                throw new ArgumentException("Encrypted data too short", "encryptedData");
+
+            // Extract salt, nonce, and cipher data
+            byte[] salt = new byte[saltLength];
+            byte[] nonce = new byte[nonceLength];
+            byte[] cipherWithTag = new byte[encryptedData.Length - saltLength - nonceLength];
+            byte[] key = null;
+
+            Buffer.BlockCopy(encryptedData, 0, salt, 0, saltLength);
+            Buffer.BlockCopy(encryptedData, saltLength, nonce, 0, nonceLength);
+            Buffer.BlockCopy(encryptedData, saltLength + nonceLength, cipherWithTag, 0, cipherWithTag.Length);
+
+            // Derive key and decrypt
+            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256))
+            {
+                key = pbkdf2.GetBytes(32);
+            }
+
+            byte[] result = DecryptAesGcmBytes(cipherWithTag, key, nonce);
+
+            // Clear sensitive data
+            Array.Clear(salt, 0, salt.Length);
+            Array.Clear(nonce, 0, nonce.Length);
+            Array.Clear(cipherWithTag, 0, cipherWithTag.Length);
+            Array.Clear(key, 0, key.Length);
+
+            return result;
+        }
+
+
+        // Password-based AES-GCM encryption methods - LEGACY
+        /// <summary>
+        /// Encrypts string using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="plainText">Text to encrypt</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="salt">Salt for key derivation (optional, will generate if null)</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Base64 encoded encrypted data with salt, nonce, and tag</returns>
+        public static string EncryptAesGcmWithPasswordLegacy(string plainText, string password, byte[] salt = null, int iterations = 2000)
+        {
+            if (plainText == null) throw new ArgumentNullException("plainText");
+            if (password == null) throw new ArgumentNullException("password");
+
+            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+            byte[] encryptedBytes = EncryptAesGcmBytesLegacy(plainBytes, password, salt, iterations);
+            
+            // Clear sensitive data
+            Array.Clear(plainBytes, 0, plainBytes.Length);
+            
+            return Convert.ToBase64String(encryptedBytes);
+        }
+
+        /// <summary>
+        /// Decrypts string using AES-GCM with password-based key derivation
+        /// </summary>
+        /// <param name="base64EncryptedData">Base64 encoded encrypted data</param>
+        /// <param name="password">Password for key derivation</param>
+        /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
+        /// <returns>Decrypted text</returns>
+        public static string DecryptAesGcmWithPasswordLegacy(string base64EncryptedData, string password, int iterations = 2000)
+        {
+            if (base64EncryptedData == null) throw new ArgumentNullException("base64EncryptedData");
+            if (password == null) throw new ArgumentNullException("password");
+
+            byte[] encryptedBytes = Convert.FromBase64String(base64EncryptedData);
+            byte[] decryptedBytes = DecryptAesGcmBytesLegacy(encryptedBytes, password, iterations);
+            
+            string result = Encoding.UTF8.GetString(decryptedBytes);
+            
+            // Clear sensitive data
+            Array.Clear(encryptedBytes, 0, encryptedBytes.Length);
+            Array.Clear(decryptedBytes, 0, decryptedBytes.Length);
+            
+            return result;
+        }
+
+        /// <summary>
         /// Encrypts byte array using AES-GCM with password-based key derivation
         /// </summary>
         /// <param name="plainData">Data to encrypt</param>
@@ -327,7 +477,7 @@ namespace SecureLibrary
         /// <param name="salt">Salt for key derivation (optional, will generate if null)</param>
         /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
         /// <returns>Encrypted data with salt, nonce, and tag</returns>
-        public static byte[] EncryptAesGcmBytes(byte[] plainData, string password, byte[] salt = null, int iterations = 2000)
+        public static byte[] EncryptAesGcmBytesLegacy(byte[] plainData, string password, byte[] salt = null, int iterations = 2000)
         {
             if (plainData == null) throw new ArgumentNullException("plainData");
             if (password == null) throw new ArgumentNullException("password");
@@ -380,7 +530,7 @@ namespace SecureLibrary
         /// <param name="password">Password for key derivation</param>
         /// <param name="iterations">PBKDF2 iteration count (default: 2000)</param>
         /// <returns>Decrypted data</returns>
-        public static byte[] DecryptAesGcmBytes(byte[] encryptedData, string password, int iterations = 2000)
+        public static byte[] DecryptAesGcmBytesLegacy(byte[] encryptedData, string password, int iterations = 2000)
         {
             if (encryptedData == null) throw new ArgumentNullException("encryptedData");
             if (password == null) throw new ArgumentNullException("password");

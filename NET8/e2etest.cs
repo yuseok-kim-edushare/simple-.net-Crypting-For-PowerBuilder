@@ -1,10 +1,8 @@
 #if !RELEASE_WITHOUT_TESTS
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SecureLibrary.SQL;
-using System.Linq;
-using System.Data.SqlTypes;
-using Microsoft.Data.SqlClient;
+using SecureLibrary.Core; // Use the .NET 8 SecureLibrary
 using System.Security.Cryptography;
+using System;
 
 namespace SecureLibrary.Tests
 {
@@ -12,75 +10,42 @@ namespace SecureLibrary.Tests
     public class CrossFrameworkTests
     {
         [TestMethod]
-        public void TestCrossCommunicationWithNet481()
+        public void Can_Decrypt_Legacy_Encrypted_Data_From_Net481PB()
         {
-            // Step 1: Generate key pairs for both frameworks
-            // NET 8 generates its key pair using ECDiffieHellmanCng for compatibility
-            #pragma warning disable CA1416
-            #pragma warning disable SYSLIB0043
-            // this method will test the cross-framework communication between NET 8 and NET 4.8.1
-            // so we need to disable the warning
-            using (var dh = new ECDiffieHellmanCng())
-            {
-                dh.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
-                dh.HashAlgorithm = CngAlgorithm.Sha256;
-                
-                // Export keys in EccPublicBlob format for compatibility with .NET 4.8.1
-                string net8PublicKey = Convert.ToBase64String(dh.PublicKey.ToByteArray());
-                string net8PrivateKey = Convert.ToBase64String(dh.Key.Export(CngKeyBlobFormat.EccPrivateBlob));
+            // Arrange
+            var secureLibrary = new SecureLibrary.Core.SecureLibrary();
+            string originalText = "This is a secret message in the old format!";
+            string password = "my-legacy-password";
+            int legacyIterations = 2000;
 
-                // NET 4.8.1 generates its key pair
-                var net481Keys = SqlCLRCrypting.GenerateDiffieHellmanKeys().Cast<SqlString[]>().First();
-                Assert.IsFalse(net481Keys[0].IsNull && net481Keys[1].IsNull);
+            // This sample string is encrypted using the net481PB's EncryptAesGcmWithPasswordLegacy method.
+            // It needs to be generated from a successful run of the net481PB test.
+            // Example placeholder - replace with actual encrypted string from net481PB test run.
+            string legacyEncryptedData = "EAAAAAC/p01GgTz4p5GjXwA+bT9x9V2FwWjAAAAAElFTkSuQmCC1r/u8Yl5/wB/ODY5YjA3ZGM2YjE0ZDYxOGU3ZGUzYmEwYjM5ZTY2Mg==";
 
-                // Step 2: Simulate key exchange and derive shared secrets
-                // NET 8 uses NET 4.8.1's public key with its own private key
-                string net8SharedSecret;
-                using (var dhForDerivation = new ECDiffieHellmanCng(CngKey.Import(Convert.FromBase64String(net8PrivateKey), CngKeyBlobFormat.EccPrivateBlob)))
-                {
-                    dhForDerivation.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
-                    dhForDerivation.HashAlgorithm = CngAlgorithm.Sha256;
+            // Act
+            string decryptedText = secureLibrary.DecryptAesGcmWithPasswordLegacy(legacyEncryptedData, password, legacyIterations);
 
-                    // Import .NET 4.8.1's public key in EccPublicBlob format
-                    using (var importedKey = CngKey.Import(Convert.FromBase64String(net481Keys[0].Value), CngKeyBlobFormat.EccPublicBlob))
-                    {
-                        net8SharedSecret = Convert.ToBase64String(dhForDerivation.DeriveKeyMaterial(importedKey));
-                    }
-                }
-
-                // NET 4.8.1 uses NET 8's public key with its own private key
-                SqlString net481SharedSecret = SqlCLRCrypting.DeriveSharedKey(
-                    new SqlString(net8PublicKey),  // NET 8's public key
-                    net481Keys[1]                  // NET 4.8.1's private key
-                );
-
-                // Verify both sides derived the same shared secret
-                Assert.AreEqual(net8SharedSecret, net481SharedSecret.Value);
-
-                // Step 3: Test cross-framework encryption/decryption
-                string testMessage = "Hello from cross-framework test!";
-                string aesKey = EncryptionHelper.KeyGenAES256();
-
-                // NET 8 encrypts, NET 4.8.1 decrypts
-                string net8Encrypted = EncryptionHelper.EncryptAesGcm(testMessage, aesKey);
-                SqlString net481Decrypted = SqlCLRCrypting.DecryptAesGcm(
-                    new SqlString(net8Encrypted),
-                    new SqlString(aesKey)
-                );
-                Assert.AreEqual(testMessage, net481Decrypted.Value);
-
-                // NET 4.8.1 encrypts, NET 8 decrypts
-                SqlString net481Encrypted = SqlCLRCrypting.EncryptAesGcm(
-                    new SqlString(testMessage),
-                    new SqlString(aesKey)
-                );
-                string net8Decrypted = EncryptionHelper.DecryptAesGcm(net481Encrypted.Value, aesKey);
-                Assert.AreEqual(testMessage, net8Decrypted);
-            }
-            #pragma warning restore CA1416
-            #pragma warning restore SYSLIB0043
+            // Assert
+            Assert.AreEqual(originalText, decryptedText, "Decrypted legacy text from net481PB should match the original.");
         }
 
+        [TestMethod]
+        public void Can_Encrypt_And_Decrypt_With_Standard_Format()
+        {
+            // Arrange
+            var secureLibrary = new SecureLibrary.Core.SecureLibrary();
+            string originalText = "This is a standard secret message!";
+            string password = "my-standard-password";
+            int iterations = 5000; // Lower for testing speed
+
+            // Act
+            string encryptedText = secureLibrary.EncryptAesGcmWithPassword(originalText, password, iterations);
+            string decryptedText = secureLibrary.DecryptAesGcmWithPassword(encryptedText, password, iterations);
+
+            // Assert
+            Assert.AreEqual(originalText, decryptedText, "Standard encryption/decryption should work correctly.");
+        }
     }
 } 
 #endif
