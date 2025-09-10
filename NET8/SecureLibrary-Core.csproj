@@ -31,7 +31,7 @@
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.8" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.9" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)'!='Release'">
