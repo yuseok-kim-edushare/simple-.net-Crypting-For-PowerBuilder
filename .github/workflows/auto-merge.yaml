@@ -1,4 +1,4 @@
-﻿name: Auto-merge on Repository Dispatch
+name: Auto-merge on Repository Dispatch
 
 on:
   repository_dispatch:
@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Get PR information
         id: pr-info
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = context.payload.client_payload.pr_number;
@@ -81,7 +81,7 @@ jobs:
             }
 
       - name: Merge PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = ${{ steps.pr-info.outputs.pr-number }};
@@ -115,7 +115,7 @@ jobs:
           echo "The merge commit will trigger the CI workflow on the main branch."
 
       - name: Trigger CD workflow
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = ${{ steps.pr-info.outputs.pr-number }};
