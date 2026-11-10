@@ -18,8 +18,8 @@ This directory contains examples and installation scripts for different platform
 ## 📁 Powerbuilder-Net 4.8
 PowerBuilder examples for .NET Framework 4.8
 
-## 📁 Powerbuilder-Net 8  
-PowerBuilder examples for .NET 8
+## 📁 Powerbuilder-Net 11  
+PowerBuilder examples for .NET 11
 
 ---
 

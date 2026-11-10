@@ -30,6 +30,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v7
 
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 11.0.x
+
     - name: Get USERPROFILE and set CACHE_PATH
       id: set_cache_path
       shell: pwsh

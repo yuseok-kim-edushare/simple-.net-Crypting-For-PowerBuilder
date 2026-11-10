@@ -15,10 +15,10 @@ namespace SecureLibrary.Tests
         public void TestCrossCommunicationWithNet481()
         {
             // Step 1: Generate key pairs for both frameworks
-            // NET 8 generates its key pair using ECDiffieHellmanCng for compatibility
+            // .NET 11 generates its key pair using ECDiffieHellmanCng for compatibility
             #pragma warning disable CA1416
             #pragma warning disable SYSLIB0043
-            // this method will test the cross-framework communication between NET 8 and NET 4.8.1
+            // this method will test the cross-framework communication between .NET 11 and .NET 4.8.1
             // so we need to disable the warning
             using (var dh = new ECDiffieHellmanCng())
             {
@@ -50,7 +50,7 @@ namespace SecureLibrary.Tests
 
                 // NET 4.8.1 uses NET 8's public key with its own private key
                 SqlString net481SharedSecret = SqlCLRCrypting.DeriveSharedKey(
-                    new SqlString(net8PublicKey),  // NET 8's public key
+                    new SqlString(net8PublicKey),  // .NET 11's public key
                     net481Keys[1]                  // NET 4.8.1's private key
                 );
 

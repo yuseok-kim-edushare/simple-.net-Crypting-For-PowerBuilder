@@ -79,7 +79,7 @@ dotnet build SecureLibrary-SQL.csproj --configuration Release
 ## Alternative: Cross-Framework Testing (Already Working)
 
 ### Overview
-The `NET8/e2etest.cs` file already implements cross-framework testing that can test SQL CLR functionality without security transparency issues.
+The `NET11/e2etest.cs` file already implements cross-framework testing that can test SQL CLR functionality without security transparency issues.
 
 ### Implementation
 The existing `e2etest.cs` includes comprehensive SQL CLR tests:
@@ -92,19 +92,19 @@ The existing `e2etest.cs` includes comprehensive SQL CLR tests:
 ### Usage
 ```bash
 # Run cross-framework tests
-cd NET8
+cd NET11
 dotnet test
 ```
 
 ### Pros
 - ✅ Already implemented and working
-- ✅ Tests both .NET 4.8.1 and .NET 8 compatibility
+- ✅ Tests both .NET 4.8.1 and .NET 11 compatibility
 - ✅ No security transparency issues
 - ✅ Comprehensive test coverage
 
 ### Cons
 - ⚠️ Tests are in a different project
-- ⚠️ Requires .NET 8 runtime
+- ⚠️ Requires .NET 11 runtime
 
 ## Recommended Approach
 
@@ -126,7 +126,7 @@ dotnet test net481SQL-server/SecureLibrary-SQL.csproj --configuration Debug
 ### Cross-Framework Testing
 ```bash
 # Run existing cross-framework tests
-cd NET8
+cd NET11
 dotnet test
 ```
 

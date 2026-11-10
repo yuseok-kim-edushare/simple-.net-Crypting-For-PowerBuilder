@@ -24,6 +24,11 @@ jobs:
         # If triggered by repository_dispatch, checkout the merge commit from the PR
         ref: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.target_commit_sha || github.sha }}
 
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 11.0.x
+
     - name: Get USERPROFILE and set CACHE_PATH
       id: set_cache_path
       shell: pwsh
@@ -51,7 +56,7 @@ jobs:
     - name: Install ILMerge and ILRepack
       run: |
         nuget install ILMerge -Version 3.0.41 -OutputDirectory ${{ github.workspace }}\packages
-        dotnet tool install -g dotnet-ilrepack
+        dotnet tool install -g dotnet-ilrepack --version 2.0.48
 
     - name: Merge and Create Release Files
       run: |
@@ -87,18 +92,18 @@ jobs:
                    ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\Microsoft.SqlServer.Server.dll `
                    ${{ github.workspace }}\net481SQL-server\bin\Release\net481\publish\System.Security.Cryptography.ProtectedData.dll
 
-        # Merge NET 8 DLLs (using ILRepack)
+        # Merge NET 11 DLLs (using ILRepack)
         ilrepack /out:${{ github.workspace }}\release-files\SecureLibrary-Core.dll `
                    /union `
                    /internalize `
                    /keyfile:${{ github.workspace }}\Simple-Crypt4PB.snk `
-                   ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\SecureLibrary-Core.dll `
-                   ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\BCrypt-Net-Next.dll `
-                   ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\System.Security.Cryptography.ProtectedData.dll
+                   ${{ github.workspace }}\NET11\bin\Release\net11.0\publish\SecureLibrary-Core.dll `
+                   ${{ github.workspace }}\NET11\bin\Release\net11.0\publish\BCrypt-Net-Next.dll `
+                   ${{ github.workspace }}\NET11\bin\Release\net11.0\publish\System.Security.Cryptography.ProtectedData.dll
                   
         # copy Comhost and runtimeconfig.json to release-files
-        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\SecureLibrary-Core.comhost.dll ${{ github.workspace }}\release-files\SecureLibrary-Core.comhost.dll
-        Copy-Item ${{ github.workspace }}\NET8\bin\Release\net8.0\publish\SecureLibrary-Core.runtimeconfig.json ${{ github.workspace }}\release-files\SecureLibrary-Core.runtimeconfig.json
+        Copy-Item ${{ github.workspace }}\NET11\bin\Release\net11.0\publish\SecureLibrary-Core.comhost.dll ${{ github.workspace }}\release-files\SecureLibrary-Core.comhost.dll
+        Copy-Item ${{ github.workspace }}\NET11\bin\Release\net11.0\publish\SecureLibrary-Core.runtimeconfig.json ${{ github.workspace }}\release-files\SecureLibrary-Core.runtimeconfig.json
 
     - name: Get latest release version and Generate release notes
       id: get_latest_release

@@ -211,7 +211,7 @@ namespace SecureLibrary
                     }
                     catch
                     {
-                        // If that fails, try importing as SubjectPublicKeyInfo (for .NET 8 format)
+                        // If that fails, try importing as SubjectPublicKeyInfo (the format this library exports)
                         otherPartyKey.ImportSubjectPublicKeyInfo(otherPartyPublicKey, out _);
                         return Convert.ToBase64String(dh.DeriveKeyMaterial(otherPartyKey.PublicKey));
                     }
@@ -310,11 +310,7 @@ namespace SecureLibrary
             }
 
             // Derive 32-byte key from password
-            byte[] key;
-            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256))
-            {
-                key = pbkdf2.GetBytes(32);
-            }
+            byte[] key = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, 32);
 
             // Generate 12-byte nonce
             byte[] nonce = new byte[12];
@@ -366,11 +362,7 @@ namespace SecureLibrary
             Buffer.BlockCopy(encryptedData, headerLength + saltLength, nonce, 0, nonceLength);
             Buffer.BlockCopy(encryptedData, headerLength + saltLength + nonceLength, cipherWithTag, 0, cipherWithTag.Length);
             // Derive key and decrypt
-            byte[] key;
-            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA256))
-            {
-                key = pbkdf2.GetBytes(32);
-            }
+            byte[] key = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, 32);
             
             return ProtectedMemoryHelper.ExecuteWithProtection(new byte[][] { key, nonce }, (protectedArrays) =>
             {
@@ -526,11 +518,7 @@ namespace SecureLibrary
             if (iterations < 1000 || iterations > 100000)
                 throw new ArgumentException("Iteration count must be between 1000 and 100000", nameof(iterations));
 
-            byte[] key;
-            using (var pbkdf2 = new Rfc2898DeriveBytes(password, saltBytes, iterations, HashAlgorithmName.SHA256))
-            {
-                key = pbkdf2.GetBytes(32);
-            }
+            byte[] key = Rfc2898DeriveBytes.Pbkdf2(password, saltBytes, iterations, HashAlgorithmName.SHA256, 32);
 
             string result = Convert.ToBase64String(key);
             

@@ -18,16 +18,16 @@ This Project will create .NET dll for Powerbuilder (Bcrypt PW hash, AES-GCM and 
     - [Download .NET Framework 4.8.1](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net481)
       - to run DLL, runtime needs to be installed, powerbuilder dev needs SDK installed windows PC
       - Required windows 10 21H2 or later and windows server 2022 or later
-  - .NET 8
+  - .NET 11
     - This is for Powerbuilder 2022 R3 Latest or 2025
-    - [Download .NET 8](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+    - [Download .NET 11](https://dotnet.microsoft.com/en-us/download/dotnet/11.0)
       - to run DLL, runtime needs to be installed, powerbuilder dev needs SDK installed windows PC
       - we need .NET Desktop Runtime for windows
       - Required windows server 2016 or later and windows 10 (LTSC 1607+ or 22H2) or laters
 
 - **[Example Code](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples)**
   - [PB with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%204.8)
-  - [PB with .NET 8 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%208)
+  - [PB with .NET 11 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%2011)
   - [(legacy) MS-SQL with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/SQL-server-Net%204.8)
       - SQL server target dll also support table encryption and decryption, but this feature is under development
       - Powerbuilder can handle table but not implemented creation for PB (we need dynamic datawindow for decrypted data using)

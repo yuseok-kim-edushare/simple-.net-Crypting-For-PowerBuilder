@@ -1,8 +1,8 @@
 ﻿$PBExportHeader$nvo_encryptionhelper.sru
 
 /*
-This is example code for Powerbuilder with .NET 8
-.NET 8 dll didn't need to created for COM
+This is example code for Powerbuilder with .NET 11
+.NET 11 dll didn't need to created for COM
 */
 
 forward
@@ -18,7 +18,7 @@ global nvo_encryptionhelper nvo_encryptionhelper
 type variables
 
 PUBLIC:
-String is_assemblypath = "NET8.dll"
+String is_assemblypath = "NET11.dll"
 String is_classname = "SecureLibrary.EncryptionHelper"
 
 /* Exception handling -- Indicates how proxy handles .NET exceptions */

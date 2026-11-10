@@ -18,16 +18,16 @@
     - [.NET Framework 4.8.1 다운로드](https://dotnet.microsoft.com/ko-kr/download/dotnet-framework/net481)
       - DLL 실행을 위해 런타임을 설치해야 하고, Powerbuilder 개발자는 Windows PC에 SDK를 설치해야 합니다.
       - 필요한 환경: windows 10 21H2 이상 또는 windows server 2022 이상
-  - .NET 8
+  - .NET 11
     - Powerbuilder 2022 R3 최신 버전 또는 2025 이후 버전
-    - [.NET 8 다운로드](https://dotnet.microsoft.com/ko-kr/download/dotnet/8.0)
+    - [.NET 11 다운로드](https://dotnet.microsoft.com/ko-kr/download/dotnet/11.0)
       - 클라이언트는 런타임을 설치해야 하고, Powerbuilder 개발자는 SDK를 설치해야 합니다.
       - 우리는 Windows용 .NET Desktop Runtime이 필요합니다.
-      - 필요한 환경: windows server 2012 이상 또는 windows 10 이상
+      - 필요한 환경: windows server 2016 이상 또는 windows 10 (LTSC 1607 이상) 이상
 
 - **[예제 코드](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples)**
   - [PB with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%204.8)
-  - [PB with .NET 8 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%208)
+  - [PB with .NET 11 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/Powerbuilder-Net%2011)
   - [MS-SQL with .NET 4.8.1 DLL](https://github.com/yuseok-kim-edushare/simple-.net-Crypting-For-PowerBuilder/tree/main/Examples/SQL-server-Net%204.8)
 
 ## Powerbuilder에서 몇몇 암호화 옵션이 구현되지 않아서 이 프로젝트를 수행하게 되었습니다.

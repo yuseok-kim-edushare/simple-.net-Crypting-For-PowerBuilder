@@ -28,7 +28,7 @@ Given this is a cryptographic library:
 
 - Visual Studio 2022 or later
 - .NET Framework 4.8.1 SDK
-- .NET 8.0 SDK
+- .NET 11.0 SDK
 - PowerBuilder (for testing PB integration)
 - SQL Server (for testing SQL CLR integration)
 
@@ -53,8 +53,8 @@ Tests must pass before any PR will be accepted:
 .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe net481pb\bin\Debug\SecureLibrary.dll
 .\testrunner\NUnit.ConsoleRunner.3.19.1\tools\nunit3-console.exe net481SQL-server\bin\Debug\SecureLibrary.SQL.dll
 
-# Run .NET 8 tests
-dotnet test NET8/NET8.csproj --configuration Debug
+# Run .NET 11 tests
+dotnet test NET11/SecureLibrary-Core.csproj --configuration Debug
 ```
 
 ## Pull Request Process

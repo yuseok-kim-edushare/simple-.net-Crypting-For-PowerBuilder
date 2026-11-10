@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
@@ -13,8 +13,8 @@
     <DelaySign>false</DelaySign>
     
     <!-- Assembly Information -->
-    <AssemblyTitle>simple-.NET-Crypting-For-PowerBuilder-NET8</AssemblyTitle>
-    <AssemblyDescription>.NET 8 library for PowerBuilder providing AES-GCM encryption, Bcrypt password hashing, and ECDH key exchange functionality</AssemblyDescription>
+    <AssemblyTitle>simple-.NET-Crypting-For-PowerBuilder-NET11</AssemblyTitle>
+    <AssemblyDescription>.NET 11 library for PowerBuilder providing AES-GCM encryption, Bcrypt password hashing, and ECDH key exchange functionality</AssemblyDescription>
     <AssemblyCompany>김유석(Yu Seok Kim)</AssemblyCompany>
     <AssemblyProduct>simple-.NET-Crypting-For-PowerBuilder</AssemblyProduct>
     <AssemblyCopyright>Copyright © 2025 김유석(Yu Seok Kim)</AssemblyCopyright>
@@ -31,15 +31,22 @@
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)'!='Release'">
     <ProjectReference Include="..\net481SQL-server\SecureLibrary-SQL.csproj" />
     <PackageReference Include="MSTest.TestFramework" Version="4.5.2" />
     <PackageReference Include="MSTest.TestAdapter" Version="4.5.2" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.1" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
+    <!-- SqlClient 7.1.1 has no net11 asset, so restore selects its net9 graph at the lowest match. These pins move that graph onto the patched 9.0 servicing line. -->
+    <PackageReference Include="Microsoft.Bcl.Cryptography" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.23" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.23" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="9.0.23" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.23" />
+    <PackageReference Include="System.Threading.RateLimiting" Version="9.0.23" />
   </ItemGroup>
 
 </Project>
