@@ -41,12 +41,12 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.1" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <!-- SqlClient 7.1.1 has no net11 asset, so restore selects its net9 graph at the lowest match. These pins move that graph onto the patched 9.0 servicing line. -->
-    <PackageReference Include="Microsoft.Bcl.Cryptography" Version="9.0.23" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.23" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.23" />
-    <PackageReference Include="System.Diagnostics.EventLog" Version="9.0.23" />
-    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.23" />
-    <PackageReference Include="System.Threading.RateLimiting" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Bcl.Cryptography" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="11.0.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="11.0.0" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="11.0.0" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="11.0.0" />
+    <PackageReference Include="System.Threading.RateLimiting" Version="11.0.0" />
   </ItemGroup>
 
 </Project>
